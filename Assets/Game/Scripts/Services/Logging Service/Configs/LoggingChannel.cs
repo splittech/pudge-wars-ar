@@ -5,6 +5,7 @@ namespace Game.Services.LoggingService
         LoadingScreen,
         SceneService,
         AudioService,
+        ApplicationService,
         Input
     }
 }
