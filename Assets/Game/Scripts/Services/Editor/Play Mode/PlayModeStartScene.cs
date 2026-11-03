@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace Game.Editor.PlayMode
+namespace Game.Services.Editor.PlayMode
 {
     /// <summary>
     /// Starts Play Mode from the core scene of <see cref="SceneServiceConfig"/> regardless of the scenes open in the editor.

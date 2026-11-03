@@ -4,7 +4,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Game.Editor.MetaAssetManager
+namespace Game.Services.Editor.MetaAssetManager
 {
     /// <summary>
     /// Per-type folders for meta assets, stored in ProjectSettings so they are shared via version control.

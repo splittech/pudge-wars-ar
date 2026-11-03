@@ -5,7 +5,7 @@ using UnityEngine.Audio;
 
 namespace Game.Services.AudioService
 {
-    [CreateAssetMenu(fileName = "Sound Meta Asset", menuName = "Game/Meta Assets/Audio Service/Sound Meta Asset", order = 0)]
+    [CreateAssetMenu(fileName = "Sound Meta Asset", menuName = "Game/Meta Assets/Sound Meta Asset", order = 0)]
     public sealed class SoundMetaAsset : ScriptableObject
     {
         [BoxGroup("General")]

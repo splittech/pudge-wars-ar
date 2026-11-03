@@ -70,10 +70,21 @@ namespace Game.Services.LoadingScreen
             ResetProgress();
             gameObject.SetActive(true);
 
-            if (await ShowAsync(token).SuppressCancellationThrow())
-                return;
-
-            _state = State.Shown;
+            try
+            {
+                await ShowAsync(token);
+                token.ThrowIfCancellationRequested();
+                _state = State.Shown;
+            }
+            catch
+            {
+                if (_transitionCts != null && _transitionCts.Token == token)
+                {
+                    SetVisibleImmediate(false);
+                    CompleteHide();
+                }
+                throw;
+            }
             _logger.Log("Loading screen is shown.");
         }
 
@@ -89,13 +100,22 @@ namespace Game.Services.LoadingScreen
             // Respect the minimum show time and let the bar reach 100% even if loading never reported 1.
             _targetProgressValue = 1f;
 
-            if (await UniTask.WaitUntil(() => _progressValue >= 1f, cancellationToken: token).SuppressCancellationThrow())
-                return;
-
-            if (await HideAsync(token).SuppressCancellationThrow())
-                return;
-
-            CompleteHide();
+            try
+            {
+                await UniTask.WaitUntil(() => _progressValue >= 1f, cancellationToken: token);
+                await HideAsync(token);
+                token.ThrowIfCancellationRequested();
+                CompleteHide();
+            }
+            catch
+            {
+                if (_transitionCts != null && _transitionCts.Token == token)
+                {
+                    SetVisibleImmediate(true);
+                    _state = State.Shown;
+                }
+                throw;
+            }
             _logger.Log("Loading screen is hidden.");
         }
 

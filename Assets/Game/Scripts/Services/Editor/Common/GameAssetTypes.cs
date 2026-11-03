@@ -5,7 +5,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Game.Editor.Common
+namespace Game.Services.Editor.Common
 {
     /// <summary>
     /// Discovers ScriptableObject types with <see cref="CreateAssetMenuAttribute"/> from Game.* assemblies.

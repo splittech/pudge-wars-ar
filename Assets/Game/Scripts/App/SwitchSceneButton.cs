@@ -33,12 +33,19 @@ namespace Game.App
 
         private async UniTask SwitchSceneAsync()
         {
-            await _loadingScreen.ShowScreenAsync();
-
-            _loadingScreen.SetProgressDescription(_switchSceneProgressText);
-            await _sceneService.SwitchSceneAsync(_sceneToSwitch, _loadingScreen.LoadingProgress);
-
-            await _loadingScreen.HideScreenAsync();
+            _button.interactable = false;
+            try
+            {
+                await _loadingScreen.ShowScreenAsync();
+                _loadingScreen.SetProgressDescription(_switchSceneProgressText);
+                await _sceneService.SwitchSceneAsync(_sceneToSwitch, _loadingScreen.LoadingProgress);
+            }
+            finally
+            {
+                await _loadingScreen.HideScreenAsync();
+                if (this != null)
+                    _button.interactable = true;
+            }
         }
     }
 }

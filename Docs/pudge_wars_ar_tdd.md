@@ -2,9 +2,9 @@
 
 Мультиплеерная дуэль на крюках в дополненной реальности. Обзор аналогов, требования, обоснование стека, архитектура, сетевой протокол.
 
-- **Версия:** 1.4
+- **Версия:** 1.6
 - **Статус:** Утверждён к реализации (учебный проект)
-- **Дата:** 24 октября 2026
+- **Дата:** 3 ноября 2026
 - **Платформа:** Android (ARCore). iOS не поддерживается.
 - **Движок и стек:** Unity 6.6 · URP · AR Foundation · Mirror · VContainer · R3 · UniTask · DOTween · Alchemy · Input System (EnhancedTouch)
 - **Связанный документ:** «Pudge Wars AR — план реализации и чек-лист по этапам» (`pudge_wars_ar_checklist.md`)
@@ -69,6 +69,10 @@
 | 1.2 | 11.10.2026 | Папки тестов — `Edit Mode/` и `Play Mode/` (с пробелом, как создаёт Unity; раздел 8.3). Game.Core оставлена с Override References = выкл.: предкомпилированные DLL (R3, ObservableCollections, DOTween) ей видны, запрет на них держится договорённостью и ревью (раздел 8.2, NFR-09). Game.Core ссылается на Alchemy — для атрибутов инспектора на ScriptableObject-конфигах (разделы 7.1, 8.2). |
 | 1.3 | 16.10.2026 | Добавлены обзор существующих решений (раздел 3) и обоснование выбора технологий (раздел 9); разделы перенумерованы. Убраны трудно проверяемые нефункциональные требования (FPS на «среднем» устройстве, нагрев, «управляемость» при плохой сети, точность совмещения в сантиметрах), оставшиеся NFR перенумерованы. Убраны критерии приёмки MVP. Примеры кода и приложения А–Г заменены описанием решений в разделах 10–12. |
 | 1.4 | 24.10.2026 | Ввод: добавлен интерфейс `ILocalHero` (позиция своего героя для InputRouter), уточнены члены `IArenaSpace`, InputRouter публикует состояние прицела для AimLineView, второй палец отменяет свайп (раздел 11.3). DragThreshold задаётся в dp (раздел 13). Game.Tests ссылается и на Game.Input — для тестов InputRouter (раздел 10.2). |
+
+| 1.5 | 03.11.2026 | Каркас этапа 0: описаны сервисы, фактическая композиция сцен, оверлей и версия протокола; уточнены значения и снимки конфигов. |
+
+| 1.6 | 03.11.2026 | Development-оверлей вынесен в редактируемый uGUI-префаб в Boot; автоматическое создание из кода удалено. |
 
 ## 2. Обзор продукта
 
@@ -551,8 +555,9 @@ flowchart LR
 | **Game.Input** | ITouchGestures, EnhancedTouchGestures, IArenaSpace, InputRouter, AimAssist | Input System, Core, R3, VContainer |
 | **Game.Presentation** | HeroView, HookView, VFX, FlatCamera, индикаторы | Core, Net, R3, DOTween |
 | **Game.UI** | Экраны и презентеры | Core, Net, R3, DOTween, UniTask |
-| **Game.App** | LifetimeScope'ы, точки входа, SceneLoader | Все сборки |
-| **Game.Tests** | EditMode / PlayMode тесты | Core, Net, Input |
+| **Game.Services** | Загрузка сцен, экран загрузки, логирование, аудио, сервис приложения и raycast | UniTask, Alchemy, SceneReference, TMP, DOTween, R3, VContainer, Input System, uGUI |
+| **Game.App** | LifetimeScope'ы, точки входа, development-оверлей | Все сборки |
+| **Game.Tests** | EditMode / PlayMode тесты | Core, Net, Input, Services, UniTask |
 
 У Game.Core включены только ссылки на сборки (asmdef), Override References выключен. Поэтому ей автоматически доступны предкомпилированные DLL проекта — R3 и ObservableCollections из NuGet, DOTween. Компилятор их не запрещает; `using R3`, `using ObservableCollections`, `using DG.Tweening` в Core недопустимы и отсекаются на ревью. Mirror, AR Foundation и Input System подключены через asmdef и в Core недоступны физически.
 
@@ -590,6 +595,14 @@ Assets/Game/
 | MatchLifetimeScope | Match, один сетевой сеанс | IArenaAnchorProvider (AR или Flat), ArenaPlacementFlow, IArenaSpace, ITouchGestures, InputRouter, NetworkPrefabFactory, MatchSimulation, ServerTickRunner, MatchEventBus, HUD-презентеры |
 
 Сцены: **Boot** (точка входа, загружает Menu), **Menu** — offline-сцена Mirror, **Match** — online-сцена Mirror. Фазы Lobby → Results происходят внутри сцены Match, без смены сцен.
+
+Фактические имена скоупов: `ProjectScope`, `MainMenuScope`, `GameplayScope`; сцены: `Boot Scene`, `Main Menu Scene`, `Gameplay Scene`. Boot остаётся загруженной, остальные сцены загружаются аддитивно. ProjectBootstrap запускает начальную загрузку, ProjectScope регистрирует все шесть игровых конфигов.
+
+Game.Services содержит загрузку сцен, экран загрузки, логирование, аудио, сервис приложения и raycast. Зависимости: UniTask, Alchemy, SceneReference, TMP, DOTween, R3, VContainer, Input System, uGUI. Инструменты редактора вынесены в Game.Services.Editor. SceneLoader относится к Services, не App.
+
+Разработка этапа 0: оверлей FPS и Application.version — uGUI-префаб Assets/Game/Prefabs/UI/Development Overlay.prefab с экземпляром в Boot. Разметка и ссылка TMP задаются в префабе; компонент обновляет средний FPS по unscaled-времени с настраиваемым интервалом 0.5 с. В обычных сборках экземпляр выключается в Awake; в редакторе и development-сборках работает, не перехватывает ввод. Boot обеспечивает время жизни между сценами. Версия протокола: `Game.Core.NetworkProtocol.ProtocolVersion = 1`. Окно помощи — 10 с (FR-GP-10), лимит MVP — 4 игрока. ToData возвращает независимые readonly-снимки, коллекции копируются и доступны только для чтения. Obstacles откладываются до этапа 7.
+
+Unity-операции сцен после запуска доводятся до завершения; отмена проверяется до запуска и после обновления учёта сцен. Отмена анимации загрузки возвращает устойчивое состояние, если переход не заменён новым.
 
 ### 10.5 Создание сетевых объектов через DI
 

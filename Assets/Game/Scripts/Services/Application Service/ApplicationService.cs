@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Game.Services.ApplicationService
 {
-    public class ApplicationService
+    public class ApplicationService : IApplicationService
     {
         // So that 'using UnityEngine' will not auto delete as unused.
         Vector2 vector2 = new();

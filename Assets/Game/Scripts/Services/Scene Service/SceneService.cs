@@ -62,9 +62,10 @@ namespace Game.Services.SceneService
             }
 
             _logger.Log($"Loading scene with SceneMetaAsset: '{sceneName}'.");
-            _loadedScenes.Add(sceneAsset);
 
             await _sceneLoader.LoadSceneAsync(sceneAsset, progress, ct);
+            _loadedScenes.Add(sceneAsset);
+            ct.ThrowIfCancellationRequested();
             progress?.Report(1f);
         }
 
@@ -88,9 +89,10 @@ namespace Game.Services.SceneService
             }
 
             _logger.Log($"Unloading scene with SceneMetaAsset: '{sceneName}'.");
-            _loadedScenes.Remove(sceneAsset);
 
             await _sceneLoader.UnloadSceneAsync(sceneAsset, progress, ct);
+            _loadedScenes.Remove(sceneAsset);
+            ct.ThrowIfCancellationRequested();
             progress?.Report(1f);
         }
 

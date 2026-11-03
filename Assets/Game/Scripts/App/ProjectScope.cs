@@ -18,6 +18,11 @@ namespace Game.App
         [SerializeField] private SceneServiceConfig _sceneServiceConfig;
         [SerializeField] private LoggingServiceConfig _loggingServiceConfig;
         [SerializeField] private InputConfig _inputConfig;
+        [SerializeField] private HookConfig _hookConfig;
+        [SerializeField] private HeroConfig _heroConfig;
+        [SerializeField] private EconomyConfig _economyConfig;
+        [SerializeField] private ArenaConfig _arenaConfig;
+        [SerializeField] private MatchConfig _matchConfig;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -38,6 +43,11 @@ namespace Game.App
 
             // Game Configs
             builder.RegisterInstance(_inputConfig);
+            builder.RegisterInstance(_hookConfig);
+            builder.RegisterInstance(_heroConfig);
+            builder.RegisterInstance(_economyConfig);
+            builder.RegisterInstance(_arenaConfig);
+            builder.RegisterInstance(_matchConfig);
         }
     }
 }

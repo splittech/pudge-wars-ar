@@ -2,9 +2,9 @@
 
 Пошаговый чек-лист по этапам: действия, проверки, тесты и критерии готовности.
 
-- **Версия:** 1.2
-- **Дата:** 16 октября 2026
-- **Основа:** «Pudge Wars AR — технический дизайн-документ» v1.3 (ссылки вида FR-…, NFR-…, раздел N)
+- **Версия:** 1.3
+- **Дата:** 3 ноября 2026
+- **Основа:** «Pudge Wars AR — технический дизайн-документ» v1.5 (ссылки вида FR-…, NFR-…, раздел N)
 - **Нагрузка:** Один разработчик, 10–12 часов в неделю; всего ≈ 14–17 недель до MVP
 
 ## Содержание
@@ -18,6 +18,11 @@
 - [Этап 5. Совмещение арены по маркеру](#этап-5-совмещение-арены-по-маркеру)
 - [Этап 6. Полировка MVP](#этап-6-полировка-mvp)
 - [Этап 7. Развитие (по выбору)](#этап-7-развитие-по-выбору)
+
+
+## Состояние этапа 0 на 03.11.2026
+
+Этап 0 завершён. Все пункты этапа отмечены выполненными по подтверждению разработчика после ручной проверки. Компиляция без ошибок; 20/20 EditMode-тестов прошли (ввод, баланс конфигов, независимость снимков, отмена экрана загрузки).
 
 ## Как пользоваться документом
 
@@ -59,31 +64,31 @@
 
 ### 0.1 Проект и репозиторий
 
-- [ ] Создать проект Unity 6.6 из шаблона Universal 3D (URP).  
+- [x] Создать проект Unity 6.6 из шаблона Universal 3D (URP).
   _Имя проекта без пробелов и кириллицы — некоторые инструменты сборки Android их не переносят._
-- [ ] Инициализировать git, добавить .gitignore для Unity.  
+- [x] Инициализировать git, добавить .gitignore для Unity.
   _Используйте стандартный шаблон github/gitignore для Unity. Library/, Temp/, Logs/, UserSettings/ не коммитятся._
-- [ ] Настроить Git LFS для бинарных ассетов.  
+- [x] Настроить Git LFS для бинарных ассетов.
   _Трекать \*.fbx, \*.png, \*.psd, \*.wav, \*.mp3, \*.ogg, \*.tga, \*.exr, а также \*.dll, \*.so, \*.aar, \*.jar из плагинов. Сделать это до первого коммита ассетов. Не трекать \*.asset, \*.unity, \*.prefab, \*.mat — при Force Text это текстовый YAML, его нужно видеть в diff и сливать._
-- [ ] Проверить Project Settings → Editor: Asset Serialization = Force Text.  
+- [x] Проверить Project Settings → Editor: Asset Serialization = Force Text.
   _Позволяет читать и сливать изменения сцен и префабов._
-- [ ] Задать Company Name, Product Name и идентификатор пакета.  
+- [x] Задать Company Name, Product Name и идентификатор пакета.
   _Например com.yourname.pudgewarsar. Позже его менять болезненно._
-- [ ] Создать структуру папок `Assets/Game/…` из раздела 10.3 ТДД.  
+- [x] Создать структуру папок `Assets/Game/…` из раздела 10.3 ТДД.
   _Все файлы игры — только внутри `Assets/Game/`._
-- [ ] Первый коммит: «empty project».
+- [x] Первый коммит: «empty project».
 
 ### 0.2 Платформа сборки
 
-- [ ] Переключить платформу на Android.  
+- [x] Переключить платформу на Android.
   _File → Build Profiles → Android → Switch Platform._
-- [ ] Scripting Backend = IL2CPP, Target Architectures = ARM64.  
+- [x] Scripting Backend = IL2CPP, Target Architectures = ARM64.
   _Требование Google Play и ARCore._
-- [ ] Установить XR Plug-in Management и включить ARCore для Android.  
+- [x] Установить XR Plug-in Management и включить ARCore для Android.
   _Project Settings → XR Plug-in Management._
-- [ ] Открыть XR Plug-in Management → Project Validation и исправить все пункты.  
+- [x] Открыть XR Plug-in Management → Project Validation и исправить все пункты.
   _Валидатор подскажет минимальную версию Android, Graphics API и прочие обязательные настройки для используемой версии ARCore XR Plugin. Не настраивайте их по памяти._
-- [ ] Default Orientation = Portrait, автоповорот выключен.  
+- [x] Default Orientation = Portrait, автоповорот выключен.
   _Решение из раздела 14 ТДД._
 
 ### 0.3 Пакеты
@@ -102,61 +107,61 @@
 | DOTween | Asset Store | Tools → Demigiant → DOTween Utility Panel → Setup; там же «Create ASMDEF» |
 | Alchemy | git URL из README | — |
 
-- [ ] Установить все пакеты из таблицы.  
+- [x] Установить все пакеты из таблицы.
   _Ставьте по одному и проверяйте, что проект компилируется после каждого. Так легче найти конфликт._
-- [ ] Убедиться, что у DOTween есть asmdef.  
+- [x] Убедиться, что у DOTween есть asmdef.
   _Без него на DOTween нельзя сослаться из своих сборок — частая ошибка._
-- [ ] Коммит «packages».
+- [x] Коммит «packages».
 
 ### 0.4 Сборки (asmdef)
 
-- [ ] Создать asmdef для Game.Core, Game.Net, Game.AR, Game.Input, Game.Presentation, Game.UI, Game.App.  
+- [x] Создать asmdef для Game.Core, Game.Net, Game.AR, Game.Input, Game.Presentation, Game.UI, Game.App.
   _Таблица ссылок — раздел 10.2 ТДД. Root namespace совпадает с именем сборки._
-- [ ] Game.Core: ссылки только на Unity.Mathematics и Alchemy, Override References выключен.  
+- [x] Game.Core: ссылки только на Unity.Mathematics и Alchemy, Override References выключен.
   _Это и есть проверка NFR-06: если кто-то напишет using Mirror в Core — проект не скомпилируется. Предкомпилированные DLL (R3, ObservableCollections, DOTween) Core видит автоматически — их использование в Core отсекается на ревью (раздел 10.2 ТДД)._
-- [ ] Создать Game.Tests.EditMode в `Assets/Game/Tests/Edit Mode/` (Editor-платформа, ссылки на Core, Net, nunit, UnityEngine.TestRunner).  
+- [x] Создать Game.Tests.EditMode в `Assets/Game/Tests/Edit Mode/` (Editor-платформа, ссылки на Core, Net, nunit, UnityEngine.TestRunner).
   _В Test Runner создайте через «Create EditMode Test Assembly Folder»._
-- [ ] Добавить в Game.Tests один тест-заглушку `Assert.Pass()` и запустить.  
+- [x] Добавить в Game.Tests один тест-заглушку `Assert.Pass()` и запустить.
   _Проверяет, что тестовая инфраструктура работает._
 
 ### 0.5 Сцены и композиция
 
-- [ ] Создать сцены Boot, Menu, Match и добавить в Build Profiles; Boot — первая.
-- [ ] Boot: объект с RootLifetimeScope (DontDestroyOnLoad) и точкой входа, которая загружает Menu.  
-  _Точка входа — класс с IAsyncStartable: загрузка сцены через SceneLoader на UniTask._
-- [ ] Menu и Match: MenuLifetimeScope и MatchLifetimeScope с родителем RootLifetimeScope.  
+- [x] Создать сцены Boot, Menu, Match и добавить в Build Profiles; Boot — первая.
+- [x] Boot: объект с ProjectScope (Boot остаётся загруженной) и точкой входа, которая загружает Menu.
+  _Точка входа — ProjectBootstrap.StartAsync: загрузка через ISceneService и SceneLoader на UniTask._
+- [x] Menu и Match: MainMenuScope и GameplayScope с родителем ProjectScope.
   _Родитель задаётся в инспекторе LifetimeScope (поле Parent) по типу._
-- [ ] Реализовать ISceneLoader (UniTask, CancellationToken).
-- [ ] Проверить в Play Mode из сцены Boot: Boot → Menu, кнопка-заглушка → Match.  
+- [x] Реализовать ISceneService и SceneLoader (UniTask, CancellationToken).
+- [x] Проверить в Play Mode из сцены Boot: Boot → Menu, кнопка-заглушка → Match.
   _Добавьте в Unity настройку «всегда стартовать с Boot» — простой Editor-скрипт с EditorSceneManager.playModeStartScene._
 
 ### 0.6 Конфиги
 
-- [ ] Создать классы ScriptableObject: HookConfig, HeroConfig, EconomyConfig, ArenaConfig, MatchConfig, InputConfig.  
+- [x] Создать классы ScriptableObject: HookConfig, HeroConfig, EconomyConfig, ArenaConfig, MatchConfig, InputConfig.
   _Поля — раздел 13 ТДД. У каждого метод ToData() → readonly struct для симуляции._
-- [ ] Создать ассеты в Assets/Game/Configs и заполнить стартовыми значениями из раздела 6.3 ТДД.
-- [ ] Зарегистрировать конфиги в RootLifetimeScope через RegisterInstance.
-- [ ] Сгруппировать поля атрибутами Alchemy для удобства.  
+- [x] Создать ассеты в Assets/Game/Configs и заполнить стартовыми значениями из раздела 6.3 ТДД.
+- [x] Зарегистрировать конфиги в ProjectScope через RegisterInstance.
+- [x] Сгруппировать поля атрибутами Alchemy для удобства.
   _Например, [FoldoutGroup("Upgrades")]._
 
 ### 0.7 Ввод
 
-- [ ] Объявить ITouchGestures (Tap, Drag, PinchTwist) в Game.Input.  
+- [x] Объявить ITouchGestures (Tap, Drag, PinchTwist) в Game.Input.
   _Сигнатуры — раздел 11.3 ТДД._
-- [ ] Создать EnhancedTouchGestures : ITickable, ITouchGestures, IDisposable — пока только Tap.  
+- [x] Создать EnhancedTouchGestures : ITickable, ITouchGestures, IDisposable — пока только Tap.
   _В конструкторе/Start: EnhancedTouchSupport.Enable(); в редакторе дополнительно TouchSimulation.Enable(). В Dispose — Disable._
-- [ ] Зарегистрировать в MatchLifetimeScope и вывести тапы в лог.  
+- [x] Зарегистрировать в MatchLifetimeScope и вывести тапы в лог.
   _Проверка FR-IN-07: клик мышью в редакторе даёт Tap._
 
 ### 0.8 Отладка и пробная сборка
 
-- [ ] Отладочный оверлей: FPS и номер версии (только для development-сборок).  
+- [x] Отладочный оверлей: FPS и номер версии (только для development-сборок).
   _FR-UI-10. Остальные поля добавятся на следующих этапах._
-- [ ] Константа версии протокола `ProtocolVersion = 1` в Game.Core.  
+- [x] Константа версии протокола `ProtocolVersion = 1` в Game.Core.
   _Понадобится на этапе 2._
-- [ ] Собрать development-сборку и установить на телефон.  
+- [x] Собрать development-сборку и установить на телефон.
   _Цель — поймать проблемы платформы сейчас, а не на этапе 4: SDK, подпись, IL2CPP, ARCore. Приложение должно дойти до сцены Menu._
-- [ ] Подключить Profiler к телефону и убедиться, что данные идут.  
+- [x] Подключить Profiler к телефону и убедиться, что данные идут.
   _Пригодится на этапах 4 и 6._
 
 ### Тесты этапа
@@ -165,11 +170,11 @@
 
 ### Критерии готовности этапа
 
-- [ ] Play Mode из Boot доходит до Match без ошибок и предупреждений.
-- [ ] Game.Core компилируется без ссылок на Mirror, AR Foundation, Input System.
-- [ ] Тап мышью в редакторе логируется через ITouchGestures.
-- [ ] Development-сборка запускается на телефоне и показывает меню с оверлеем FPS.
-- [ ] Тег v0.0-skeleton.
+- [x] Play Mode из Boot доходит до Match без ошибок и предупреждений.
+- [x] Game.Core компилируется без ссылок на Mirror, AR Foundation, Input System.
+- [x] Тап мышью в редакторе логируется через ITouchGestures.
+- [x] Development-сборка запускается на телефоне и показывает меню с оверлеем FPS.
+- [x] Тег v0.0-skeleton.
 
 ### Подводные камни
 

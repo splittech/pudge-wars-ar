@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Alchemy.Inspector;
-using Game.Editor.Common;
+using Game.Services.Editor.Common;
 using UnityEditor;
 using UnityEngine;
 
-namespace Game.Editor.ConfigManager
+namespace Game.Services.Editor.ConfigManager
 {
     /// <summary>
     /// Lists every creatable ScriptableObject from Game.* assemblies except meta assets,
@@ -20,12 +20,12 @@ namespace Game.Editor.ConfigManager
 
         [SerializeField]
         [TabGroup(TabGroupName, "Game")]
-        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = false, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
+        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = true, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
         private List<ConfigEntry> _gameConfigs = new();
 
         [SerializeField]
         [TabGroup(TabGroupName, "Services")]
-        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = false, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
+        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = true, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
         private List<ConfigEntry> _serviceConfigs = new();
 
         protected override IReadOnlyCollection<string> EntriesPropertyNames { get; } =

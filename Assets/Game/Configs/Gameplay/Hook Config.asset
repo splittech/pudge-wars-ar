@@ -12,3 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13c2b2bcea9cb9845aadc8f12d43942a, type: 3}
   m_Name: Hook Config
   m_EditorClassIdentifier: Game.Core::Game.Core.Configs.HookConfig
+  _range: 12
+  _speed: 20
+  _radius: 0.35
+  _damage: 175
+  _cooldown: 3
+  _rangePerLevel: 1.5
+  _speedPerLevel: 4
+  _radiusPerLevel: 0.08
+  _damagePerLevel: 75
+  _maxLevel: 4

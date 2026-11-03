@@ -11,6 +11,7 @@ namespace Game.Services.AudioService
         [BoxGroup("Audio Mixer")]
         [SerializeField] private AudioMixer _mixer;
 
+        [BoxGroup("Audio Mixer")]
         [DictionaryDisplay(keyLabel = "Mixer Group", valueLabel = "Config", keyColumnFraction = 0.4f)]
         [SerializeField]
         private Dictionary<AudioMixerGroup, MixerGroupConfig> _mixerGroupsConfigs = new();

@@ -46,6 +46,7 @@ namespace Game.Services.AudioService
             audioSource.outputAudioMixerGroup = _musicMixerGroup;
             audioSource.playOnAwake = false;
             audioSource.loop = true;
+            audioSource.ignoreListenerPause = true;
 
             return audioSource;
         }

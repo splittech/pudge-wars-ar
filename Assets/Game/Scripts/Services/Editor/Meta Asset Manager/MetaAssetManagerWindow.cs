@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Alchemy.Inspector;
-using Game.Editor.Common;
+using Game.Services.Editor.Common;
 using UnityEditor;
 using UnityEngine;
 
-namespace Game.Editor.MetaAssetManager
+namespace Game.Services.Editor.MetaAssetManager
 {
     /// <summary>
     /// Lists every meta asset type (menu name under <see cref="GameAssetTypes.MetaAssetMenuPrefix"/>),
@@ -15,7 +15,7 @@ namespace Game.Editor.MetaAssetManager
     internal sealed class MetaAssetManagerWindow : AssetManagerWindow
     {
         [SerializeField]
-        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = false, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
+        [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = true, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
         private List<MetaAssetEntry> _entries = new();
 
         protected override IReadOnlyCollection<string> EntriesPropertyNames { get; } = new[] { nameof(_entries) };
@@ -37,9 +37,11 @@ namespace Game.Editor.MetaAssetManager
                 .ToList();
         }
 
-        // Called by Alchemy whenever a field in the window changes, i.e. when a folder is edited.
+        // Called by Alchemy whenever a field in the window changes, e.g. when a folder is edited.
         protected override void SaveWindowData(string dataPath)
         {
+            base.SaveWindowData(dataPath);
+
             MetaAssetFolderSettings settings = MetaAssetFolderSettings.Load();
 
             foreach (MetaAssetEntry entry in _entries)

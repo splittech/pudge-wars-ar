@@ -3,6 +3,14 @@
         {
             "TypeName": "Game.Services.SceneService.SceneMetaAsset",
             "Folder": "Assets/Game/Meta Assets/Scenes"
+        },
+        {
+            "TypeName": "Game.Services.AudioService.MusicMetaAsset",
+            "Folder": "Assets/Game/Meta Assets/Music"
+        },
+        {
+            "TypeName": "Game.Services.AudioService.SoundMetaAsset",
+            "Folder": "Assets/Game/Meta Assets/Sounds"
         }
     ]
 }

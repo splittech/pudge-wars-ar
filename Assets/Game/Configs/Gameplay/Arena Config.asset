@@ -12,3 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61f13b2013b83db4694b4fc47cfa1462, type: 3}
   m_Name: Arena Config
   m_EditorClassIdentifier: Game.Core::Game.Core.Configs.ArenaConfig
+  _size:
+    x: 24
+    y: 14
+  _riverWidth: 3.5
+  _teamASpawnPoints:
+  - x: -8
+    y: -4
+  - x: -8
+    y: 0
+  - x: -8
+    y: 4
+  _teamBSpawnPoints:
+  - x: 8
+    y: -4
+  - x: 8
+    y: 0
+  - x: 8
+    y: 4

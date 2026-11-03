@@ -12,3 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08e1277b438be3044a0163701bc93448, type: 3}
   m_Name: Economy Config
   m_EditorClassIdentifier: Game.Core::Game.Core.Configs.EconomyConfig
+  _killGold: 150
+  _assistGold: 50
+  _assistWindow: 10
+  _startGold: 0
+  _upgradePrices: 64000000c80000002c01000090010000i
