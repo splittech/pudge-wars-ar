@@ -36,11 +36,13 @@ namespace Game.App
         public void Construct(ArenaConfig arena, HeroConfig hero, HookConfig hook)
         {
             _arena = arena.ToData(); _hero = hero.ToData(); _hook = hook.ToData();
-            enabled = Debug.isDebugBuild;
+            bool networkSession = Mirror.NetworkServer.active || Mirror.NetworkClient.active;
+            _view.Configure(_arena, _hook.Range);
+            _view.SetSandboxVisible(!networkSession);
+            enabled = Debug.isDebugBuild && !networkSession;
             if (enabled)
             {
                 ResetSandbox();
-                _view.Configure(_arena, _hook.Range);
             }
         }
 

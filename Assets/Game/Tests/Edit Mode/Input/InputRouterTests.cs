@@ -1,11 +1,10 @@
-using System.Collections.Generic;
-using Game.Core.Commands;
 using Game.Core.Configs;
-using Game.Core.Economy;
+using Game.Core.Commands;
+using NSubstitute;
+using R3;
 using Game.Input.Gestures;
 using Game.Input.Routing;
 using NUnit.Framework;
-using R3;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -13,203 +12,197 @@ namespace Game.Tests.EditMode.Input
 {
     public sealed class InputRouterTests
     {
-        // Default InputConfig grab radius (FR-IN-02).
         private const float GrabRadius = 1.5f;
 
-        private FakeGestures _gestures;
-        private FakeArenaSpace _arenaSpace;
-        private FakeLocalHero _localHero;
-        private FakePlayerCommands _commands;
+        private Subject<Vector2> _onTap;
+        private Subject<DragGesture> _onDrag;
+        private IArenaSpace _arenaSpace;
+        private ILocalHero _localHero;
+        private IPlayerCommands _commands;
         private InputConfig _config;
         private InputRouter _router;
 
         [SetUp]
         public void SetUp()
         {
-            _gestures = new FakeGestures();
-            _arenaSpace = new FakeArenaSpace();
-            _localHero = new FakeLocalHero { Position = new float2(0f, 0f) };
-            _commands = new FakePlayerCommands();
-            _config = ScriptableObject.CreateInstance<InputConfig>();
-
-            _router = new InputRouter(_gestures, _arenaSpace, _localHero, _commands, _config);
-            _router.Start();
+            _router = Setup.InputRouter(out _onTap, out _onDrag, out _arenaSpace, out _localHero, out _commands, out _config);
         }
 
         [TearDown]
         public void TearDown()
         {
-            _router.Dispose();
-            _gestures.Dispose();
-            Object.DestroyImmediate(_config);
+            _router?.Dispose();
+            _onTap?.Dispose();
+            _onDrag?.Dispose();
+            if (_config != null)
+                Object.DestroyImmediate(_config);
         }
 
         [Test]
-        public void Tap_OnArena_MovesToArenaPoint()
+        public void Tap_PointIsOnArena_MoveCommandUsesArenaCoordinates()
         {
-            _gestures.Tap(new Vector2(3f, 4f));
+            // Arrange.
+            Vector2 screenPoint = new(3f, 4f);
 
-            Assert.That(_commands.MoveTargets, Is.EqualTo(new[] { new float2(3f, 4f) }));
+            // Act.
+            _onTap.OnNext(screenPoint);
+
+            // Assert.
+            _commands.Received(1).MoveTo(new float2(3f, 4f));
+            _commands.Received(1).MoveTo(Arg.Any<float2>());
         }
 
         [Test]
-        public void Tap_OffArena_IsIgnored()
+        public void Tap_PointIsOutsideArena_NoMoveCommandIsSent()
         {
-            _arenaSpace.IsOnArena = false;
+            // Arrange.
+            _arenaSpace.TryScreenToArena(Arg.Any<Vector2>(), out Arg.Any<float2>()).Returns(false);
+            Vector2 screenPoint = new(3f, 4f);
 
-            _gestures.Tap(new Vector2(3f, 4f));
+            // Act.
+            _onTap.OnNext(screenPoint);
 
-            Assert.That(_commands.MoveTargets, Is.Empty);
+            // Assert.
+            _commands.DidNotReceive().MoveTo(Arg.Any<float2>());
         }
 
         [Test]
-        public void Drag_FromHeroReleasedOutsideGrabRadius_ThrowsInDragDirection()
+        public void Drag_StartedNearHeroAndReleasedOutsideGrabRadius_ThrowsInReleaseDirection()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(0.5f, 0f), new Vector2(1f, 0f));
-            _gestures.Drag(DragPhase.Moved, new Vector2(0.5f, 0f), new Vector2(4f, 0f));
-            _gestures.Drag(DragPhase.Ended, new Vector2(0.5f, 0f), new Vector2(0f, 5f));
+            // Arrange.
+            Vector2 start = new(0.5f, 0f);
 
-            Assert.That(_commands.ThrowDirections, Is.EqualTo(new[] { new float2(0f, 1f) }));
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, start, new Vector2(1f, 0f)));
+            _onDrag.OnNext(new DragGesture(DragPhase.Moved, start, new Vector2(4f, 0f)));
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, start, new Vector2(0f, 5f)));
+
+            // Assert.
+            _commands.Received(1).ThrowHook(new float2(0f, 1f));
+            _commands.Received(1).ThrowHook(Arg.Any<float2>());
         }
 
         [Test]
-        public void Drag_StartedFarFromHero_DoesNotAimOrThrow()
+        public void Drag_StartedFarFromHero_AimRemainsInactive()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(GrabRadius + 1f, 0f), new Vector2(5f, 0f));
+            // Arrange.
+            Vector2 start = new(GrabRadius + 1f, 0f);
 
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, start, new Vector2(5f, 0f)));
+
+            // Assert.
             Assert.That(_router.Aim.CurrentValue.IsActive, Is.False);
-
-            _gestures.Drag(DragPhase.Ended, new Vector2(GrabRadius + 1f, 0f), new Vector2(8f, 0f));
-
-            Assert.That(_commands.ThrowDirections, Is.Empty);
         }
 
         [Test]
-        public void Drag_ReturnedToHero_CancelsThrow()
+        public void Drag_StartedFarFromHero_NoThrowCommandIsSent()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(0f, 0f), new Vector2(4f, 0f));
-            _gestures.Drag(DragPhase.Moved, new Vector2(0f, 0f), new Vector2(0.5f, 0f));
+            // Arrange.
+            Vector2 start = new(GrabRadius + 1f, 0f);
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, start, new Vector2(5f, 0f)));
 
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, start, new Vector2(8f, 0f)));
+
+            // Assert.
+            _commands.DidNotReceive().ThrowHook(Arg.Any<float2>());
+        }
+
+        [Test]
+        public void Drag_FingerReturnsToHero_AimEntersCancelZone()
+        {
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Moved, Vector2.zero, new Vector2(0.5f, 0f)));
+
+            // Assert.
             Assert.That(_router.Aim.CurrentValue.IsInCancelZone, Is.True);
-
-            _gestures.Drag(DragPhase.Ended, new Vector2(0f, 0f), new Vector2(0.5f, 0f));
-
-            Assert.That(_commands.ThrowDirections, Is.Empty);
         }
 
         [Test]
-        public void Drag_Cancelled_DoesNotThrow()
+        public void Drag_ReleasedInCancelZone_NoThrowCommandIsSent()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(0f, 0f), new Vector2(4f, 0f));
-            _gestures.Drag(DragPhase.Cancelled, new Vector2(0f, 0f), new Vector2(4f, 0f));
-            _gestures.Drag(DragPhase.Ended, new Vector2(0f, 0f), new Vector2(4f, 0f));
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+            _onDrag.OnNext(new DragGesture(DragPhase.Moved, Vector2.zero, new Vector2(0.5f, 0f)));
 
-            Assert.That(_commands.ThrowDirections, Is.Empty);
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, Vector2.zero, new Vector2(0.5f, 0f)));
+
+            // Assert.
+            _commands.DidNotReceive().ThrowHook(Arg.Any<float2>());
+        }
+
+        [Test]
+        public void Drag_CancelledBeforeRelease_AimIsInactiveAndNoThrowIsSent()
+        {
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Cancelled, Vector2.zero, new Vector2(4f, 0f)));
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, Vector2.zero, new Vector2(4f, 0f)));
+
+            // Assert.
+            _commands.DidNotReceive().ThrowHook(Arg.Any<float2>());
             Assert.That(_router.Aim.CurrentValue.IsActive, Is.False);
         }
 
         [Test]
-        public void Aim_FollowsMovingHeroAndResetsAfterRelease()
+        public void Drag_HeroMovesDuringAim_OriginAndDirectionUseNewPosition()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(0f, 0f), new Vector2(4f, 0f));
-            _localHero.Position = new float2(2f, 0f);
-            _gestures.Drag(DragPhase.Moved, new Vector2(0f, 0f), new Vector2(2f, 5f));
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+            _localHero.TryGetPosition(out Arg.Any<float2>()).Returns(call =>
+            {
+                call[0] = new float2(2f, 0f);
+                return true;
+            });
 
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Moved, Vector2.zero, new Vector2(2f, 5f)));
+
+            // Assert.
             AimState aim = _router.Aim.CurrentValue;
             Assert.That(aim.IsActive, Is.True);
             Assert.That(aim.Origin, Is.EqualTo(new float2(2f, 0f)));
             Assert.That(aim.Direction, Is.EqualTo(new float2(0f, 1f)));
+        }
 
-            _gestures.Drag(DragPhase.Ended, new Vector2(0f, 0f), new Vector2(2f, 5f));
+        [Test]
+        public void Drag_ReleasedAfterHeroMoved_AimIsReset()
+        {
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+            _localHero.TryGetPosition(out Arg.Any<float2>()).Returns(call =>
+            {
+                call[0] = new float2(2f, 0f);
+                return true;
+            });
+            _onDrag.OnNext(new DragGesture(DragPhase.Moved, Vector2.zero, new Vector2(2f, 5f)));
 
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, Vector2.zero, new Vector2(2f, 5f)));
+
+            // Assert.
             Assert.That(_router.Aim.CurrentValue.IsActive, Is.False);
         }
 
         [Test]
-        public void Drag_HeroDiedWhileAiming_DoesNotThrow()
+        public void Drag_HeroDiedWhileAiming_NoThrowCommandIsSent()
         {
-            _gestures.Drag(DragPhase.Began, new Vector2(0f, 0f), new Vector2(4f, 0f));
-            _localHero.IsAlive = false;
-            _gestures.Drag(DragPhase.Ended, new Vector2(0f, 0f), new Vector2(5f, 0f));
+            // Arrange.
+            _onDrag.OnNext(new DragGesture(DragPhase.Began, Vector2.zero, new Vector2(4f, 0f)));
+            _localHero.TryGetPosition(out Arg.Any<float2>()).Returns(false);
 
-            Assert.That(_commands.ThrowDirections, Is.Empty);
-        }
+            // Act.
+            _onDrag.OnNext(new DragGesture(DragPhase.Ended, Vector2.zero, new Vector2(5f, 0f)));
 
-        private sealed class FakeGestures : ITouchGestures
-        {
-            private readonly Subject<Vector2> _tap = new();
-            private readonly Subject<DragGesture> _drag = new();
-            private readonly Subject<PinchTwistGesture> _pinchTwist = new();
-
-            Observable<Vector2> ITouchGestures.Tap => _tap;
-            Observable<DragGesture> ITouchGestures.Drag => _drag;
-            Observable<PinchTwistGesture> ITouchGestures.PinchTwist => _pinchTwist;
-
-            public void Tap(Vector2 position)
-            {
-                _tap.OnNext(position);
-            }
-
-            public void Drag(DragPhase phase, Vector2 start, Vector2 position)
-            {
-                _drag.OnNext(new DragGesture(phase, start, position));
-            }
-
-            public void Dispose()
-            {
-                _tap.Dispose();
-                _drag.Dispose();
-                _pinchTwist.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// Maps screen points one-to-one onto the arena.
-        /// </summary>
-        private sealed class FakeArenaSpace : IArenaSpace
-        {
-            public bool IsOnArena = true;
-
-            public bool TryScreenToArena(Vector2 screenPoint, out float2 arenaPoint)
-            {
-                arenaPoint = new float2(screenPoint.x, screenPoint.y);
-                return IsOnArena;
-            }
-
-            public Vector3 ArenaToWorld(float2 arenaPoint)
-            {
-                return new Vector3(arenaPoint.x, 0f, arenaPoint.y);
-            }
-        }
-
-        private sealed class FakeLocalHero : ILocalHero
-        {
-            public float2 Position;
-            public bool IsAlive = true;
-
-            public bool TryGetPosition(out float2 position)
-            {
-                position = Position;
-                return IsAlive;
-            }
-        }
-
-        private sealed class FakePlayerCommands : IPlayerCommands
-        {
-            public readonly List<float2> MoveTargets = new();
-            public readonly List<float2> ThrowDirections = new();
-
-            public void MoveTo(float2 arenaPoint)
-            {
-                MoveTargets.Add(arenaPoint);
-            }
-
-            public void ThrowHook(float2 direction)
-            {
-                ThrowDirections.Add(direction);
-            }
-
-            public void BuyUpgrade(UpgradeId id) { }
+            // Assert.
+            _commands.DidNotReceive().ThrowHook(Arg.Any<float2>());
         }
     }
 }

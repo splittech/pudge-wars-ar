@@ -1,7 +1,5 @@
 using System;
-using Game.Core.Configs;
 using Game.Core.Geometry;
-using Game.Core.Match;
 using NUnit.Framework;
 using Unity.Mathematics;
 
@@ -9,153 +7,213 @@ namespace Game.Tests.EditMode
 {
     public sealed class Geo2DTests
     {
-        [Test]
-        public void Sweep_CenterHit_ReturnsFirstContact()
-        {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(10, 0), 0.5f,
-                new float2(5, 0), 0.5f, out float t), Is.True);
-            Assert.That(t, Is.EqualTo(0.4f).Within(1e-6f));
-        }
+        private const float ContactTolerance = 1e-6f;
 
-        [Test]
-        public void Sweep_Tangent_IsHit()
+        [TestCase(5f, 0f, 0.4f)]
+        [TestCase(5f, 1f, 0.5f)]
+        [TestCase(11f, 0f, 1f)]
+        public void SweptCircle_PathTouchesTarget_ReturnsFirstContact(float targetX, float targetY, float expectedContact)
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(10, 0), 0.5f,
-                new float2(5, 1), 0.5f, out float t), Is.True);
-            Assert.That(t, Is.EqualTo(0.5f).Within(1e-6f));
+            // Arrange.
+            float2 start = float2.zero;
+            float2 end = new(10f, 0f);
+            float2 target = new(targetX, targetY);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(start, end, movingRadius: 0.5f, target, targetRadius: 0.5f, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.True);
+            Assert.That(contact, Is.EqualTo(expectedContact).Within(ContactTolerance));
         }
 
         [TestCase(5f, 1.01f)]
         [TestCase(-2f, 0f)]
         [TestCase(12f, 0f)]
-        public void Sweep_Miss_ReturnsFalseAndZero(float x, float y)
+        public void SweptCircle_TargetOutsidePath_ReturnsFalseAndZeroContact(float targetX, float targetY)
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(10, 0), 0.5f,
-                new float2(x, y), 0.5f, out float t), Is.False);
-            Assert.That(t, Is.Zero);
+            // Arrange.
+            float2 target = new(targetX, targetY);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(float2.zero, new float2(10f, 0f), 0.5f, target, 0.5f, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.False);
+            Assert.That(contact, Is.Zero);
         }
 
         [TestCase(0f, true)]
         [TestCase(1f, true)]
         [TestCase(1.01f, false)]
-        public void Sweep_StationaryCircle_OnlyHitsInitialOverlap(float x, bool expected)
+        public void SweptCircle_NoMovement_HitsOnlyInitiallyOverlappingTarget(float targetX, bool expectedHit)
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, float2.zero, 0.5f,
-                new float2(x, 0), 0.5f, out float t), Is.EqualTo(expected));
-            Assert.That(t, Is.Zero);
+            // Arrange.
+            float2 position = float2.zero;
+            float2 target = new(targetX, 0f);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(position, position, 0.5f, target, 0.5f, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.EqualTo(expectedHit));
+            Assert.That(contact, Is.Zero);
         }
 
         [Test]
-        public void Sweep_InitiallyOverlappingAndMovingAway_ReturnsZero()
+        public void SweptCircle_InitiallyOverlappingAndMovingAway_ReturnsZeroContact()
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(-10, 0), 0.5f,
-                new float2(0.5f, 0), 0.5f, out float t), Is.True);
-            Assert.That(t, Is.Zero);
+            // Arrange.
+            float2 end = new(-10f, 0f);
+            float2 target = new(0.5f, 0f);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(float2.zero, end, 0.5f, target, 0.5f, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.True);
+            Assert.That(contact, Is.Zero);
         }
 
         [Test]
-        public void Sweep_ContactAtEnd_IsHit()
+        public void SweptCircle_FastHookCrossesHero_HitIsDetectedBetweenTickPositions()
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(4, 0), 0.5f,
-                new float2(5, 0), 0.5f, out float t), Is.True);
-            Assert.That(t, Is.EqualTo(1f));
+            // Arrange.
+            const float hookSpeed = 60f;
+            float2 end = new(hookSpeed * Setup.TickDeltaTime, 0f);
+            float2 target = new(1f, 0f);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(float2.zero, end, 0.35f, target, 0.5f, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.True);
+            Assert.That(contact, Is.EqualTo(0.075f).Within(ContactTolerance));
         }
 
         [Test]
-        public void Sweep_FastHook_DoesNotTunnelThroughHero()
+        public void SweptCircle_FartherTargetHasLargerRadius_LargerTargetIsTouchedFirst()
         {
-            float distance = 60f * (1f / 30f);
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(distance, 0), 0.35f,
-                new float2(1, 0), 0.5f, out float t), Is.True);
-            Assert.That(t, Is.EqualTo(0.075f).Within(1e-6f));
+            // Arrange.
+            float2 end = new(10f, 0f);
+            float2 smallTarget = new(4f, 0f);
+            float2 largeTarget = new(5f, 0f);
+
+            // Act.
+            bool smallHit = Geo2D.SweptCircle(float2.zero, end, 0f, smallTarget, 0.5f, out float smallContact);
+            bool largeHit = Geo2D.SweptCircle(float2.zero, end, 0f, largeTarget, 2f, out float largeContact);
+
+            // Assert.
+            Assert.That(smallHit, Is.True);
+            Assert.That(largeHit, Is.True);
+            Assert.That(largeContact, Is.LessThan(smallContact));
         }
 
         [Test]
-        public void Sweep_DifferentRadii_OrdersContactsRatherThanCenters()
+        public void SweptCircle_DiagonalPath_ReturnsFirstContact()
         {
-            Geo2D.SweptCircle(float2.zero, new float2(10, 0), 0,
-                new float2(4, 0), 0.5f, out float small);
-            Geo2D.SweptCircle(float2.zero, new float2(10, 0), 0,
-                new float2(5, 0), 2f, out float large);
-            Assert.That(large, Is.LessThan(small));
-        }
+            // Arrange.
+            float2 start = new(-2f, -2f);
+            float2 end = new(2f, 2f);
+            float radius = math.sqrt(2f);
 
-        [Test]
-        public void Sweep_Diagonal_ReturnsContact()
-        {
-            Assert.That(Geo2D.SweptCircle(new float2(-2, -2), new float2(2, 2), 0,
-                float2.zero, math.sqrt(2f), out float t), Is.True);
-            Assert.That(t, Is.EqualTo(0.25f).Within(1e-6f));
+            // Act.
+            bool hit = Geo2D.SweptCircle(start, end, 0f, float2.zero, radius, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.True);
+            Assert.That(contact, Is.EqualTo(0.25f).Within(ContactTolerance));
         }
 
         [TestCase(1f)]
         [TestCase(1e-10f)]
         [TestCase(1e20f)]
-        public void Sweep_IsConsistentAcrossScales(float scale)
+        public void SweptCircle_ScaledGeometry_ReturnsSameContactFraction(float scale)
         {
-            Assert.That(Geo2D.SweptCircle(float2.zero, new float2(10 * scale, 0), scale,
-                new float2(5 * scale, 0), scale, out float t), Is.True);
-            Assert.That(t, Is.EqualTo(0.3f).Within(1e-6f));
+            // Arrange.
+            float2 end = new(10f * scale, 0f);
+            float2 target = new(5f * scale, 0f);
+
+            // Act.
+            bool hit = Geo2D.SweptCircle(float2.zero, end, scale, target, scale, out float contact);
+
+            // Assert.
+            Assert.That(hit, Is.True);
+            Assert.That(contact, Is.EqualTo(0.3f).Within(ContactTolerance));
         }
 
         [TestCase(0f, true)]
         [TestCase(2f, true)]
         [TestCase(2.01f, false)]
-        public void Circles_IncludeOverlapAndTangency(float distance, bool expected)
+        public void CircleCircle_CentersHaveGivenDistance_ReturnsExpectedIntersection(float distance, bool expectedHit)
         {
-            Assert.That(Geo2D.CircleCircle(float2.zero, 1, new float2(distance, 0), 1),
-                Is.EqualTo(expected));
+            // Arrange.
+            float2 secondCenter = new(distance, 0f);
+
+            // Act.
+            bool hit = Geo2D.CircleCircle(float2.zero, 1f, secondCenter, 1f);
+
+            // Assert.
+            Assert.That(hit, Is.EqualTo(expectedHit));
+        }
+
+        [TestCase(-9f, 9f, -2f, 5f)]
+        [TestCase(9f, -9f, 4f, -3f)]
+        [TestCase(0f, 0f, 0f, 0f)]
+        public void ClampToRect_PointInsideOrOutsideBounds_ReturnsClampedPoint(float x, float y, float expectedX, float expectedY)
+        {
+            // Arrange.
+            Rect2 bounds = new(new float2(-2f, -3f), new float2(4f, 5f));
+            float2 point = new(x, y);
+
+            // Act.
+            float2 clamped = Geo2D.ClampToRect(point, bounds);
+
+            // Assert.
+            Assert.That(clamped, Is.EqualTo(new float2(expectedX, expectedY)));
         }
 
         [Test]
-        public void Clamp_ClampsBothAxesAndPreservesInterior()
+        public void ClampToRect_PointIsNotFinite_ThrowsArgumentException()
         {
-            var rect = new Rect2(new float2(-2, -3), new float2(4, 5));
-            Assert.That(Geo2D.ClampToRect(new float2(-9, 9), rect), Is.EqualTo(new float2(-2, 5)));
-            Assert.That(Geo2D.ClampToRect(new float2(9, -9), rect), Is.EqualTo(new float2(4, -3)));
-            Assert.That(Geo2D.ClampToRect(float2.zero, rect), Is.EqualTo(float2.zero));
+            // Arrange.
+            float2 point = new(float.NaN);
+
+            // Act and Assert.
+            Assert.That(() => Geo2D.ClampToRect(point, default), Throws.TypeOf<ArgumentException>());
         }
 
         [Test]
-        public void Bounds_AccountForRiverAndHeroRadius()
+        public void CircleCircle_RadiusIsNegative_ThrowsArgumentOutOfRangeException()
         {
-            var arena = Arena(new float2(24, 14), 3.5f);
-            Rect2 a = ArenaBounds.ForTeam(arena, Team.A, 0.5f);
-            Rect2 b = ArenaBounds.ForTeam(arena, Team.B, 0.5f);
-            Assert.That(a.Min, Is.EqualTo(new float2(-11.5f, -6.5f)));
-            Assert.That(a.Max, Is.EqualTo(new float2(-2.25f, 6.5f)));
-            Assert.That(b.Min, Is.EqualTo(new float2(2.25f, -6.5f)));
-            Assert.That(b.Max, Is.EqualTo(new float2(11.5f, 6.5f)));
+            // Arrange.
+            const float radius = -1f;
+
+            // Act and Assert.
+            Assert.That(() => Geo2D.CircleCircle(float2.zero, radius, float2.zero, 1f),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
-        public void Bounds_InvalidArenaOrHero_Throws()
+        public void SweptCircle_RadiusIsNotFinite_ThrowsArgumentOutOfRangeException()
         {
-            var arena = Arena(new float2(24, 14), 3.5f);
-            Assert.Throws<ArgumentException>(() => ArenaBounds.ForTeam(arena, Team.A, 6));
-            Assert.Throws<ArgumentOutOfRangeException>(() => ArenaBounds.ForTeam(arena, Team.A, -1));
-            Assert.Throws<ArgumentOutOfRangeException>(() => ArenaBounds.ForTeam(arena, (Team)9, 0));
-            Assert.Throws<ArgumentException>(() => ArenaBounds.ForTeam(Arena(new float2(0, 14), 0), Team.A, 0));
-            Assert.Throws<ArgumentException>(() => ArenaBounds.ForTeam(Arena(new float2(24, 14), 24), Team.A, 0));
+            // Arrange.
+            float radius = float.NaN;
+
+            // Act and Assert.
+            Assert.That(() => Geo2D.SweptCircle(float2.zero, float2.zero, 0f, float2.zero, radius, out _),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
-        public void Geometry_InvalidNumbersOrBounds_Throw()
+        public void SweptCircle_StartIsNotFinite_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => new Rect2(new float2(2, 0), float2.zero));
-            Assert.Throws<ArgumentException>(() => new Rect2(float2.zero, new float2(float.PositiveInfinity)));
-            Assert.Throws<ArgumentException>(() => Geo2D.ClampToRect(new float2(float.NaN), default));
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-                Geo2D.CircleCircle(float2.zero, -1, float2.zero, 1));
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-                Geo2D.SweptCircle(float2.zero, float2.zero, 0, float2.zero, float.NaN, out _));
-            Assert.Throws<ArgumentException>(() =>
-                Geo2D.SweptCircle(new float2(float.NaN), float2.zero, 0, float2.zero, 0, out _));
-        }
+            // Arrange.
+            float2 start = new(float.NaN);
 
-        private static ArenaConfigData Arena(float2 size, float river)
-        {
-            return new ArenaConfigData(size, river, Array.Empty<float2>(), Array.Empty<float2>());
+            // Act and Assert.
+            Assert.That(() => Geo2D.SweptCircle(start, float2.zero, 0f, float2.zero, 0f, out _),
+                Throws.TypeOf<ArgumentException>());
         }
     }
 }

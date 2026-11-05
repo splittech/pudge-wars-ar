@@ -1,8 +1,6 @@
+using Game.Tests.Support;
 using System;
 using System.Threading;
-using Cysharp.Threading.Tasks;
-using Game.Services.LoadingScreen;
-using Game.Services.LoggingService;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -10,75 +8,85 @@ namespace Game.Tests.EditMode
 {
     public sealed class LoadingScreenTests
     {
-        [Test]
-        public void CancelledShow_CanBeShownAgain()
+        private GameObject _root;
+
+        [TearDown]
+        public void TearDown()
         {
-            var root = new GameObject("Loading screen test");
-            var screen = root.AddComponent<TestLoadingScreen>();
-            screen.Construct(new SilentLogging());
-            try
-            {
-                Assert.Throws<OperationCanceledException>(() =>
-                    screen.ShowScreenAsync(new CancellationToken(true)).GetAwaiter().GetResult());
-                Assert.That(root.activeSelf, Is.False);
-                screen.ShowScreenAsync().GetAwaiter().GetResult();
-                Assert.That(root.activeSelf, Is.True);
-                Assert.That(screen.Visible, Is.True);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(root);
-            }
+            if (_root != null)
+                UnityEngine.Object.DestroyImmediate(_root);
         }
 
         [Test]
-        public void CancelledHide_RestoresVisibleState()
+        public void ShowScreenAsync_TokenIsCancelled_ThrowsAndHidesScreen()
         {
-            var root = new GameObject("Loading screen test");
-            var screen = root.AddComponent<TestLoadingScreen>();
-            screen.Construct(new SilentLogging());
+            // Arrange.
+            TestLoadingScreen screen = Setup.LoadingScreen(out _root);
+            CancellationToken token = new(canceled: true);
+
+            // Act and Assert.
+            Assert.That(() => screen.ShowScreenAsync(token).GetAwaiter().GetResult(),
+                Throws.TypeOf<OperationCanceledException>());
+            Assert.That(_root.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void ShowScreenAsync_PreviousShowWasCancelled_ScreenIsVisible()
+        {
+            // Arrange.
+            TestLoadingScreen screen = Setup.LoadingScreen(out _root);
             try
             {
-                screen.ShowScreenImmediate();
-                Assert.Throws<OperationCanceledException>(() =>
-                    screen.HideScreenAsync(new CancellationToken(true)).GetAwaiter().GetResult());
-                Assert.That(screen.Visible, Is.True);
-                Assert.That(root.activeSelf, Is.True);
-                screen.HideScreenImmediate();
-                Assert.That(root.activeSelf, Is.False);
+                screen.ShowScreenAsync(new CancellationToken(canceled: true)).GetAwaiter().GetResult();
             }
-            finally
+            catch (OperationCanceledException)
             {
-                UnityEngine.Object.DestroyImmediate(root);
+                // The previous transition was cancelled before this action.
             }
+
+            // Act.
+            screen.ShowScreenAsync().GetAwaiter().GetResult();
+
+            // Assert.
+            Assert.That(_root.activeSelf, Is.True);
+            Assert.That(screen.Visible, Is.True);
         }
 
-        private sealed class SilentLogging : ILoggingService, IGameLogger
+        [Test]
+        public void HideScreenAsync_TokenIsCancelled_ScreenRemainsVisible()
         {
-            public IGameLogger GetLogger(LoggingChannel channel) => this;
-            public void Log(string message) { }
-            public void LogWarning(string message) { }
-            public void LogError(string message) { }
-        }
-    }
+            // Arrange.
+            TestLoadingScreen screen = Setup.LoadingScreen(out _root);
+            screen.ShowScreenImmediate();
+            CancellationToken token = new(canceled: true);
 
-    public sealed class TestLoadingScreen : GameLoadingScreen
-    {
-        public bool Visible { get; private set; }
-        public override void SetProgressDescription(string description) { }
-        protected override void UpdateProgressVisuals(float progress) { }
-        protected override void SetVisibleImmediate(bool visible) => Visible = visible;
-        protected override UniTask ShowAsync(CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            Visible = true;
-            return UniTask.CompletedTask;
+            // Act and Assert.
+            Assert.That(() => screen.HideScreenAsync(token).GetAwaiter().GetResult(),
+                Throws.TypeOf<OperationCanceledException>());
+            Assert.That(screen.Visible, Is.True);
+            Assert.That(_root.activeSelf, Is.True);
         }
-        protected override UniTask HideAsync(CancellationToken ct)
+
+        [Test]
+        public void HideScreenImmediate_PreviousHideWasCancelled_ScreenIsInactive()
         {
-            ct.ThrowIfCancellationRequested();
-            Visible = false;
-            return UniTask.CompletedTask;
+            // Arrange.
+            TestLoadingScreen screen = Setup.LoadingScreen(out _root);
+            screen.ShowScreenImmediate();
+            try
+            {
+                screen.HideScreenAsync(new CancellationToken(canceled: true)).GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                // The previous transition was cancelled before this action.
+            }
+
+            // Act.
+            screen.HideScreenImmediate();
+
+            // Assert.
+            Assert.That(_root.activeSelf, Is.False);
         }
     }
 }

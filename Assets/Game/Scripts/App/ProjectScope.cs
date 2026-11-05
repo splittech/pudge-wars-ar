@@ -1,4 +1,5 @@
 using Game.Core.Configs;
+using Game.Net;
 using Game.Services.LoggingService;
 using Game.Services.LoadingScreen;
 using Game.Services.SceneService;
@@ -13,6 +14,9 @@ namespace Game.App
         [Header("Project Scope")]
         [SerializeField] private ProjectBootstrap _projectBootstrap;
         [SerializeField] private GameLoadingScreen _loadingScreen;
+        [SerializeField] private PudgeNetworkManager _networkManager;
+        [SerializeField] private NetworkSceneLoader _networkSceneLoader;
+        [SerializeField] private NetworkPrefabList _networkPrefabs;
 
         [Header("Configs")]
         [SerializeField] private SceneServiceConfig _sceneServiceConfig;
@@ -28,6 +32,11 @@ namespace Game.App
         {
             // Bootstrap
             builder.RegisterComponent(_projectBootstrap);
+
+            // Network scene transitions share the existing additive scene service.
+            builder.RegisterComponent(_networkSceneLoader).As<INetworkSceneLoader>();
+            builder.RegisterComponent(_networkManager);
+            builder.RegisterInstance(_networkPrefabs);
 
             // Loading Screen
             builder.RegisterComponent(_loadingScreen).As<IGameLoadingScreen>();

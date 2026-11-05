@@ -53,79 +53,114 @@ namespace Game.Tests.EditMode.Input
         }
 
         [Test]
-        public void ShortTouch_IsTap()
+        public void Tick_TouchEndsWithinTapDuration_TapIsPublished()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
-            End(1, new Vector2(100f, 100f), StartTime + 0.1);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
 
+            // Act.
+            Begin(1, startPosition, StartTime);
+            End(1, startPosition, StartTime + 0.1);
+
+            // Assert.
             Assert.That(_taps, Is.EqualTo(new[] { new Vector2(100f, 100f) }));
             Assert.That(_dragPhases, Is.Empty);
         }
 
         [Test]
-        public void SmallJitter_IsStillTap()
+        public void Tick_TouchHasSmallJitter_TapIsPublishedWithoutDrag()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
+
+            // Act.
+            Begin(1, startPosition, StartTime);
             Move(1, new Vector2(101f, 100f), StartTime + 0.05);
             End(1, new Vector2(101f, 100f), StartTime + 0.1);
 
+            // Assert.
             Assert.That(_taps.Count, Is.EqualTo(1));
             Assert.That(_dragPhases, Is.Empty);
         }
 
         [Test]
-        public void LongTouch_IsNotTap()
+        public void Tick_TouchExceedsTapDuration_NoTapIsPublished()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
-            End(1, new Vector2(100f, 100f), StartTime + 1.0);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
 
+            // Act.
+            Begin(1, startPosition, StartTime);
+            End(1, startPosition, StartTime + 1.0);
+
+            // Assert.
             Assert.That(_taps, Is.Empty);
         }
 
         [Test]
-        public void MovedTouch_IsDragWithAllPhases()
+        public void Tick_TouchMovesBeyondThreshold_DragPhasesArePublishedInOrder()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
+
+            // Act.
+            Begin(1, startPosition, StartTime);
             Move(1, new Vector2(150f, 100f), StartTime + 0.05);
             Move(1, new Vector2(200f, 100f), StartTime + 0.1);
             End(1, new Vector2(200f, 100f), StartTime + 0.15);
 
+            // Assert.
             Assert.That(_dragPhases, Is.EqualTo(new[] { DragPhase.Began, DragPhase.Moved, DragPhase.Ended }));
             Assert.That(_taps, Is.Empty);
         }
 
         [Test]
-        public void SecondFinger_CancelsDrag()
+        public void Tick_SecondFingerAppears_ActiveDragIsCancelled()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
+
+            // Act.
+            Begin(1, startPosition, StartTime);
             Move(1, new Vector2(150f, 100f), StartTime + 0.05);
             Begin(2, new Vector2(300f, 300f), StartTime + 0.1);
             Move(1, new Vector2(200f, 100f), StartTime + 0.15);
             End(1, new Vector2(200f, 100f), StartTime + 0.2);
 
+            // Assert.
             Assert.That(_dragPhases, Is.EqualTo(new[] { DragPhase.Began, DragPhase.Cancelled }));
             Assert.That(_taps, Is.Empty);
         }
 
         [Test]
-        public void TwoFingers_SpreadApart_ReportsScale()
+        public void Tick_TwoFingersSpreadApart_PinchScaleIsPublished()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
+
+            // Act.
+            Begin(1, startPosition, StartTime);
             Begin(2, new Vector2(200f, 100f), StartTime + 0.05);
             Move(2, new Vector2(300f, 100f), StartTime + 0.1);
 
+            // Assert.
             Assert.That(_pinchTwists.Count, Is.EqualTo(1));
             Assert.That(_pinchTwists[0].ScaleFactor, Is.EqualTo(2f).Within(1e-4f));
             Assert.That(_pinchTwists[0].AngleDelta, Is.EqualTo(0f).Within(1e-4f));
         }
 
         [Test]
-        public void TwoFingers_Rotated_ReportsAngle()
+        public void Tick_TwoFingersRotate_TwistAngleIsPublished()
         {
-            Begin(1, new Vector2(100f, 100f), StartTime);
+            // Arrange.
+            Vector2 startPosition = new(100f, 100f);
+
+            // Act.
+            Begin(1, startPosition, StartTime);
             Begin(2, new Vector2(200f, 100f), StartTime + 0.05);
             Move(2, new Vector2(100f, 200f), StartTime + 0.1);
 
+            // Assert.
             Assert.That(_pinchTwists.Count, Is.EqualTo(1));
             Assert.That(_pinchTwists[0].AngleDelta, Is.EqualTo(90f).Within(1e-3f));
         }

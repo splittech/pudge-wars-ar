@@ -346,6 +346,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.App::Game.App.OfflineSimulationDriver
   _view: {fileID: 338586870}
+  _drawSimulationGizmos: 1
+  _frameRateLimit: 30
 --- !u!114 &338586869
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -380,6 +382,7 @@ MonoBehaviour:
   _aim: {fileID: 864966418}
   _status: {fileID: 1564949368}
   _camera: {fileID: 1844552820}
+  _resetTrainingButton: {fileID: 1396486969}
 --- !u!4 &338586871
 Transform:
   m_ObjectHideFlags: 0
@@ -1197,6 +1200,7 @@ MonoBehaviour:
   _offlineDriver: {fileID: 338586868}
   _arenaSpace: {fileID: 338586869}
   _arenaView: {fileID: 338586870}
+  _arenaRoot: {fileID: 338586871}
 --- !u!1 &1167506316
 GameObject:
   m_ObjectHideFlags: 0

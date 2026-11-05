@@ -14,6 +14,8 @@ namespace Game.App
         private IGameLoadingScreen _loadingScreen;
         private ISceneService _sceneService;
 
+        public bool IsInitialized { get; private set; }
+
         [Inject]
         public void Construct(IGameLoadingScreen loadingScreen, ISceneService sceneService)
         {
@@ -28,12 +30,14 @@ namespace Game.App
 
         public async UniTask StartAsync(CancellationToken ct)
         {
+            IsInitialized = false;
             _loadingScreen.ShowScreenImmediate();
 
             _loadingScreen.SetProgressDescription(_loadingInitialScenesProgressText);
             await _sceneService.LoadInitialScenesAsync(_loadingScreen.LoadingProgress, ct);
 
             await _loadingScreen.HideScreenAsync(ct);
+            IsInitialized = true;
         }
     }
 }

@@ -1,6 +1,8 @@
 using Cysharp.Threading.Tasks;
 using Game.Services.LoadingScreen;
 using Game.Services.SceneService;
+using Game.Net;
+using Mirror;
 using R3;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,12 +18,17 @@ namespace Game.App
 
         private ISceneService _sceneService;
         private IGameLoadingScreen _loadingScreen;
+        private PudgeNetworkManager _networkManager;
+        private INetworkSceneLoader _networkScenes;
 
         [Inject]
-        public void Construct(IGameLoadingScreen loadingScreen, ISceneService sceneService)
+        public void Construct(IGameLoadingScreen loadingScreen, ISceneService sceneService,
+            PudgeNetworkManager networkManager, INetworkSceneLoader networkScenes)
         {
             _sceneService = sceneService;
             _loadingScreen = loadingScreen;
+            _networkManager = networkManager;
+            _networkScenes = networkScenes;
         }
 
         private void Start()
@@ -33,6 +40,12 @@ namespace Game.App
 
         private async UniTask SwitchSceneAsync()
         {
+            if (NetworkServer.active || NetworkClient.active)
+            {
+                if (_sceneToSwitch.SceneReference.Path == _networkScenes.OfflineScenePath)
+                    _networkManager.StopSession();
+                return;
+            }
             _button.interactable = false;
             try
             {

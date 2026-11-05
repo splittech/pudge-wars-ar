@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Game.Core;
 using Game.Core.Configs;
 using NUnit.Framework;
@@ -8,52 +9,132 @@ namespace Game.Tests.EditMode
 {
     public sealed class ConfigTests
     {
-        [Test]
-        public void Defaults_MatchStartingBalance()
+        private readonly List<ScriptableObject> _configs = new();
+
+        [TearDown]
+        public void TearDown()
         {
-            var hook = ScriptableObject.CreateInstance<HookConfig>();
-            var hero = ScriptableObject.CreateInstance<HeroConfig>();
-            var economy = ScriptableObject.CreateInstance<EconomyConfig>();
-            var arena = ScriptableObject.CreateInstance<ArenaConfig>();
-            var match = ScriptableObject.CreateInstance<MatchConfig>();
-            try
-            {
-                Assert.That(hook.ToData().Damage, Is.EqualTo(175));
-                Assert.That(hook.ToData().Range, Is.EqualTo(12));
-                Assert.That(hero.ToData().MaxHp, Is.EqualTo(1000));
-                Assert.That(economy.ToData().AssistWindow, Is.EqualTo(10));
-                CollectionAssert.AreEqual(new[] { 100, 200, 300, 400 }, economy.ToData().UpgradePrices);
-                Assert.That(arena.ToData().Size, Is.EqualTo(new float2(24, 14)));
-                Assert.That(arena.ToData().TeamASpawnPoints.Count, Is.EqualTo(3));
-                Assert.That(arena.ToData().TeamBSpawnPoints[2], Is.EqualTo(new float2(8, 4)));
-                Assert.That(match.ToData().TickRate, Is.EqualTo(30));
-                Assert.That(match.ToData().MaxPlayers, Is.EqualTo(4));
-                Assert.That(match.ToData().MatchDuration, Is.EqualTo(480));
-                Assert.That(NetworkProtocol.ProtocolVersion, Is.EqualTo(1));
-            }
-            finally
-            {
-                Object.DestroyImmediate(hook);
-                Object.DestroyImmediate(hero);
-                Object.DestroyImmediate(economy);
-                Object.DestroyImmediate(arena);
-                Object.DestroyImmediate(match);
-            }
+            foreach (ScriptableObject config in _configs)
+                Object.DestroyImmediate(config);
+            _configs.Clear();
         }
 
         [Test]
-        public void Snapshots_DoNotShareMutableArrays()
+        public void ToData_DefaultHookConfig_ReturnsStartingHookBalance()
         {
-            var prices = new[] { 100, 200 };
-            var economy = new EconomyConfigData(150, 50, 10, 0, prices);
-            prices[0] = 999;
-            Assert.That(economy.UpgradePrices[0], Is.EqualTo(100));
+            // Arrange.
+            HookConfig config = CreateConfig<HookConfig>();
 
-            var spawns = new[] { new float2(-8, 0) };
-            var arena = new ArenaConfigData(new float2(24, 14), 3.5f, spawns, spawns);
+            // Act.
+            HookConfigData data = config.ToData();
+
+            // Assert.
+            Assert.That(data.Damage, Is.EqualTo(175));
+            Assert.That(data.Range, Is.EqualTo(12f));
+        }
+
+        [Test]
+        public void ToData_DefaultHeroConfig_ReturnsStartingHp()
+        {
+            // Arrange.
+            HeroConfig config = CreateConfig<HeroConfig>();
+
+            // Act.
+            HeroConfigData data = config.ToData();
+
+            // Assert.
+            Assert.That(data.MaxHp, Is.EqualTo(1000));
+        }
+
+        [Test]
+        public void ToData_DefaultEconomyConfig_ReturnsAssistWindowAndPrices()
+        {
+            // Arrange.
+            EconomyConfig config = CreateConfig<EconomyConfig>();
+            int[] expectedPrices = { 100, 200, 300, 400 };
+
+            // Act.
+            EconomyConfigData data = config.ToData();
+
+            // Assert.
+            Assert.That(data.AssistWindow, Is.EqualTo(10f));
+            Assert.That(data.UpgradePrices, Is.EqualTo(expectedPrices));
+        }
+
+        [Test]
+        public void ToData_DefaultArenaConfig_ReturnsSizeAndSpawnPoints()
+        {
+            // Arrange.
+            ArenaConfig config = CreateConfig<ArenaConfig>();
+
+            // Act.
+            ArenaConfigData data = config.ToData();
+
+            // Assert.
+            Assert.That(data.Size, Is.EqualTo(new float2(24f, 14f)));
+            Assert.That(data.TeamASpawnPoints.Count, Is.EqualTo(3));
+            Assert.That(data.TeamBSpawnPoints[2], Is.EqualTo(new float2(8f, 4f)));
+        }
+
+        [Test]
+        public void ToData_DefaultMatchConfig_ReturnsStartingMatchRules()
+        {
+            // Arrange.
+            MatchConfig config = CreateConfig<MatchConfig>();
+
+            // Act.
+            MatchConfigData data = config.ToData();
+
+            // Assert.
+            Assert.That(data.TickRate, Is.EqualTo(30));
+            Assert.That(data.MaxPlayers, Is.EqualTo(4));
+            Assert.That(data.MatchDuration, Is.EqualTo(480f));
+        }
+
+        [Test]
+        public void ProtocolVersion_InitialProtocol_IsOne()
+        {
+            // Act.
+            int version = NetworkProtocol.ProtocolVersion;
+
+            // Assert.
+            Assert.That(version, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EconomyConfigData_SourcePricesChanged_SnapshotKeepsOriginalPrices()
+        {
+            // Arrange.
+            int[] prices = { 100, 200 };
+            EconomyConfigData data = new(150, 50, 10f, 0, prices);
+
+            // Act.
+            prices[0] = 999;
+
+            // Assert.
+            Assert.That(data.UpgradePrices[0], Is.EqualTo(100));
+        }
+
+        [Test]
+        public void ArenaConfigData_SourceSpawnsChanged_BothTeamsKeepOriginalPositions()
+        {
+            // Arrange.
+            float2[] spawns = { new(-8f, 0f) };
+            ArenaConfigData data = new(new float2(24f, 14f), 3.5f, spawns, spawns);
+
+            // Act.
             spawns[0] = float2.zero;
-            Assert.That(arena.TeamASpawnPoints[0], Is.EqualTo(new float2(-8, 0)));
-            Assert.That(arena.TeamBSpawnPoints[0], Is.EqualTo(new float2(-8, 0)));
+
+            // Assert.
+            Assert.That(data.TeamASpawnPoints[0], Is.EqualTo(new float2(-8f, 0f)));
+            Assert.That(data.TeamBSpawnPoints[0], Is.EqualTo(new float2(-8f, 0f)));
+        }
+
+        private T CreateConfig<T>() where T : ScriptableObject
+        {
+            T config = ScriptableObject.CreateInstance<T>();
+            _configs.Add(config);
+            return config;
         }
     }
 }

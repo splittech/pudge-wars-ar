@@ -20,6 +20,7 @@ namespace Game.Presentation
         [SerializeField] private LineRenderer _aim;
         [SerializeField] private TMP_Text _status;
         [SerializeField] private Camera _camera;
+        [SerializeField] private GameObject _resetTrainingButton;
         private InputRouter _router;
         private float _range;
         private Vector2 _size;
@@ -52,6 +53,16 @@ namespace Game.Presentation
             _floor.localScale = new Vector3(arena.Size.x, 0.15f, arena.Size.y);
             _river.localScale = new Vector3(arena.RiverWidth, 0.05f, arena.Size.y);
             FitCamera();
+        }
+
+        public void SetSandboxVisible(bool visible)
+        {
+            _hero.gameObject.SetActive(visible);
+            _dummy.gameObject.SetActive(visible);
+            _hook.gameObject.SetActive(visible);
+            _aim.gameObject.SetActive(visible);
+            _status.gameObject.SetActive(visible);
+            _resetTrainingButton.SetActive(visible);
         }
 
         private void FitCamera()

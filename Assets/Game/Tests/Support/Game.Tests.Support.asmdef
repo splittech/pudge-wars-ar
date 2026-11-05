@@ -1,0 +1,19 @@
+{
+    "name": "Game.Tests.Support",
+    "rootNamespace": "Game.Tests.Support",
+    "references": [
+        "Game.Services",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

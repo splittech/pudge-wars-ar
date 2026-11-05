@@ -206,6 +206,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: Development Overlay
       objectReference: {fileID: 0}
+    - target: {fileID: 4707876743644037315, guid: 360a6eaeb99fa5d49ba7fe298d78d35d, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 5113804688736438864, guid: 360a6eaeb99fa5d49ba7fe298d78d35d, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4278512639
+      objectReference: {fileID: 0}
+    - target: {fileID: 5113804688736438864, guid: 360a6eaeb99fa5d49ba7fe298d78d35d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7298015461833729601, guid: 360a6eaeb99fa5d49ba7fe298d78d35d, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -626,6 +638,9 @@ MonoBehaviour:
   autoInjectGameObjects: []
   _projectBootstrap: {fileID: 1019663016}
   _loadingScreen: {fileID: 1477139670}
+  _networkManager: {fileID: 1308542801}
+  _networkSceneLoader: {fileID: 1308542802}
+  _networkPrefabs: {fileID: 11400000, guid: d13345316e694bc4e83c044c726c8a1d, type: 2}
   _sceneServiceConfig: {fileID: 11400000, guid: d6dc490882befb84e8c583a4dc243a3f, type: 2}
   _loggingServiceConfig: {fileID: 11400000, guid: 0eefe728415d747429a48bb99706b08b, type: 2}
   _inputConfig: {fileID: 11400000, guid: e63e8eb25f4400d4f920946e49971e75, type: 2}
@@ -1263,6 +1278,128 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &1308542800
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1308542804}
+  - component: {fileID: 1308542803}
+  - component: {fileID: 1308542802}
+  - component: {fileID: 1308542801}
+  m_Layer: 0
+  m_Name: Network Session
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1308542801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1308542800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0d9e3e349aad7844bc91ba2f911ab0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Net::Game.Net.PudgeNetworkManager
+  dontDestroyOnLoad: 0
+  runInBackground: 1
+  headlessStartMode: 0
+  editorAutoStart: 0
+  sendRate: 30
+  offlineScene: 
+  onlineScene: Assets/Game/Scenes/Gameplay Scene.unity
+  offlineSceneLoadDelay: 0
+  transport: {fileID: 1308542803}
+  networkAddress: 127.0.0.1
+  maxConnections: 4
+  disconnectInactiveConnections: 0
+  disconnectInactiveTimeout: 60
+  authenticator: {fileID: 0}
+  playerPrefab: {fileID: 0}
+  autoCreatePlayer: 0
+  playerSpawnMethod: 0
+  spawnPrefabs: []
+  exceptionsDisconnect: 1
+  snapshotSettings:
+    bufferTimeMultiplier: 2
+    bufferLimit: 32
+    catchupNegativeThreshold: -1
+    catchupPositiveThreshold: 1
+    catchupSpeed: 0.019999999552965164
+    slowdownSpeed: 0.03999999910593033
+    driftEmaDuration: 1
+    dynamicAdjustment: 1
+    dynamicAdjustmentTolerance: 1
+    deliveryTimeEmaDuration: 2
+  evaluationMethod: 0
+  evaluationInterval: 3
+  timeInterpolationGui: 0
+--- !u!114 &1308542802
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1308542800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5491d33eef66bbe4f88e9cf72e69bc88, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.App::Game.App.NetworkSceneLoader
+  _menuScene: {fileID: 11400000, guid: d1e024118e69fe441b75b8c276451b53, type: 2}
+  _matchScene: {fileID: 11400000, guid: 4abab2d860f4b494dbc886b4c6280b65, type: 2}
+--- !u!114 &1308542803
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1308542800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b0fecffa3f624585964b0d0eb21b18e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mirror.Transports::kcp2k.KcpTransport
+  port: 7777
+  DualMode: 1
+  NoDelay: 1
+  Interval: 10
+  Timeout: 10000
+  RecvBufferSize: 7361536
+  SendBufferSize: 7361536
+  FastResend: 2
+  ReceiveWindowSize: 4096
+  SendWindowSize: 4096
+  MaxRetransmit: 40
+  MaximizeSocketBuffers: 1
+  ReliableMaxMessageSize: 297433
+  UnreliableMaxMessageSize: 1194
+  debugLog: 0
+  statisticsGUI: 0
+  statisticsLog: 0
+--- !u!4 &1308542804
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1308542800}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1391650652
 GameObject:
   m_ObjectHideFlags: 0
@@ -1872,3 +2009,4 @@ SceneRoots:
   - {fileID: 1984130599}
   - {fileID: 1477139668}
   - {fileID: 87683643}
+  - {fileID: 1308542804}

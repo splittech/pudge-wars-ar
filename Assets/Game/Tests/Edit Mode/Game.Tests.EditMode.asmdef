@@ -2,10 +2,14 @@
     "name": "Game.Tests.EditMode",
     "rootNamespace": "Game.Tests.EditMode",
     "references": [
-        "Game.Services",
-        "UniTask",
-        "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner",
+        "Mirror",
+        "Mirror.Transports",
+        "VContainer",
+        "Game.Tests.Support",
+        "GUID:e7c709a06f6f34b41a286a2e29837c6e",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:0acc523941302664db1f4e527237feb3",
         "GUID:38168c9afa16122448109c61669d6117",
         "GUID:a33aff2f4070a404b86d1599e8894fd7",
         "GUID:154f8497716750f4bb26503df50a5f35",
@@ -22,7 +26,8 @@
     "precompiledReferences": [
         "nunit.framework.dll",
         "R3.dll",
-        "Microsoft.Bcl.TimeProvider.dll"
+        "Microsoft.Bcl.TimeProvider.dll",
+        "NSubstitute.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [
