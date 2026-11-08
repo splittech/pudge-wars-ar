@@ -2,6 +2,7 @@
     "name": "Game.Net",
     "rootNamespace": "Game.Net",
     "references": [
+        "Alchemy",
         "GUID:38168c9afa16122448109c61669d6117",
         "GUID:30817c1a0e6d646d99c048fc403f5979",
         "GUID:77221876cc6b8244180b96e320b1bcd4",

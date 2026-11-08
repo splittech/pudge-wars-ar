@@ -43,23 +43,37 @@ namespace Game.Services.LoadingScreen
             _slider.value = progress;
         }
 
-        private UniTask DoFadeAsync(float endValue, CancellationToken ct)
+        private async UniTask DoFadeAsync(float endValue, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             KillFadeAnimation();
 
             // Independent update keeps the fade running while Time.timeScale is 0.
-            // SetLink kills the tween when the GameObject is destroyed.
-            _fadeTween = _canvasGroup.DOFade(endValue, _fadeTime)
-                .SetUpdate(true)
-                .SetLink(gameObject);
+            Tween tween = _canvasGroup.DOFade(endValue, _fadeTime).SetUpdate(true);
+            _fadeTween = tween;
+            try
+            {
+                // Poll cancellation on the player loop. A destruction callback must not
+                // kill a stale tween after DOTween has cleared its active tween arrays.
+                while (tween.IsActive() && tween.IsPlaying())
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
 
-            return _fadeTween.ToUniTask(cancellationToken: ct);
+                ct.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                // A superseded transition must never kill the replacement animation.
+                if (ReferenceEquals(_fadeTween, tween))
+                    KillFadeAnimation();
+            }
         }
 
         private void KillFadeAnimation()
         {
-            _fadeTween?.Kill();
             _fadeTween = null;
+            // Query DOTween's current active list instead of killing a retained handle.
+            if (_canvasGroup != null)
+                _canvasGroup.DOKill();
         }
     }
 }

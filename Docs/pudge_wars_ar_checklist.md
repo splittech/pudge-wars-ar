@@ -306,6 +306,10 @@
 
 ### 2.2 Создание сетевых объектов через DI
 
+Инспектор 09.11.2026: команды контекстного меню PudgeNetworkManager заменены кнопками Alchemy в группе Session: Start Host / Start Client в одной строке, Stop Session ниже. Старт доступен только в Play Mode после готовности загрузчика, без активной сессии и перехода сцен; остановка — при активном сервере или клиенте. Отдельный Game.Net.Editor.PudgeNetworkManagerEditor обеспечивает использование Alchemy вместо унаследованного инспектора Mirror. Проверены фактический тип инспектора, наличие всех трёх кнопок и 112/112 EditMode-тестов.
+
+Диагностика 09.11.2026: повторный запуск подтвердил остаточные ошибки MPPM для `AutodeskInteractive.shadergraph`, `TraceVirtualOffset.urtshader` и read-only AssetDatabase; D3D11 устраняет массовый сбой изображения, но не все сообщения. Переимпорт двух ассетов не помог. В Game.Services.Editor добавлен обход внутреннего PlayModeListener SceneReference 5.0.0 только для виртуального проекта: карты генерирует основной редактор, клон не вызывает Refresh из этого обработчика. Другие внутренние assert MPPM остаются. SimpleLoadingScreen больше не регистрирует отмену через UniTask DOTween callback: ожидает fade с проверкой токена в PlayerLoop, удаляет активную анимацию через её target, не убивает заменивший её переход. Проверены свежий запуск клона, загрузка меню, остановка с активной анимацией после очистки DOTween; прежний IndexOutOfRangeException не повторился. Компиляция без ошибок, 112/112 EditMode-тестов прошли. Полностью чистая консоль MPPM пока не достигнута.
+
 - [x] ScriptableObject NetworkPrefabList и ассет со списком префабов.
   _На этом этапе: Hero, MatchState._
 - [x] NetworkPrefabFactory (раздел 10.5 ТДД), регистрация в GameplayScope; клиентские spawn/unspawn-хендлеры снимаются при Dispose.

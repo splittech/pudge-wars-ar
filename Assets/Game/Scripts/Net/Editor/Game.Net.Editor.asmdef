@@ -1,0 +1,7 @@
+{
+    "name": "Game.Net.Editor",
+    "rootNamespace": "Game.Net.Editor",
+    "references": ["Game.Net", "Alchemy.Editor"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": false
+}

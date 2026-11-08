@@ -1,4 +1,5 @@
 using System;
+using Alchemy.Inspector;
 using Cysharp.Threading.Tasks;
 using Mirror;
 using UnityEngine;
@@ -39,21 +40,26 @@ namespace Game.Net
             onlineScene = sceneLoader.OnlineScenePath;
         }
 
-        [ContextMenu("Session/Start Host")]
+        [BoxGroup("Session", -10)]
+        [HorizontalGroup("Session/Start")]
+        [Button, LabelText("Start Host"), EnableIf(nameof(CanStartSession))]
         public void StartHostSession()
         {
             if (CanStartSession())
                 StartHost();
         }
 
-        [ContextMenu("Session/Start Client")]
+        [BoxGroup("Session", -10)]
+        [HorizontalGroup("Session/Start")]
+        [Button, LabelText("Start Client"), EnableIf(nameof(CanStartSession))]
         public void StartClientSession()
         {
             if (CanStartSession())
                 StartClient();
         }
 
-        [ContextMenu("Session/Stop")]
+        [BoxGroup("Session", -10)]
+        [Button, LabelText("Stop Session"), EnableIf(nameof(CanStopSession))]
         public void StopSession()
         {
             // During StartHost's scene load, ConnectHost has not created the local client yet.
@@ -70,6 +76,11 @@ namespace Game.Net
             return Application.isPlaying && _sceneLoader != null && !IsChangingScene
                 && _sceneLoader.IsReadyToStart
                 && !NetworkServer.active && !NetworkClient.active;
+        }
+
+        private bool CanStopSession()
+        {
+            return Application.isPlaying && (NetworkServer.active || NetworkClient.active);
         }
 
         public override void ServerChangeScene(string newSceneName)
