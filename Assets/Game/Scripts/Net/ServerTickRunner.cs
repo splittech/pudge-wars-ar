@@ -12,13 +12,16 @@ namespace Game.Net
         private readonly MatchSimulation _simulation;
         private readonly IMatchStateSink _sink;
         private readonly NetworkPrefabFactory _factory;
+        private readonly ServerPlayerCommands _commands;
         private double _accumulator;
 
-        public ServerTickRunner(MatchSimulation simulation, IMatchStateSink sink, NetworkPrefabFactory factory)
+        public ServerTickRunner(MatchSimulation simulation, IMatchStateSink sink, NetworkPrefabFactory factory,
+            ServerPlayerCommands commands)
         {
             _simulation = simulation;
             _sink = sink;
             _factory = factory;
+            _commands = commands;
         }
 
         public void Tick()
@@ -45,7 +48,9 @@ namespace Game.Net
             {
                 // A new simulation can be created immediately before this render frame.
                 double start = Math.Max(_simulation.Time, now - (steps - i) * (double)StepDelta);
+                _commands.Flush(start);
                 _simulation.Step(StepDelta, start);
+                _commands.CompleteStep();
                 _sink.Apply(_simulation);
             }
             _accumulator %= StepDelta;

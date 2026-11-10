@@ -92,13 +92,13 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void ProtocolVersion_ServerSimulationProtocol_IsTwo()
+        public void ProtocolVersion_HookPredictionProtocol_IsFive()
         {
             // Act.
             int version = NetworkProtocol.ProtocolVersion;
 
             // Assert.
-            Assert.That(version, Is.EqualTo(2));
+            Assert.That(version, Is.EqualTo(5));
         }
 
         [Test]

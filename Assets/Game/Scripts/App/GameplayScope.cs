@@ -29,13 +29,19 @@ namespace Game.App
                     resolver.Resolve<HookConfig>().ToData(), System.Array.Empty<HeroState>()), Lifetime.Scoped);
                 builder.Register<MatchStateSink>(Lifetime.Scoped).AsSelf().As<IMatchStateSink>();
                 builder.Register<ReconnectRegistry>(Lifetime.Scoped);
+                builder.Register<LocalPlayerCommands>(Lifetime.Scoped).AsSelf().AsImplementedInterfaces();
+                builder.Register(resolver => new ServerPlayerCommands(resolver.Resolve<MatchSimulation>(),
+                    resolver.Resolve<ArenaConfig>()), Lifetime.Scoped);
                 builder.RegisterEntryPoint<NetworkPrefabFactory>().AsSelf();
                 builder.RegisterEntryPoint<ServerTickRunner>().AsSelf();
             }
             // Input. RegisterEntryPoint binds all implemented interfaces, including ITouchGestures.
             builder.RegisterEntryPoint<EnhancedTouchGestures>();
             builder.RegisterEntryPoint<TouchGesturesDebugLogger>();
-            builder.RegisterComponent(_offlineDriver).AsSelf().AsImplementedInterfaces();
+            if (NetworkServer.active || NetworkClient.active)
+                builder.RegisterComponent(_offlineDriver).AsSelf();
+            else
+                builder.RegisterComponent(_offlineDriver).AsSelf().AsImplementedInterfaces();
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);

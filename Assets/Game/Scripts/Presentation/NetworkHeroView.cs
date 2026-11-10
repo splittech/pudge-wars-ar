@@ -1,6 +1,8 @@
 using Game.Core.Match;
 using Game.Net;
 using UnityEngine;
+using System;
+using R3;
 
 namespace Game.Presentation
 {
@@ -11,17 +13,39 @@ namespace Game.Presentation
         [SerializeField] private GameObject _localRing;
         private MaterialPropertyBlock _properties;
         private Team? _shownTeam;
+        private IDisposable _healthSubscription;
+        private int _lastHp = -1;
+        private float _flashUntil;
+        private bool _shownFlash;
+
+        private void OnEnable()
+        {
+            _healthSubscription = _hero.Health.Subscribe(hp =>
+            {
+                if (_lastHp >= 0 && hp < _lastHp)
+                    _flashUntil = Time.unscaledTime + 0.15f;
+                _lastHp = hp;
+            });
+        }
+
+        private void OnDisable()
+        {
+            _healthSubscription?.Dispose();
+            _healthSubscription = null;
+        }
 
         private void LateUpdate()
         {
-            if (_shownTeam != _hero.Team)
+            bool flash = Time.unscaledTime < _flashUntil;
+            if (_shownTeam != _hero.Team || _shownFlash != flash)
             {
                 _properties ??= new MaterialPropertyBlock();
                 _body.GetPropertyBlock(_properties);
-                _properties.SetColor("_BaseColor", _hero.Team == Team.A
-                    ? new Color(0.15f, 0.55f, 1f) : new Color(1f, 0.4f, 0.12f));
+                _properties.SetColor("_BaseColor", flash ? Color.white : (_hero.Team == Team.A
+                    ? new Color(0.15f, 0.55f, 1f) : new Color(1f, 0.4f, 0.12f)));
                 _body.SetPropertyBlock(_properties);
                 _shownTeam = _hero.Team;
+                _shownFlash = flash;
             }
             if (_localRing.activeSelf != _hero.IsLocalHero)
                 _localRing.SetActive(_hero.IsLocalHero);

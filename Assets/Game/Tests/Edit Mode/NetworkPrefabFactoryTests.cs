@@ -18,10 +18,12 @@ namespace Game.Tests.EditMode
         private ArenaConfig _arenaConfig;
         private MatchConfig _matchConfig;
         private HeroConfig _heroConfig;
+        private HookConfig _hookConfig;
         private IObjectResolver _resolver;
         private NetworkPrefabList _catalog;
         private NetworkPrefabFactory _factory;
         private MatchSimulation _simulation;
+        private ServerPlayerCommands _commands;
         private MatchStateSink _sink;
         private ReconnectRegistry _reconnect;
         private bool _serverStarted;
@@ -34,7 +36,10 @@ namespace Game.Tests.EditMode
             _arenaConfig = ScriptableObject.CreateInstance<ArenaConfig>();
             _matchConfig = ScriptableObject.CreateInstance<MatchConfig>();
             _heroConfig = ScriptableObject.CreateInstance<HeroConfig>();
-            _resolver = Setup.NetworkSpawnContainer(_arenaConfig, _matchConfig);
+            _hookConfig = ScriptableObject.CreateInstance<HookConfig>();
+            _simulation = Setup.MatchSimulation(System.Array.Empty<Game.Core.Hero.HeroState>());
+            _commands = new ServerPlayerCommands(_simulation, _arenaConfig);
+            _resolver = Setup.NetworkSpawnContainer(_arenaConfig, _matchConfig, _commands, _hookConfig);
             _arenaRoot = new GameObject("Local arena");
             _arenaRoot.transform.SetPositionAndRotation(new Vector3(23, 7, -11), Quaternion.Euler(0, 65, 0));
             _arenaRoot.transform.localScale = Vector3.one * 0.05f;
@@ -42,13 +47,12 @@ namespace Game.Tests.EditMode
                 "Assets/Game/Configs/Gameplay/Network Prefab List.asset");
             var loader = Setup.NetworkSceneLoader(out _, out _);
             var manager = Setup.NetworkManager(loader, out _managerRoot);
-            _simulation = Setup.MatchSimulation(System.Array.Empty<Game.Core.Hero.HeroState>());
             _sink = new MatchStateSink();
             _reconnect = new ReconnectRegistry();
             _factory = new NetworkPrefabFactory(Setup.EditModeNetworkSpawnResolver(_resolver),
                 _catalog, _arenaRoot.transform, manager,
                 _simulation,
-                _sink, _reconnect, _arenaConfig, _heroConfig);
+                _sink, _reconnect, _arenaConfig, _heroConfig, _commands);
             _factory.Initialize();
         }
 
@@ -69,6 +73,7 @@ namespace Game.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(_arenaConfig);
             UnityEngine.Object.DestroyImmediate(_matchConfig);
             UnityEngine.Object.DestroyImmediate(_heroConfig);
+            UnityEngine.Object.DestroyImmediate(_hookConfig);
         }
 
         private NetworkConnectionToClient StartTestServer()
@@ -87,6 +92,95 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
+        public void Apply_ConfirmedThrow_CopiesRequestCorrelationToHookSnapshot()
+        {
+            // Arrange.
+            NetworkConnectionToClient connection = StartTestServer();
+            HeroNet hero = _factory.SpawnPlayer(connection);
+            _commands.TryThrow(hero.SessionPlayerId, new Unity.Mathematics.float2(1, 0),
+                100, true, 17, hero.SessionEpoch, out _);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
+
+            // Act.
+            runner.Advance(ServerTickRunner.StepDelta, 100, true);
+
+            // Assert.
+            Assert.That(hero.HookState.RequestId, Is.EqualTo(17));
+            Assert.That(hero.HookState.SessionEpoch, Is.EqualTo(hero.SessionEpoch));
+            Assert.That(hero.HookState.Phase, Is.EqualTo(Game.Core.Hook.HookPhase.Extending));
+        }
+
+        [Test]
+        public void Apply_HookHitsHero_ExportsNetworkTargetAndReactiveDamage()
+        {
+            // Arrange.
+            NetworkConnectionToClient connection = StartTestServer();
+            _factory.EnsureMatchState();
+            HeroNet owner = _factory.SpawnPlayer(connection);
+            HeroNet target = _factory.SpawnPlayer(new NetworkConnectionToClient(2)
+                { isAuthenticated = true, isReady = true });
+            _commands.TryMove(owner.SessionPlayerId, new Unity.Mathematics.float2(-3, -4), 100, true, out _);
+            _commands.TryMove(target.SessionPlayerId, new Unity.Mathematics.float2(3, -4), 100, true, out _);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
+            for (int i = 0; i < 60; i++)
+                runner.Advance(ServerTickRunner.StepDelta, 100 + (i + 1) * (double)ServerTickRunner.StepDelta, true);
+
+            // Act.
+            _commands.TryThrow(owner.SessionPlayerId, new Unity.Mathematics.float2(1, 0), 103, true, out _);
+            for (int i = 0; i < 30 && owner.HookState.Phase != Game.Core.Hook.HookPhase.Pulling; i++)
+                runner.Advance(ServerTickRunner.StepDelta, 103 + (i + 1) * (double)ServerTickRunner.StepDelta, true);
+
+            // Assert.
+            Assert.That(owner.HookState.Phase, Is.EqualTo(Game.Core.Hook.HookPhase.Pulling));
+            Assert.That(owner.HookState.TargetNetId, Is.EqualTo(target.netId));
+            Assert.That(target.netId, Is.Not.EqualTo(target.SessionPlayerId));
+            Assert.That(target.Health.CurrentValue, Is.EqualTo(825));
+            Assert.That(target.Health.CurrentValue, Is.EqualTo(target.Hp));
+        }
+
+        [Test]
+        public void HeroPrefab_NetworkTransform_UsesServerLocalPositionOnly()
+        {
+            // Arrange.
+            NetworkBehaviour component = Array.Find(_catalog.Hero.GetComponents<NetworkBehaviour>(),
+                value => value.GetType().Name == "NetworkTransformUnreliable");
+
+            // Act.
+            Assert.That(component, Is.Not.Null);
+            var settings = new SerializedObject(component);
+
+            // Assert.
+            Assert.That(settings.FindProperty("coordinateSpace").enumValueIndex, Is.Zero);
+            Assert.That(component.syncDirection, Is.EqualTo(SyncDirection.ServerToClient));
+            Assert.That(settings.FindProperty("syncPosition").boolValue, Is.True);
+            Assert.That(settings.FindProperty("syncRotation").boolValue, Is.False);
+            Assert.That(settings.FindProperty("syncScale").boolValue, Is.False);
+            Assert.That(settings.FindProperty("target").objectReferenceValue,
+                Is.SameAs(_catalog.Hero.transform));
+        }
+
+        [Test]
+        public void Apply_HookKeepsExtending_PreservesCompactSnapshotAndReactiveHp()
+        {
+            // Arrange.
+            NetworkConnectionToClient connection = StartTestServer();
+            HeroNet hero = _factory.SpawnPlayer(connection);
+            _commands.TryThrow(hero.SessionPlayerId, new Unity.Mathematics.float2(1, 0), 100, true, out _);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
+            runner.Advance(ServerTickRunner.StepDelta, 100, true);
+            HookNetState first = hero.HookState;
+
+            // Act.
+            runner.Advance(ServerTickRunner.StepDelta, 100 + ServerTickRunner.StepDelta, true);
+
+            // Assert.
+            Assert.That(first.Phase, Is.EqualTo(Game.Core.Hook.HookPhase.Extending));
+            Assert.That(hero.HookState, Is.EqualTo(first));
+            Assert.That(hero.Health.CurrentValue, Is.EqualTo(hero.Hp));
+            Assert.That(_simulation.GetHook(0).Length, Is.GreaterThan(0));
+        }
+
+        [Test]
         public void SpawnPlayer_ServerTick_RegistersAndProjectsArenaCoordinates()
         {
             // Arrange.
@@ -95,8 +189,8 @@ namespace Game.Tests.EditMode
             hero.transform.localPosition += Vector3.up * 0.75f;
             var target = _arenaConfig.ToData().TeamASpawnPoints[0];
             target.x += 1;
-            _simulation.Enqueue(new Game.Core.Commands.MoveIntent(hero.SessionPlayerId, target));
-            var runner = new ServerTickRunner(_simulation, _sink, _factory);
+            _commands.TryMove(hero.SessionPlayerId, target, 100, true, out _);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
 
             // Act.
             runner.Advance(ServerTickRunner.StepDelta, 100, true);
@@ -118,7 +212,7 @@ namespace Game.Tests.EditMode
             HeroNet hero = _factory.SpawnPlayer(connection);
             uint playerId = hero.SessionPlayerId;
             var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
-            var runner = new ServerTickRunner(_simulation, _sink, _factory);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
 
             // Act.
             manager.OnServerDisconnect(connection);
@@ -150,7 +244,7 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var sink = Substitute.For<IMatchStateSink>();
-            var runner = new ServerTickRunner(_simulation, sink, _factory);
+            var runner = new ServerTickRunner(_simulation, sink, _factory, _commands);
 
             // Act.
             int steps = runner.Advance(1, 100, false);
@@ -166,7 +260,7 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var sink = Substitute.For<IMatchStateSink>();
-            var runner = new ServerTickRunner(_simulation, sink, _factory);
+            var runner = new ServerTickRunner(_simulation, sink, _factory, _commands);
 
             // Act.
             int steps = runner.Advance(1, 100, true);

@@ -19,6 +19,11 @@ unity build                                         # batch-mode build
 ```
 After changing C# code, run the EditMode tests and fix all compile errors before finishing.
 
+### Unity save dialogs
+- When Unity shows the `Scene(s) Have Been Modified` dialog while working on this project, the agent is authorized to click `Save` independently, without asking for confirmation. This preserves the user's scene changes and allows tests or other Editor operations to continue.
+- Before interacting, verify that the dialog belongs to this project's Unity Editor and select the exact `Save` button. Do not automatically select `Don't Save` or `Cancel`; discarding changes requires an explicit user instruction.
+- If `Save` opens a Save As dialog for an unnamed scene, ask the user for the destination instead of inventing a scene name or overwriting another asset.
+
 Packages: UPM git packages in `Packages/manifest.json`; R3 and ObservableCollections via NuGetForUnity (`Assets/packages.config` -> `Assets/Packages/`). Mirror (`Assets/Mirror`) and DOTween (`Assets/Plugins/Demigiant`) are vendored.
 
 ## Architecture

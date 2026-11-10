@@ -155,11 +155,15 @@ namespace Game.Tests.EditMode
             return manager;
         }
 
-        public static IObjectResolver NetworkSpawnContainer(ArenaConfig arena, MatchConfig match)
+        public static IObjectResolver NetworkSpawnContainer(ArenaConfig arena, MatchConfig match,
+            ServerPlayerCommands commands, HookConfig hook)
         {
             var builder = new ContainerBuilder();
             builder.RegisterInstance(arena);
             builder.RegisterInstance(match);
+            builder.RegisterInstance(hook);
+            builder.RegisterInstance(new LocalPlayerCommands());
+            builder.RegisterInstance(commands);
             return builder.Build();
         }
 

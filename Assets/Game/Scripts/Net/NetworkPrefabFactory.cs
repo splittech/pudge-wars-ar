@@ -21,6 +21,7 @@ namespace Game.Net
         private readonly ReconnectRegistry _reconnect;
         private readonly ArenaConfigData _arena;
         private readonly HeroConfigData _heroConfig;
+        private readonly ServerPlayerCommands _commands;
         private readonly HashSet<GameObject> _registered = new();
         private readonly Dictionary<uint, GameObject> _prefabsById = new();
         private readonly HeroNet[] _players = new HeroNet[4];
@@ -31,7 +32,8 @@ namespace Game.Net
 
         public NetworkPrefabFactory(IObjectResolver resolver, NetworkPrefabList catalog,
             Transform arenaRoot, PudgeNetworkManager manager, MatchSimulation simulation,
-            MatchStateSink sink, ReconnectRegistry reconnect, ArenaConfig arena, HeroConfig heroConfig)
+            MatchStateSink sink, ReconnectRegistry reconnect, ArenaConfig arena, HeroConfig heroConfig,
+            ServerPlayerCommands commands)
         {
             _resolver = resolver;
             _catalog = catalog;
@@ -42,6 +44,7 @@ namespace Game.Net
             _reconnect = reconnect;
             _arena = arena.ToData();
             _heroConfig = heroConfig.ToData();
+            _commands = commands;
         }
 
         public void Initialize()
@@ -158,6 +161,7 @@ namespace Game.Net
                 {
                     uint id = _players[i].SessionPlayerId;
                     _simulation.StopMovement(id);
+                    _commands.Remove(id);
                     NetworkServer.RemovePlayerForConnection(connection, RemovePlayerOptions.KeepActive);
                     if (reserve)
                         _reconnect.Reserve(id, NetworkTime.time);
@@ -173,6 +177,7 @@ namespace Game.Net
         private void RemovePlayer(uint id)
         {
             _reconnect.Remove(id);
+            _commands.Remove(id);
             _simulation.RemoveHero(id);
             _sink.Unregister(id);
             for (int i = 0; i < _players.Length; i++)
