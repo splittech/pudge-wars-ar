@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Game.Core.Configs;
+using Game.Core.Hero;
+using Game.Core.Match;
 using Mirror;
 using UnityEngine;
 using VContainer;
@@ -13,6 +16,11 @@ namespace Game.Net
         private readonly NetworkPrefabList _catalog;
         private readonly Transform _arenaRoot;
         private readonly PudgeNetworkManager _manager;
+        private readonly MatchSimulation _simulation;
+        private readonly MatchStateSink _sink;
+        private readonly ReconnectRegistry _reconnect;
+        private readonly ArenaConfigData _arena;
+        private readonly HeroConfigData _heroConfig;
         private readonly HashSet<GameObject> _registered = new();
         private readonly Dictionary<uint, GameObject> _prefabsById = new();
         private readonly HeroNet[] _players = new HeroNet[4];
@@ -22,12 +30,18 @@ namespace Game.Net
         private bool _disposed;
 
         public NetworkPrefabFactory(IObjectResolver resolver, NetworkPrefabList catalog,
-            Transform arenaRoot, PudgeNetworkManager manager)
+            Transform arenaRoot, PudgeNetworkManager manager, MatchSimulation simulation,
+            MatchStateSink sink, ReconnectRegistry reconnect, ArenaConfig arena, HeroConfig heroConfig)
         {
             _resolver = resolver;
             _catalog = catalog;
             _arenaRoot = arenaRoot;
             _manager = manager;
+            _simulation = simulation;
+            _sink = sink;
+            _reconnect = reconnect;
+            _arena = arena.ToData();
+            _heroConfig = heroConfig.ToData();
         }
 
         public void Initialize()
@@ -104,10 +118,20 @@ namespace Game.Net
                 throw new InvalidOperationException("Session player IDs are exhausted.");
 
             GameObject instance = Create(_catalog.Hero.gameObject);
+            uint playerId = _nextSessionPlayerId++;
             try
             {
                 var hero = instance.GetComponent<HeroNet>();
-                hero.InitializePlayer(_nextSessionPlayerId++, slot);
+                hero.InitializePlayer(playerId, slot);
+                var points = hero.Team == Team.A ? _arena.TeamASpawnPoints : _arena.TeamBSpawnPoints;
+                _simulation.AddHero(new HeroState
+                {
+                    Id = playerId, Team = hero.Team, Pos = points[slot / 2],
+                    Radius = _heroConfig.Radius, Hp = _heroConfig.MaxHp, Alive = true
+                });
+                _sink.Register(hero);
+                _simulation.TryGetHero(playerId, out HeroState state);
+                hero.ApplyServerState(state);
                 // AddPlayerForConnection performs the spawn and assigns the local player atomically.
                 if (!NetworkServer.AddPlayerForConnection(connection, instance))
                     throw new InvalidOperationException("Mirror could not assign the player to the connection.");
@@ -116,6 +140,8 @@ namespace Game.Net
             }
             catch
             {
+                _sink.Unregister(playerId);
+                _simulation.RemoveHero(playerId);
                 if (instance.GetComponent<NetworkIdentity>().netId != 0)
                     NetworkServer.Destroy(instance);
                 else
@@ -124,13 +150,47 @@ namespace Game.Net
             }
         }
 
-        internal void ReleasePlayer(NetworkConnectionToClient connection)
+        internal void DisconnectPlayer(NetworkConnectionToClient connection, bool reserve)
         {
             for (int i = 0; i < _players.Length; i++)
             {
                 if (_players[i] != null && _players[i].connectionToClient == connection)
-                    _players[i] = null;
+                {
+                    uint id = _players[i].SessionPlayerId;
+                    _simulation.StopMovement(id);
+                    NetworkServer.RemovePlayerForConnection(connection, RemovePlayerOptions.KeepActive);
+                    if (reserve)
+                        _reconnect.Reserve(id, NetworkTime.time);
+                    else
+                        RemovePlayer(id);
+                    return;
+                }
             }
+        }
+
+        internal void ExpireDisconnectedPlayers(double now) => _reconnect.Expire(now, RemovePlayer);
+
+        private void RemovePlayer(uint id)
+        {
+            _reconnect.Remove(id);
+            _simulation.RemoveHero(id);
+            _sink.Unregister(id);
+            for (int i = 0; i < _players.Length; i++)
+            {
+                if (_players[i] == null || _players[i].SessionPlayerId != id)
+                    continue;
+                HeroNet hero = _players[i];
+                _players[i] = null;
+                NetworkServer.Destroy(hero.gameObject);
+            }
+        }
+
+        internal void ClearSession()
+        {
+            _reconnect.Clear();
+            for (int i = 0; i < _players.Length; i++)
+                if (_players[i] != null)
+                    RemovePlayer(_players[i].SessionPlayerId);
         }
 
         private static void RequireServer()

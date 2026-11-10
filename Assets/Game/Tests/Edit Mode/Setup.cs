@@ -162,5 +162,21 @@ namespace Game.Tests.EditMode
             builder.RegisterInstance(match);
             return builder.Build();
         }
+
+        public static IObjectResolver EditModeNetworkSpawnResolver(IObjectResolver container)
+        {
+            var resolver = Substitute.For<IObjectResolver>();
+            resolver.When(value => value.Inject(Arg.Any<object>())).Do(call =>
+            {
+                object instance = call[0];
+                container.Inject(instance);
+                // Mirror initializes its behaviour cache in Awake, which EditMode does not call.
+                if (instance is Mirror.NetworkIdentity identity)
+                    typeof(Mirror.NetworkIdentity).GetMethod("Awake",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        .Invoke(identity, null);
+            });
+            return resolver;
+        }
     }
 }

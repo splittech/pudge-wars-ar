@@ -12,8 +12,8 @@ namespace Game.Core.Match
 {
     public sealed class MatchSimulation
     {
-        private readonly HeroState[] _heroes;
-        private readonly HookState[] _hooks;
+        private HeroState[] _heroes;
+        private HookState[] _hooks;
         private readonly ArenaConfigData _arena;
         private readonly HeroConfigData _heroConfig;
         private readonly HookConfigData _hookConfig;
@@ -45,7 +45,7 @@ namespace Game.Core.Match
         public MatchSimulation(ArenaConfigData arena, HeroConfigData heroConfig,
             HookConfigData hookConfig, HeroState[] heroes, double initialTime = 0)
         {
-            if (heroes == null || heroes.Length == 0 || !math.isfinite(initialTime))
+            if (heroes == null || !math.isfinite(initialTime))
                 throw new ArgumentException("Heroes and a finite initial timestamp are required.");
             if (!math.isfinite(hookConfig.Speed) || hookConfig.Speed <= 0 ||
                 !math.isfinite(hookConfig.Range) || hookConfig.Range <= 0 ||
@@ -76,10 +76,78 @@ namespace Game.Core.Match
         public void Enqueue(MoveIntent intent) => _intents.Enqueue(new Intent(intent.PlayerId, intent.ArenaPoint, false));
         public void Enqueue(ThrowHookIntent intent) => _intents.Enqueue(new Intent(intent.PlayerId, intent.Direction, true));
 
-        public void Step(float dt)
+        public void AddHero(HeroState hero)
+        {
+            if (hero.Id == 0 || Find(hero.Id) >= 0 || !math.all(math.isfinite(hero.Pos)) ||
+                !math.isfinite(hero.Radius) || hero.Radius < 0)
+                throw new ArgumentException("A unique nonzero ID and finite position and radius are required.", nameof(hero));
+            hero.Pos = Geo2D.ClampToRect(hero.Pos, ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
+            hero.MoveTarget = hero.Pos;
+            int index = _heroes.Length;
+            Array.Resize(ref _heroes, index + 1);
+            Array.Resize(ref _hooks, index + 1);
+            _heroes[index] = hero;
+            _hooks[index] = new HookState { OwnerId = hero.Id };
+        }
+
+        public bool TryGetHero(uint playerId, out HeroState hero)
+        {
+            int index = Find(playerId);
+            hero = index >= 0 ? _heroes[index] : default;
+            return index >= 0;
+        }
+
+        public void StopMovement(uint playerId)
+        {
+            int index = Find(playerId);
+            if (index >= 0)
+                _heroes[index].MoveTarget = _heroes[index].Pos;
+            // Discard queued input from the disconnected controller, preserving other players' order.
+            int count = _intents.Count;
+            for (int i = 0; i < count; i++)
+            {
+                Intent intent = _intents.Dequeue();
+                if (intent.Id != playerId)
+                    _intents.Enqueue(intent);
+            }
+        }
+
+        public bool RemoveHero(uint playerId)
+        {
+            int index = Find(playerId);
+            if (index < 0)
+                return false;
+            StopMovement(playerId);
+            int pulled = Find(_hooks[index].TargetId);
+            if (_hooks[index].Phase == HookPhase.Pulling && pulled >= 0)
+            {
+                _heroes[pulled].IsPulled = false;
+                _heroes[pulled].MoveTarget = _heroes[pulled].Pos;
+            }
+            for (int i = 0; i < _hooks.Length; i++)
+            {
+                if (_hooks[i].Phase == HookPhase.Pulling && _hooks[i].TargetId == playerId)
+                {
+                    HookSimulation.Turn(ref _hooks[i], HookPhase.Retracting, Time);
+                    _hooks[i].TargetId = 0;
+                }
+            }
+            Array.Copy(_heroes, index + 1, _heroes, index, _heroes.Length - index - 1);
+            Array.Copy(_hooks, index + 1, _hooks, index, _hooks.Length - index - 1);
+            Array.Resize(ref _heroes, _heroes.Length - 1);
+            Array.Resize(ref _hooks, _hooks.Length - 1);
+            return true;
+        }
+
+        public void Step(float dt) => Step(dt, Time);
+
+        public void Step(float dt, double stepStartTime)
         {
             if (!math.isfinite(dt) || dt <= 0)
                 throw new ArgumentOutOfRangeException(nameof(dt));
+            if (!math.isfinite(stepStartTime) || stepStartTime < Time)
+                throw new ArgumentOutOfRangeException(nameof(stepStartTime));
+            Time = stepStartTime;
             _throws.Clear(); _hits.Clear(); _clashes.Clear(); _damage.Clear(); _deaths.Clear();
             while (_intents.Count > 0)
             {

@@ -17,6 +17,8 @@ namespace Game.Net
         private bool _quitting;
         private NetworkPrefabFactory _matchFactory;
         private bool _playerRequested;
+        private bool _stoppingServer;
+        private bool _leavingSession;
 
         public bool IsChangingScene { get; private set; }
 
@@ -62,6 +64,17 @@ namespace Game.Net
         [Button, LabelText("Stop Session"), EnableIf(nameof(CanStopSession))]
         public void StopSession()
         {
+            if (NetworkServer.active)
+                _stoppingServer = true;
+            else if (NetworkClient.isConnected && NetworkClient.ready)
+            {
+                if (_leavingSession)
+                    return;
+                _leavingSession = true;
+                NetworkClient.Send(new LeaveSessionMessage());
+                FinishLeavingAsync(NetworkClient.connection).Forget();
+                return;
+            }
             // During StartHost's scene load, ConnectHost has not created the local client yet.
             if (mode == NetworkManagerMode.Host && NetworkClient.active)
                 StopHost();
@@ -69,6 +82,20 @@ namespace Game.Net
                 StopServer();
             else if (NetworkClient.active)
                 StopClient();
+        }
+
+        private async UniTaskVoid FinishLeavingAsync(NetworkConnectionToServer connection)
+        {
+            try
+            {
+                await UniTask.Delay(1000, ignoreTimeScale: true, cancellationToken: destroyCancellationToken);
+                if (NetworkClient.active && ReferenceEquals(NetworkClient.connection, connection))
+                    StopClient();
+            }
+            catch (OperationCanceledException)
+            {
+                // Application shutdown destroys the session owner.
+            }
         }
 
         private bool CanStartSession()
@@ -123,6 +150,8 @@ namespace Game.Net
         public override void OnStartServer()
         {
             base.OnStartServer();
+            _stoppingServer = false;
+            NetworkServer.RegisterHandler<LeaveSessionMessage>(OnLeaveSession);
             // In host mode Gameplay is loaded before OnStartServer; dedicated servers load afterwards.
             _matchFactory?.EnsureMatchState();
         }
@@ -168,8 +197,20 @@ namespace Game.Net
 
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
-            _matchFactory?.ReleasePlayer(connection);
+            _matchFactory?.DisconnectPlayer(connection, !_stoppingServer && !_quitting);
             base.OnServerDisconnect(connection);
+        }
+
+        private void OnLeaveSession(NetworkConnectionToClient connection, LeaveSessionMessage message)
+        {
+            _matchFactory?.DisconnectPlayer(connection, false);
+            connection.Disconnect();
+        }
+
+        public override void OnStopHost()
+        {
+            _stoppingServer = true;
+            base.OnStopHost();
         }
 
         private void OnSceneMessage(SceneMessage message)
@@ -191,12 +232,16 @@ namespace Game.Net
 
         public override void OnStopServer()
         {
+            _stoppingServer = true;
+            _matchFactory?.ClearSession();
+            NetworkServer.UnregisterHandler<LeaveSessionMessage>();
             base.OnStopServer();
             RequestOfflineScene();
         }
 
         public override void OnStopClient()
         {
+            _leavingSession = false;
             _playerRequested = false;
             base.OnStopClient();
             // StopHost calls StopClient before StopServer; the server requests the return.

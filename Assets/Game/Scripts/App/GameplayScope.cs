@@ -2,6 +2,9 @@ using Game.Input.Gestures;
 using Game.Input.Routing;
 using Game.Presentation;
 using Game.Net;
+using Game.Core.Configs;
+using Game.Core.Hero;
+using Game.Core.Match;
 using Mirror;
 using UnityEngine;
 using VContainer;
@@ -21,7 +24,13 @@ namespace Game.App
             if (NetworkServer.active || NetworkClient.active)
             {
                 builder.RegisterInstance(_arenaRoot);
+                builder.Register(resolver => new MatchSimulation(
+                    resolver.Resolve<ArenaConfig>().ToData(), resolver.Resolve<HeroConfig>().ToData(),
+                    resolver.Resolve<HookConfig>().ToData(), System.Array.Empty<HeroState>()), Lifetime.Scoped);
+                builder.Register<MatchStateSink>(Lifetime.Scoped).AsSelf().As<IMatchStateSink>();
+                builder.Register<ReconnectRegistry>(Lifetime.Scoped);
                 builder.RegisterEntryPoint<NetworkPrefabFactory>().AsSelf();
+                builder.RegisterEntryPoint<ServerTickRunner>().AsSelf();
             }
             // Input. RegisterEntryPoint binds all implemented interfaces, including ITouchGestures.
             builder.RegisterEntryPoint<EnhancedTouchGestures>();

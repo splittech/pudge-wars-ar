@@ -10,6 +10,96 @@ namespace Game.Tests.EditMode
     public sealed class MatchSimulationTests
     {
         [Test]
+        public void AddHero_EmptySimulation_CanAdvanceAndRegisterHero()
+        {
+            // Arrange.
+            MatchSimulation simulation = Setup.MatchSimulation(System.Array.Empty<HeroState>());
+
+            // Act.
+            simulation.Step(Setup.TickDeltaTime);
+            simulation.AddHero(Setup.Hero());
+
+            // Assert.
+            Assert.That(simulation.HeroCount, Is.EqualTo(1));
+            Assert.That(simulation.GetHook(0).OwnerId, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddHero_ActiveHook_PreservesExistingHookAndTime()
+        {
+            // Arrange.
+            MatchSimulation simulation = Setup.MatchSimulation();
+            simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), 0));
+            simulation.Step(Setup.TickDeltaTime);
+            HookState hook = simulation.GetHook(0);
+            double time = simulation.Time;
+
+            // Act.
+            simulation.AddHero(Setup.Hero(id: 3, y: 3));
+
+            // Assert.
+            Assert.That(simulation.GetHook(0), Is.EqualTo(hook));
+            Assert.That(simulation.Time, Is.EqualTo(time));
+            Assert.Throws<System.ArgumentException>(() => simulation.AddHero(Setup.Hero(id: 3)));
+        }
+
+        [Test]
+        public void StopMovement_QueuedMove_DiscardsDisconnectedInput()
+        {
+            // Arrange.
+            MatchSimulation simulation = Setup.MatchSimulation();
+            simulation.Enqueue(new MoveIntent(1, new float2(-3, 0)));
+
+            // Act.
+            simulation.StopMovement(1);
+            simulation.Step(Setup.TickDeltaTime);
+
+            // Assert.
+            Assert.That(simulation.GetHero(0).Pos, Is.EqualTo(new float2(-4, 0)));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RemoveHero_ActivePull_ReleasesRelationship(bool removeOwner)
+        {
+            // Arrange.
+            MatchSimulation simulation = Setup.MatchSimulation();
+            simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), 0));
+            Setup.Advance(simulation, ticks: 11);
+            Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(HookPhase.Pulling));
+
+            // Act.
+            bool removed = simulation.RemoveHero(removeOwner ? 1u : 2u);
+
+            // Assert.
+            Assert.That(removed, Is.True);
+            Assert.That(simulation.HeroCount, Is.EqualTo(1));
+            Assert.That(simulation.GetHero(0).IsPulled, Is.False);
+            Assert.That(simulation.GetHook(0).Phase,
+                Is.EqualTo(removeOwner ? HookPhase.Idle : HookPhase.Retracting));
+            Assert.DoesNotThrow(() => Setup.Advance(simulation, ticks: 60));
+        }
+
+        [Test]
+        public void Step_ExplicitTime_UsesTimestampAndFixedMovementDelta()
+        {
+            // Arrange.
+            MatchSimulation simulation = Setup.MatchSimulation();
+            simulation.Enqueue(new MoveIntent(1, new float2(-3, 0)));
+            simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), 0));
+
+            // Act.
+            simulation.Step(Setup.TickDeltaTime, 100);
+
+            // Assert.
+            Assert.That(simulation.GetHook(0).StartTime, Is.EqualTo(100));
+            Assert.That(simulation.Time, Is.EqualTo(100 + (double)Setup.TickDeltaTime));
+            Assert.That(simulation.GetHero(0).Pos.x,
+                Is.EqualTo(-4 + Setup.HeroConfig().MoveSpeed * Setup.TickDeltaTime).Within(0.00001));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => simulation.Step(Setup.TickDeltaTime, 99));
+        }
+
+        [Test]
         public void Step_MoveTargetIsReachable_HeroStopsAtTarget()
         {
             // Arrange.
