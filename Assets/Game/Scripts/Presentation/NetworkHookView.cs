@@ -50,7 +50,7 @@ namespace Game.Presentation
             if (!visible)
                 return;
             Transform arena = transform.parent;
-            Vector3 position = transform.localPosition;
+            Vector3 position = _hero.DisplayPosition;
             Vector2 tip = state.EvaluateTip(_hero.SynchronizedTime,
                 new Vector2(position.x, position.z), _config.Speed, _config.Range);
             _line.SetPosition(0, arena.TransformPoint(new Vector3(position.x, _height, position.z)));

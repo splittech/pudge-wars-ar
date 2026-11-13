@@ -19,6 +19,7 @@ namespace Game.Net
                 if (_heroes.TryGetValue(state.Id, out HeroNet hero) && hero != null)
                 {
                     hero.ApplyServerState(state);
+                    hero.PublishMovement(simulation.TickCount, simulation.Time, state);
                     var hook = simulation.GetHook(i);
                     uint targetNetId = _heroes.TryGetValue(hook.TargetId, out HeroNet target) && target != null
                         ? target.netId : 0;

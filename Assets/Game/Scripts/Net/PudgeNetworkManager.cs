@@ -21,6 +21,13 @@ namespace Game.Net
         private bool _leavingSession;
 
         public bool IsChangingScene { get; private set; }
+        public bool CanBeginSession => CanStartSession();
+        public bool HasActiveSession => NetworkServer.active || NetworkClient.active;
+        public LanDiscovery Discovery { get; private set; }
+        public SessionRoster Roster { get; } = new();
+        public event Action ClientConnected;
+        public event Action<bool> SessionEnded;
+        public event Action<string> ClientConnectionError;
 
         public override void Awake()
         {
@@ -31,8 +38,21 @@ namespace Game.Net
             playerPrefab = null;
             spawnPrefabs.Clear();
             sendRate = 30;
-            maxConnections = 4;
+            // Four player slots plus bounded handshake connections for explicit full-session refusals.
+            maxConnections = 8;
+            VersionAuthenticator versionAuthenticator = GetComponent<VersionAuthenticator>();
+            if (versionAuthenticator == null)
+                versionAuthenticator = gameObject.AddComponent<VersionAuthenticator>();
+            authenticator = versionAuthenticator;
+            versionAuthenticator.Configure(Roster);
+            versionAuthenticator.Rejected += reason => ClientConnectionError?.Invoke(reason);
             base.Awake();
+            Discovery = GetComponent<LanDiscovery>();
+            if (Discovery == null)
+                Discovery = gameObject.AddComponent<LanDiscovery>();
+            Discovery.transport = transport;
+            if (GetComponent<NetworkStatsRecorder>() == null)
+                gameObject.AddComponent<NetworkStatsRecorder>();
         }
 
         [Inject]
@@ -48,7 +68,10 @@ namespace Game.Net
         public void StartHostSession()
         {
             if (CanStartSession())
+            {
+                (authenticator as VersionAuthenticator)?.ClearReconnect();
                 StartHost();
+            }
         }
 
         [BoxGroup("Session", -10)]
@@ -62,11 +85,18 @@ namespace Game.Net
 
         [BoxGroup("Session", -10)]
         [Button, LabelText("Stop Session"), EnableIf(nameof(CanStopSession))]
-        public void StopSession()
+        public void StopSession() => StopSessionCore(true);
+
+        internal void StopSessionAfterFailure() => StopSessionCore(false);
+
+        private void StopSessionCore(bool forgetReconnect)
         {
+            if (forgetReconnect)
+                (authenticator as VersionAuthenticator)?.ClearReconnect();
             if (NetworkServer.active)
                 _stoppingServer = true;
-            else if (NetworkClient.isConnected && NetworkClient.ready)
+            else if (forgetReconnect && NetworkClient.isConnected && NetworkClient.connection != null
+                && NetworkClient.connection.isAuthenticated)
             {
                 if (_leavingSession)
                     return;
@@ -129,6 +159,7 @@ namespace Game.Net
 
         public override void OnStartClient()
         {
+            _stoppingServer = false;
             base.OnStartClient();
             // Also handles the normal SceneMessage sent to late joiners during authentication.
             NetworkClient.ReplaceHandler<SceneMessage>(OnSceneMessage);
@@ -149,11 +180,21 @@ namespace Game.Net
 
         public override void OnStartServer()
         {
+            Roster.Clear();
             base.OnStartServer();
             _stoppingServer = false;
             NetworkServer.RegisterHandler<LeaveSessionMessage>(OnLeaveSession);
             // In host mode Gameplay is loaded before OnStartServer; dedicated servers load afterwards.
             _matchFactory?.EnsureMatchState();
+            try
+            {
+                Discovery.AdvertiseServer();
+            }
+            catch (Exception exception)
+            {
+                Discovery.StopSearch();
+                Debug.LogWarning($"LAN advertising unavailable: {exception.Message}. Join by IP is still available.");
+            }
         }
 
         public override void OnServerSceneChanged(string sceneName)
@@ -166,6 +207,13 @@ namespace Game.Net
         {
             base.OnClientConnect();
             TryRequestPlayer();
+            ClientConnected?.Invoke();
+        }
+
+        public override void OnClientError(TransportError error, string reason)
+        {
+            base.OnClientError(error, reason);
+            ClientConnectionError?.Invoke(reason);
         }
 
         public override void OnClientSceneChanged()
@@ -198,6 +246,9 @@ namespace Game.Net
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
             _matchFactory?.DisconnectPlayer(connection, !_stoppingServer && !_quitting);
+            if (connection.authenticationData is SessionPlayer player
+                && (player.Connection == null || ReferenceEquals(player.Connection, connection)))
+                Roster.Disconnect(player, !_stoppingServer && !_quitting);
             base.OnServerDisconnect(connection);
         }
 
@@ -232,21 +283,26 @@ namespace Game.Net
 
         public override void OnStopServer()
         {
+            Discovery?.StopSearch();
             _stoppingServer = true;
             _matchFactory?.ClearSession();
+            Roster.Clear();
             NetworkServer.UnregisterHandler<LeaveSessionMessage>();
             base.OnStopServer();
             RequestOfflineScene();
+            SessionEnded?.Invoke(true);
         }
 
         public override void OnStopClient()
         {
+            bool expected = _leavingSession || _stoppingServer || _quitting;
             _leavingSession = false;
             _playerRequested = false;
             base.OnStopClient();
             // StopHost calls StopClient before StopServer; the server requests the return.
             if (!NetworkServer.active)
                 RequestOfflineScene();
+            SessionEnded?.Invoke(expected);
         }
 
         private void RequestOfflineScene()

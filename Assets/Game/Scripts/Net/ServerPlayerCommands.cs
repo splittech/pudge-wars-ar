@@ -24,12 +24,54 @@ namespace Game.Net
             public uint RequestId;
             public uint SessionEpoch;
             public bool Submitted;
+            public uint MovementEpoch;
+            public uint LastSequence;
+            public uint LastClientTick;
+            public uint PendingAck;
+            public uint Ack;
+            public int MovementFrames;
         }
 
         private readonly MatchSimulation _simulation;
         private readonly ArenaConfigData _arena;
         private readonly Dictionary<uint, Pending> _pending = new(4);
         public event Action<uint, uint, uint, bool, string> ThrowCompleted;
+        public uint ServerTick => _simulation.TickCount;
+        public double ServerTime => _simulation.Time;
+        public void ResyncMovementClock(uint id)
+        {
+            if (_pending.TryGetValue(id, out var pending)) pending.LastClientTick = 0;
+        }
+        public uint MovementAck(uint id) => _pending.TryGetValue(id, out var pending) ? pending.Ack : 0;
+
+        public bool TryMovement(uint id, MovementFrame frame, uint epoch, double now, bool owner, out string reason)
+        {
+            reason = string.Empty;
+            if (!owner || epoch == 0 || frame.SessionEpoch != epoch || frame.Sequence == 0
+                || !math.isfinite(now) || (frame.HasMoveTarget && !SessionSerialization.Finite(frame.Target)))
+                return Reject("Invalid movement identity or coordinates", out reason);
+            if (!_simulation.TryGetHero(id, out var hero)) return Reject("Unknown hero", out reason);
+            if (Math.Abs((long)frame.ClientTick - _simulation.TickCount) > MovementPredictor.Capacity)
+                return Reject("Movement tick outside history window", out reason);
+            var pending = GetPending(id, now);
+            if (pending.MovementEpoch != epoch)
+            {
+                pending.MovementEpoch = epoch; pending.LastSequence = 0; pending.LastClientTick = 0;
+                pending.Ack = 0; pending.PendingAck = 0;
+            }
+            if (++pending.MovementFrames > 60 || frame.Sequence <= pending.LastSequence
+                || (pending.LastSequence != 0 && frame.ClientTick <= pending.LastClientTick))
+                return Reject("Repeated movement or rate limit", out reason);
+            pending.LastSequence = frame.Sequence; pending.LastClientTick = frame.ClientTick;
+            pending.PendingAck = frame.Sequence;
+            if (frame.HasMoveTarget && hero.Alive && !hero.IsPulled)
+            {
+                pending.Move = Geo2D.ClampToRect(new float2(frame.Target.x, frame.Target.y),
+                    ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
+                pending.HasMove = true;
+            }
+            return true;
+        }
 
         public ServerPlayerCommands(MatchSimulation simulation, ArenaConfig arena)
             : this(simulation, arena.ToData()) { }
@@ -85,6 +127,7 @@ namespace Game.Net
             foreach (var entry in _pending)
             {
                 Pending pending = entry.Value;
+                pending.Ack = pending.PendingAck;
                 if (pending.HasMove)
                     _simulation.Enqueue(new MoveIntent(entry.Key, pending.Move));
                 if (pending.HasThrow)
@@ -144,6 +187,7 @@ namespace Game.Net
                 pending.WindowStart = now;
                 pending.Moves = 0;
                 pending.Throws = 0;
+                pending.MovementFrames = 0;
             }
             return pending;
         }

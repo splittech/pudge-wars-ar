@@ -13,6 +13,20 @@ namespace Game.Tests.EditMode
 {
     public sealed class NetworkPrefabFactoryTests
     {
+        private sealed class CapturedConnection : NetworkConnectionToClient
+        {
+            public readonly System.Collections.Generic.List<byte[]> Packets = new();
+            public CapturedConnection(int id) : base(id) { }
+            protected override void SendToTransport(ArraySegment<byte> segment, int channelId = Channels.Reliable)
+            {
+                var packet = new byte[segment.Count];
+                Array.Copy(segment.Array, segment.Offset, packet, 0, segment.Count);
+                Packets.Add(packet);
+            }
+            protected override void UpdatePing() { }
+            public void Flush() => typeof(NetworkConnection).GetMethod("Update",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(this, null);
+        }
         private GameObject _managerRoot;
         private GameObject _arenaRoot;
         private ArenaConfig _arenaConfig;
@@ -29,17 +43,24 @@ namespace Game.Tests.EditMode
         private bool _serverStarted;
         private Transport _previousTransport;
         private bool _previousListen;
+        private Action<NetworkWriter, PlayerInfo> _previousPlayerWriter;
+        private Func<NetworkReader, PlayerInfo> _previousPlayerReader;
 
         [SetUp]
         public void SetUp()
         {
+            // EditMode does not run Mirror's runtime writer registration.
+            _previousPlayerWriter = Writer<PlayerInfo>.write;
+            _previousPlayerReader = Reader<PlayerInfo>.read;
+            Writer<PlayerInfo>.write = SessionSerialization.WritePlayerInfo;
+            Reader<PlayerInfo>.read = SessionSerialization.ReadPlayerInfo;
             _arenaConfig = ScriptableObject.CreateInstance<ArenaConfig>();
             _matchConfig = ScriptableObject.CreateInstance<MatchConfig>();
             _heroConfig = ScriptableObject.CreateInstance<HeroConfig>();
             _hookConfig = ScriptableObject.CreateInstance<HookConfig>();
             _simulation = Setup.MatchSimulation(System.Array.Empty<Game.Core.Hero.HeroState>());
             _commands = new ServerPlayerCommands(_simulation, _arenaConfig);
-            _resolver = Setup.NetworkSpawnContainer(_arenaConfig, _matchConfig, _commands, _hookConfig);
+            _resolver = Setup.NetworkSpawnContainer(_arenaConfig, _matchConfig, _commands, _hookConfig, _heroConfig);
             _arenaRoot = new GameObject("Local arena");
             _arenaRoot.transform.SetPositionAndRotation(new Vector3(23, 7, -11), Quaternion.Euler(0, 65, 0));
             _arenaRoot.transform.localScale = Vector3.one * 0.05f;
@@ -74,6 +95,8 @@ namespace Game.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(_matchConfig);
             UnityEngine.Object.DestroyImmediate(_heroConfig);
             UnityEngine.Object.DestroyImmediate(_hookConfig);
+            Writer<PlayerInfo>.write = _previousPlayerWriter;
+            Reader<PlayerInfo>.read = _previousPlayerReader;
         }
 
         private NetworkConnectionToClient StartTestServer()
@@ -88,9 +111,143 @@ namespace Game.Tests.EditMode
                 .Invoke(Transport.active, null);
             NetworkServer.listen = false;
             NetworkServer.Listen(4);
-            return new NetworkConnectionToClient(1) { isAuthenticated = true, isReady = true };
+            return AuthenticatedConnection(1);
         }
 
+        private NetworkConnectionToClient AuthenticatedConnection(int connectionId)
+        {
+            var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
+            var code = manager.Roster.TryJoin(new AuthRequest
+            {
+                ProtocolVersion = Game.Core.NetworkProtocol.ProtocolVersion,
+                Nickname = "Player" + connectionId
+            }, out SessionPlayer player);
+            if (code != AuthCode.Accepted)
+                throw new InvalidOperationException("Test handshake failed.");
+            return new CapturedConnection(connectionId)
+            {
+                isAuthenticated = true, isReady = true, authenticationData = player
+            };
+        }
+
+        [TestCase(ActionKind.Throw)]
+        [TestCase(ActionKind.BuyUpgrade)]
+        public void Command_RejectedAction_SendsRpcOnlyToInitiator(ActionKind kind)
+        {
+            // Arrange.
+            var initiator = (CapturedConnection)StartTestServer();
+            HeroNet hero = _factory.SpawnPlayer(initiator);
+            var other = (CapturedConnection)AuthenticatedConnection(2);
+            _factory.SpawnPlayer(other);
+            initiator.Flush();
+            other.Flush();
+            initiator.Packets.Clear();
+            other.Packets.Clear();
+            string prefix = kind == ActionKind.Throw ? "UserCode_CmdThrowHook" : "UserCode_CmdBuyUpgrade";
+            var method = Array.Find(typeof(HeroNet).GetMethods(System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic), value => value.Name.StartsWith(prefix, StringComparison.Ordinal));
+            Assert.That(method, Is.Not.Null);
+            if (kind == ActionKind.Throw)
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Warning,
+                    new System.Text.RegularExpressions.Regex("Throw rejected for player"));
+            object input = kind == ActionKind.Throw ? (object)Vector2.zero : Game.Core.Economy.UpgradeId.Damage;
+
+            // Act.
+            method.Invoke(hero, new[] { input, 1u, (object)hero.SessionEpoch, initiator });
+            initiator.Flush();
+            other.Flush();
+
+            // Assert.
+            Assert.That(initiator.Packets.Count, Is.EqualTo(1));
+            Assert.That(other.Packets, Is.Empty);
+            var unbatcher = new Unbatcher();
+            unbatcher.AddBatch(new ArraySegment<byte>(initiator.Packets[0]));
+            Assert.That(unbatcher.GetNextMessage(out var message, out _), Is.True);
+            using var reader = NetworkReaderPool.Get(message);
+            Assert.That(reader.ReadUShort(), Is.EqualTo(NetworkMessageId<RpcMessage>.Id));
+        }
+
+        [Test]
+        public void SpawnPlayer_WithoutHandshakeIdentity_RejectsBeforeCreatingHero()
+        {
+            // Arrange.
+            StartTestServer();
+            var forged = new NetworkConnectionToClient(9) { isAuthenticated = true, isReady = true };
+            // Act and Assert.
+            Assert.That(() => _factory.SpawnPlayer(forged), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(_simulation.HeroCount, Is.Zero);
+        }
+
+        [Test]
+        public void Reconnect_ReservedHero_PreservesSimulationAndRejectsOldDisconnect()
+        {
+            // Arrange.
+            var original = StartTestServer();
+            var hero = _factory.SpawnPlayer(original);
+            var admission = (SessionPlayer)original.authenticationData;
+            string token = (string)typeof(SessionPlayer).GetProperty("Token",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(admission);
+            uint netId = hero.netId;
+            double now = NetworkTime.time;
+            var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
+            _commands.TryThrow(hero.SessionPlayerId, new Unity.Mathematics.float2(1, 0), now, true, out _);
+            var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
+            runner.Advance(ServerTickRunner.StepDelta, now + ServerTickRunner.StepDelta, true);
+            manager.OnServerDisconnect(original);
+            runner.Advance(ServerTickRunner.StepDelta, now + 2 * ServerTickRunner.StepDelta, true);
+            var expected = _simulation.GetHero(0);
+            var hook = _simulation.GetHook(0);
+
+            // Act.
+            var code = manager.Roster.TryJoin(new AuthRequest
+            {
+                ProtocolVersion = Game.Core.NetworkProtocol.ProtocolVersion,
+                Nickname = admission.Info.Nickname, ReconnectToken = token
+            }, out var restored);
+            var replacement = new CapturedConnection(2)
+            {
+                isAuthenticated = true, isReady = true, authenticationData = restored
+            };
+            var sameHero = _factory.SpawnPlayer(replacement);
+            manager.OnServerDisconnect(original);
+
+            // Assert.
+            Assert.That(code, Is.EqualTo(AuthCode.Accepted));
+            Assert.That(sameHero, Is.SameAs(hero));
+            Assert.That(hero.netId, Is.EqualTo(netId));
+            Assert.That(hero.SessionEpoch, Is.EqualTo(2));
+            Assert.That(replacement.identity, Is.SameAs(hero.netIdentity));
+            Assert.That(_reconnect.Count, Is.Zero);
+            Assert.That(_simulation.HeroCount, Is.EqualTo(1));
+            Assert.That(_simulation.GetHero(0).Pos, Is.EqualTo(expected.Pos));
+            Assert.That(_simulation.GetHero(0).Hp, Is.EqualTo(expected.Hp));
+            Assert.That(_simulation.GetHook(0).Phase, Is.EqualTo(hook.Phase));
+            Assert.That(_simulation.GetHook(0).StartTime, Is.EqualTo(hook.StartTime));
+            Assert.That(manager.Roster.Players[0].Connected, Is.True);
+        }
+
+        [Test]
+        public void Roster_DisconnectAndExpiry_UpdatesSynchronizedPlayerList()
+        {
+            // Arrange.
+            var connection = StartTestServer();
+            _factory.EnsureMatchState();
+            HeroNet hero = _factory.SpawnPlayer(connection);
+            var match = _arenaRoot.GetComponentInChildren<MatchStateNet>();
+            var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
+            // Act.
+            manager.OnServerDisconnect(connection);
+            // Assert.
+            Assert.That(match.Players.Count, Is.EqualTo(1));
+            Assert.That(match.Players[0].SessionPlayerId, Is.EqualTo(hero.SessionPlayerId));
+            Assert.That(match.Players[0].Connected, Is.False);
+            // Act.
+            new ServerTickRunner(_simulation, _sink, _factory, _commands)
+                .Advance(ServerTickRunner.StepDelta, NetworkTime.time + 31, true);
+            // Assert.
+            Assert.That(match.Players, Is.Empty);
+            Assert.That(manager.Roster.Players, Is.Empty);
+        }
         [Test]
         public void Apply_ConfirmedThrow_CopiesRequestCorrelationToHookSnapshot()
         {
@@ -117,8 +274,7 @@ namespace Game.Tests.EditMode
             NetworkConnectionToClient connection = StartTestServer();
             _factory.EnsureMatchState();
             HeroNet owner = _factory.SpawnPlayer(connection);
-            HeroNet target = _factory.SpawnPlayer(new NetworkConnectionToClient(2)
-                { isAuthenticated = true, isReady = true });
+            HeroNet target = _factory.SpawnPlayer(AuthenticatedConnection(2));
             _commands.TryMove(owner.SessionPlayerId, new Unity.Mathematics.float2(-3, -4), 100, true, out _);
             _commands.TryMove(target.SessionPlayerId, new Unity.Mathematics.float2(3, -4), 100, true, out _);
             var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
@@ -224,10 +380,10 @@ namespace Game.Tests.EditMode
             Assert.That(_reconnect.Count, Is.EqualTo(1));
 
             // Act.
-            var secondConnection = new NetworkConnectionToClient(2) { isAuthenticated = true, isReady = true };
+            var secondConnection = AuthenticatedConnection(2);
             HeroNet second = _factory.SpawnPlayer(secondConnection);
             runner.Advance(ServerTickRunner.StepDelta, NetworkTime.time + 31, true);
-            var thirdConnection = new NetworkConnectionToClient(3) { isAuthenticated = true, isReady = true };
+            var thirdConnection = AuthenticatedConnection(3);
             HeroNet replacement = _factory.SpawnPlayer(thirdConnection);
 
             // Assert.
@@ -380,3 +536,6 @@ namespace Game.Tests.EditMode
         }
     }
 }
+
+
+

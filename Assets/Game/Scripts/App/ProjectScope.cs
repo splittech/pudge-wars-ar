@@ -36,6 +36,7 @@ namespace Game.App
             // Network scene transitions share the existing additive scene service.
             builder.RegisterComponent(_networkSceneLoader).As<INetworkSceneLoader>();
             builder.RegisterComponent(_networkManager);
+            builder.RegisterEntryPoint<NetworkSessionController>().AsSelf();
             builder.RegisterInstance(_networkPrefabs);
 
             // Loading Screen

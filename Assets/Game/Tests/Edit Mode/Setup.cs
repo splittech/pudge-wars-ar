@@ -156,12 +156,13 @@ namespace Game.Tests.EditMode
         }
 
         public static IObjectResolver NetworkSpawnContainer(ArenaConfig arena, MatchConfig match,
-            ServerPlayerCommands commands, HookConfig hook)
+            ServerPlayerCommands commands, HookConfig hook, HeroConfig hero)
         {
             var builder = new ContainerBuilder();
             builder.RegisterInstance(arena);
             builder.RegisterInstance(match);
             builder.RegisterInstance(hook);
+            builder.RegisterInstance(hero);
             builder.RegisterInstance(new LocalPlayerCommands());
             builder.RegisterInstance(commands);
             return builder.Build();

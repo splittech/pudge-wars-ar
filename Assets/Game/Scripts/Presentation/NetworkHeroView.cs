@@ -17,6 +17,14 @@ namespace Game.Presentation
         private int _lastHp = -1;
         private float _flashUntil;
         private bool _shownFlash;
+        private Vector3 _bodyOrigin;
+        private Vector3 _ringOrigin;
+
+        private void Awake()
+        {
+            _bodyOrigin = _body.transform.localPosition;
+            _ringOrigin = _localRing.transform.localPosition;
+        }
 
         private void OnEnable()
         {
@@ -36,6 +44,10 @@ namespace Game.Presentation
 
         private void LateUpdate()
         {
+            Vector3 delta = _hero.DisplayPosition - transform.localPosition;
+            if (_body.transform != transform) _body.transform.localPosition = _bodyOrigin + delta;
+            if (_localRing.transform != transform) _localRing.transform.localPosition = _ringOrigin + delta;
+            _hero.PresentedMovementReporter.Invoke(_hero.DisplayPosition);
             bool flash = Time.unscaledTime < _flashUntil;
             if (_shownTeam != _hero.Team || _shownFlash != flash)
             {

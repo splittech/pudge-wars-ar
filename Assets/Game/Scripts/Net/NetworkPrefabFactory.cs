@@ -26,7 +26,6 @@ namespace Game.Net
         private readonly Dictionary<uint, GameObject> _prefabsById = new();
         private readonly HeroNet[] _players = new HeroNet[4];
         private MatchStateNet _matchState;
-        private uint _nextSessionPlayerId = 1;
         private bool _initialized;
         private bool _disposed;
 
@@ -63,6 +62,7 @@ namespace Game.Net
             }
             _initialized = true;
             _manager.AttachMatchFactory(this);
+            _manager.Roster.Changed += SynchronizeRoster;
         }
 
         public GameObject SpawnClient(SpawnMessage message)
@@ -105,7 +105,19 @@ namespace Game.Net
         {
             RequireServer();
             if (_matchState == null)
+            {
                 _matchState = SpawnServer(_catalog.MatchState.gameObject).GetComponent<MatchStateNet>();
+                SynchronizeRoster();
+            }
+        }
+
+        private void SynchronizeRoster()
+        {
+            if (_matchState == null || !NetworkServer.active)
+                return;
+            _matchState.Players.Clear();
+            foreach (PlayerInfo player in _manager.Roster.Players)
+                _matchState.Players.Add(player);
         }
 
         public HeroNet SpawnPlayer(NetworkConnectionToClient connection)
@@ -114,14 +126,28 @@ namespace Game.Net
             if (connection == null || !connection.isAuthenticated || !connection.isReady || connection.identity != null)
                 throw new InvalidOperationException("A ready authenticated connection without a player is required.");
 
-            int slot = Array.FindIndex(_players, player => player == null);
-            if (slot < 0)
-                throw new InvalidOperationException("All player slots are occupied.");
-            if (_nextSessionPlayerId == 0)
-                throw new InvalidOperationException("Session player IDs are exhausted.");
+            var admission = connection.authenticationData as SessionPlayer;
+            if (!_manager.Roster.Contains(admission) || !admission.Info.Connected)
+                throw new InvalidOperationException("Handshake must reserve an identity before player spawn.");
+            int slot = admission.Slot;
+            if (admission.HasHero)
+            {
+                var existing = _players[slot];
+                if (existing == null || existing.connectionToClient != null)
+                    throw new InvalidOperationException("Reserved hero is unavailable or already owned.");
+                existing.RestoreSession(admission.Epoch);
+                if (!NetworkServer.AddPlayerForConnection(connection, existing.gameObject))
+                    throw new InvalidOperationException("Could not restore player ownership.");
+                admission.Connection = connection;
+                _manager.Roster.CompleteRestore(admission);
+                _reconnect.Remove(admission.Info.SessionPlayerId);
+                return existing;
+            }
+            if (_players[slot] != null)
+                throw new InvalidOperationException("Authenticated slot already has a hero.");
 
             GameObject instance = Create(_catalog.Hero.gameObject);
-            uint playerId = _nextSessionPlayerId++;
+            uint playerId = admission.Info.SessionPlayerId;
             try
             {
                 var hero = instance.GetComponent<HeroNet>();
@@ -139,6 +165,8 @@ namespace Game.Net
                 if (!NetworkServer.AddPlayerForConnection(connection, instance))
                     throw new InvalidOperationException("Mirror could not assign the player to the connection.");
                 _players[slot] = hero;
+                _manager.Roster.MarkSpawned(admission);
+                admission.Connection = connection;
                 return hero;
             }
             catch
@@ -155,6 +183,9 @@ namespace Game.Net
 
         internal void DisconnectPlayer(NetworkConnectionToClient connection, bool reserve)
         {
+            if (connection.authenticationData is SessionPlayer bound && bound.Connection != null
+                && !ReferenceEquals(bound.Connection, connection))
+                return;
             for (int i = 0; i < _players.Length; i++)
             {
                 if (_players[i] != null && _players[i].connectionToClient == connection)
@@ -164,19 +195,36 @@ namespace Game.Net
                     _commands.Remove(id);
                     NetworkServer.RemovePlayerForConnection(connection, RemovePlayerOptions.KeepActive);
                     if (reserve)
+                    {
                         _reconnect.Reserve(id, NetworkTime.time);
+                        _manager.Roster.Disconnect(connection.authenticationData as SessionPlayer, true);
+                    }
                     else
                         RemovePlayer(id);
                     return;
                 }
             }
+            if (connection.authenticationData is SessionPlayer pending && _manager.Roster.Contains(pending) && pending.HasHero)
+            {
+                if (reserve)
+                    _reconnect.Reserve(pending.Info.SessionPlayerId, NetworkTime.time);
+                else
+                    RemovePlayer(pending.Info.SessionPlayerId);
+            }
         }
 
-        internal void ExpireDisconnectedPlayers(double now) => _reconnect.Expire(now, RemovePlayer);
+        internal void ExpireDisconnectedPlayers(double now) => _reconnect.Expire(now, id =>
+        {
+            foreach (var info in _manager.Roster.Players)
+                if (info.SessionPlayerId == id && info.Connected)
+                    return;
+            RemovePlayer(id);
+        });
 
         private void RemovePlayer(uint id)
         {
             _reconnect.Remove(id);
+            _manager.Roster.Remove(id);
             _commands.Remove(id);
             _simulation.RemoveHero(id);
             _sink.Unregister(id);
@@ -196,6 +244,7 @@ namespace Game.Net
             for (int i = 0; i < _players.Length; i++)
                 if (_players[i] != null)
                     RemovePlayer(_players[i].SessionPlayerId);
+            _manager.Roster.Clear();
         }
 
         private static void RequireServer()
@@ -218,6 +267,7 @@ namespace Game.Net
                 return;
             _disposed = true;
             _manager.DetachMatchFactory(this);
+            _manager.Roster.Changed -= SynchronizeRoster;
             foreach (GameObject prefab in _registered)
                 NetworkClient.UnregisterPrefab(prefab);
             _registered.Clear();

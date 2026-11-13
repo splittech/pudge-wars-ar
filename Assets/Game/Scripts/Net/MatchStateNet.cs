@@ -7,6 +7,7 @@ namespace Game.Net
 {
     public sealed class MatchStateNet : NetworkBehaviour
     {
+        public readonly SyncList<PlayerInfo> Players = new();
         public bool HasDependencies { get; private set; }
         public bool ClientStartedAfterInjection { get; private set; }
 

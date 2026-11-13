@@ -38,7 +38,7 @@ namespace Game.Net
             position = default;
             if (_hero == null || !_hero.IsLocalHero || !_hero.Alive)
                 return false;
-            var local = _hero.transform.localPosition;
+            var local = _hero.DisplayPosition;
             position = new float2(local.x, local.z);
             return true;
         }

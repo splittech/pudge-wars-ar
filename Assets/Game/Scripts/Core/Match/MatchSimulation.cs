@@ -33,6 +33,7 @@ namespace Game.Core.Match
         }
 
         public double Time { get; private set; }
+        public uint TickCount { get; private set; }
         public int HeroCount => _heroes.Length;
         public IReadOnlyList<HookThrown> Throws => _throws;
         public IReadOnlyList<HookHit> Hits => _hits;
@@ -148,6 +149,7 @@ namespace Game.Core.Match
             if (!math.isfinite(stepStartTime) || stepStartTime < Time)
                 throw new ArgumentOutOfRangeException(nameof(stepStartTime));
             Time = stepStartTime;
+            TickCount++;
             _throws.Clear(); _hits.Clear(); _clashes.Clear(); _damage.Clear(); _deaths.Clear();
             while (_intents.Count > 0)
             {
