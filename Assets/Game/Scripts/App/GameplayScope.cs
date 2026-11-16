@@ -39,9 +39,6 @@ namespace Game.App
                     resolver.Resolve<ArenaConfig>()), Lifetime.Scoped);
                 builder.RegisterEntryPoint<NetworkPrefabFactory>().AsSelf();
                 builder.RegisterEntryPoint<ServerTickRunner>().AsSelf();
-                builder.RegisterBuildCallback(resolver => Game.UI.MatchInterface.Create(
-                    FindGameplayCanvas(), resolver.Resolve<HeroConfig>(),
-                    resolver.Resolve<HookConfig>(), resolver.Resolve<EconomyConfig>()));
             }
             // Input. RegisterEntryPoint binds all implemented interfaces, including ITouchGestures.
             builder.RegisterEntryPoint<EnhancedTouchGestures>();
@@ -53,16 +50,20 @@ namespace Game.App
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);
+            builder.RegisterBuildCallback(resolver => Game.UI.MatchInterface.Create(
+                gameObject, resolver.Resolve<HeroConfig>(), resolver.Resolve<HookConfig>(), resolver.Resolve<EconomyConfig>(),
+                () => SceneUiNavigation.Navigate(this), () => _offlineDriver.ResetSandbox(),
+                () => TrainingStatus()));
         }
 
-        private Canvas FindGameplayCanvas()
+        private string TrainingStatus()
         {
-            foreach (var root in gameObject.scene.GetRootGameObjects())
-            {
-                var canvas = root.GetComponentInChildren<Canvas>(true);
-                if (canvas != null) return canvas;
-            }
-            throw new System.InvalidOperationException("Gameplay requires a Canvas.");
+            var simulation = _offlineDriver.Simulation;
+            if (simulation == null) return string.Empty;
+            var hero = simulation.GetHero(0);
+            var dummy = simulation.GetHero(1);
+            var hook = simulation.GetHook(0);
+            return $"Манекен: {dummy.Hp} HP · Хук: {hook.Phase} · Перезарядка: {System.Math.Max(0, hero.HookCooldownEnd - simulation.Time):0.0} с";
         }
     }
 }

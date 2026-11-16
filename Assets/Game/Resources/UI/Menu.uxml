@@ -1,0 +1,22 @@
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Interface.uss" />
+  <ui:VisualElement name="menu" class="screen centered" picking-mode="Ignore">
+    <ui:VisualElement class="panel menu-panel">
+      <ui:Label text="PUDGE WARS AR" class="title" />
+      <ui:Label text="Дуэль на крюках • локальная сеть" class="subtitle" />
+      <ui:TextField name="nickname" label="Ник" max-length="16" />
+      <ui:TextField name="address" label="IP" />
+      <ui:Button name="create" text="Создать игру" />
+      <ui:Button name="join" text="Подключиться" />
+      <ui:Button name="search" text="Найти игры в сети" />
+      <ui:ScrollView name="servers" class="server-list" />
+      <ui:Label name="message" class="subtitle" />
+      <ui:Button name="cancel" text="Отменить" class="hidden" />
+      <ui:Button name="training" text="Тренировка" />
+      <ui:VisualElement name="disconnected" class="panel hidden">
+        <ui:Label text="Соединение с хостом потеряно" />
+        <ui:Button name="acknowledge" text="В главное меню" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

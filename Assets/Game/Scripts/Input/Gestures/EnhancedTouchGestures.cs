@@ -228,8 +228,8 @@ namespace Game.Input.Gestures
             PointerEventData pointerData = new(eventSystem) { position = screenPosition };
             eventSystem.RaycastAll(pointerData, _uiRaycastResults);
 
-            // Only UI graphics count: a PhysicsRaycaster on the camera would also report arena objects.
-            bool isOverUi = _uiRaycastResults.Exists(result => result.module is GraphicRaycaster);
+            // Only UI raycasters count; physics hits must not suppress arena gestures.
+            bool isOverUi = _uiRaycastResults.Exists(result => result.module is GraphicRaycaster || result.module is UnityEngine.UIElements.PanelRaycaster);
             _uiRaycastResults.Clear();
 
             return isOverUi;

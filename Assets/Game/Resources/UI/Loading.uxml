@@ -1,0 +1,8 @@
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Interface.uss" />
+  <ui:VisualElement name="loading" class="loading">
+    <ui:Label text="ЗАГРУЗКА" class="title" />
+    <ui:Label name="description" class="subtitle" />
+    <ui:ProgressBar name="progress" low-value="0" high-value="1" />
+  </ui:VisualElement>
+</ui:UXML>

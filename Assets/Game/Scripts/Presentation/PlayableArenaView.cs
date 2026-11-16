@@ -3,7 +3,7 @@ using Game.Core.Hook;
 using Game.Core.Hero;
 using Game.Core.Match;
 using Game.Input.Routing;
-using TMPro;
+
 using UnityEngine;
 using VContainer;
 using Unity.Mathematics;
@@ -18,17 +18,17 @@ namespace Game.Presentation
         [SerializeField] private Transform _river;
         [SerializeField] private LineRenderer _hook;
         [SerializeField] private LineRenderer _aim;
-        [SerializeField] private TMP_Text _status;
+
         [SerializeField] private Camera _camera;
-        [SerializeField] private GameObject _resetTrainingButton;
+
         private InputRouter _router;
         private float _range;
         private Vector2 _size;
         private float _aspect;
         private Camera _previousCamera;
-        private int _lastHp = -1;
-        private int _lastCooldown = -1;
-        private HookPhase _lastPhase;
+
+
+
 
         private void LateUpdate()
         {
@@ -77,8 +77,8 @@ namespace Game.Presentation
             _dummy.gameObject.SetActive(visible);
             _hook.gameObject.SetActive(visible);
             _aim.gameObject.SetActive(visible);
-            _status.gameObject.SetActive(visible);
-            _resetTrainingButton.SetActive(visible);
+
+
         }
 
         private void FitCamera()
@@ -111,13 +111,6 @@ namespace Game.Presentation
             _aim.SetPosition(0, Point(hero.Pos.x, hero.Pos.y, 0.55f));
             _aim.SetPosition(1, Point(hero.Pos.x + aim.Direction.x * _range,
                 hero.Pos.y + aim.Direction.y * _range, 0.55f));
-            double cooldown = System.Math.Max(0, hero.HookCooldownEnd - simulation.Time);
-            int cooldownTenths = (int)System.Math.Ceiling(cooldown * 10);
-            if (_lastHp != dummy.Hp || _lastPhase != hook.Phase || _lastCooldown != cooldownTenths)
-            {
-                _lastHp = dummy.Hp; _lastPhase = hook.Phase; _lastCooldown = cooldownTenths;
-                _status.text = $"TRAINING  |  Dummy HP: {dummy.Hp}\nHook: {hook.Phase}  |  Cooldown: {cooldownTenths / 10f:0.0}s\nTap to move. Drag from the blue hero to aim; release to throw.";
-            }
         }
 
         private static Vector3 Point(float x, float y, float height) => new(x, height, y);

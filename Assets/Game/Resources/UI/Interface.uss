@@ -1,0 +1,46 @@
+:root { --ink: #eaf4ff; --panel: rgba(12, 23, 37, 0.96); --accent: #40b8dd; }
+.screen { flex-grow: 1; color: var(--ink); font-size: 27px; padding: 32px; }
+.centered { justify-content: center; align-items: center; }
+.panel { background-color: var(--panel); padding: 28px; border-radius: 18px; margin: 12px; }
+.menu-panel { width: 90%; max-width: 900px; }
+.title { font-size: 48px; -unity-font-style: bold; margin-bottom: 24px; }
+.subtitle { font-size: 26px; color: #93b3cf; margin-bottom: 20px; white-space: normal; }
+.row { flex-direction: row; }
+.column { flex-grow: 1; flex-basis: 0; }
+Button { background-color: #1a5270; color: var(--ink); padding: 18px; margin: 7px; border-width: 1px; border-color: #34758f; border-radius: 10px; font-size: 28px; min-height: 64px; }
+Button:hover { background-color: #256e8b; }
+Button:active { background-color: #318daa; }
+Button:disabled { opacity: 0.4; }
+TextField { margin: 10px 7px; min-height: 64px; font-size: 28px; }
+TextField > .unity-text-field__label { min-width: 150px; }
+TextField .unity-text-field__input { color: var(--ink); background-color: #091320; padding: 15px; border-radius: 8px; }
+Label { white-space: normal; }
+.team { min-height: 220px; padding: 16px; flex-grow: 1; }
+.top-bar { flex-direction: row; justify-content: space-between; align-items: center; margin-right: 220px; }
+.spacer { flex-grow: 1; }
+.hud { flex-grow: 1; }
+.player-bar { flex-direction: row; justify-content: space-around; }
+.shop { width: 470px; align-self: flex-end; }
+.feed { color: #b5d6ed; align-self: flex-end; max-width: 600px; margin: 16px; }
+.countdown { position: absolute; left: 40%; top: 42%; font-size: 120px; -unity-font-style: bold; }
+ProgressBar { min-height: 28px; margin: 10px; }
+ProgressBar .unity-progress-bar__background { background-color: #08121f; border-radius: 6px; }
+ProgressBar .unity-progress-bar__progress { background-color: var(--accent); border-radius: 6px; }
+ProgressBar .unity-progress-bar__title { color: white; font-size: 22px; }
+.cooldown { width: 220px; }
+.hidden { display: none; }
+.overlay { position: absolute; left: 14px; top: 10px; color: #b5d6ed; font-size: 20px; white-space: normal; }
+.world-layer { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.world-health { position: absolute; width: 100px; height: 16px; min-height: 0; margin: 0; }
+.world-health .unity-progress-bar__progress { background-color: #48d080; }
+.world-health .unity-progress-bar__title { display: none; }
+.loading { flex-grow: 1; justify-content: center; background-color: #07111e; padding: 80px; color: white; transition-duration: 0.2s; }
+.loading ProgressBar { height: 45px; }
+
+.server-list { max-height: 280px; }
+
+.transparent { opacity: 0; }
+
+#trainingPanel { position: absolute; left: 32px; bottom: 32px; width: 540px; padding: 16px; }
+#leave { position: absolute; right: 32px; top: 32px; width: 190px; }
+

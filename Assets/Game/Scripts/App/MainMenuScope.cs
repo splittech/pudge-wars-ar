@@ -8,6 +8,8 @@ namespace Game.App
         protected override void Configure(IContainerBuilder builder)
         {
             builder.RegisterComponentInHierarchy<NetworkMenuView>();
+            builder.RegisterBuildCallback(resolver => resolver.Resolve<NetworkMenuView>()
+                .SetTrainingAction(() => SceneUiNavigation.Navigate(this)));
         }
     }
 }

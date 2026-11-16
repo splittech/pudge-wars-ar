@@ -1,0 +1,6 @@
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Interface.uss" />
+  <ui:VisualElement class="world-layer" picking-mode="Ignore">
+    <ui:Label name="diagnostics" class="overlay" picking-mode="Ignore" />
+  </ui:VisualElement>
+</ui:UXML>

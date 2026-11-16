@@ -2,6 +2,7 @@
     "name": "Game.Tests.EditMode",
     "rootNamespace": "Game.Tests.EditMode",
     "references": [
+        "Game.UI.Foundation",
         "Mirror",
         "Mirror.Transports",
         "VContainer",

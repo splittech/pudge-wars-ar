@@ -2,7 +2,7 @@
 
 Мультиплеерная дуэль на крюках в дополненной реальности. Обзор аналогов, требования, обоснование стека, архитектура, сетевой протокол.
 
-- **Версия:** 1.35
+- **Версия:** 1.36
 - **Статус:** Утверждён к реализации (учебный проект)
 - **Дата:** 16 ноября 2026
 - **Платформа:** Android (ARCore). iOS не поддерживается.
@@ -64,6 +64,7 @@
 
 | Версия | Дата | Изменения |
 |---|---|---|
+| 1.36 | 16.11.2026 | Реализована миграция всего runtime UI на UI Toolkit: ScriptableObject UiState, реактивное представление ReactiveDocument, отдельные презентеры. Общая Game.UI.Foundation не зависит от Core/Net/Services; Services использует её для загрузочного экрана. UXML/USS, PanelSettings (1920×1080, Match 0.5) и модели-шаблоны — Assets/Game/Resources/UI. Состояние клонируется на экземпляр экрана, не сохраняется в шаблоны. Инструкция — Docs/UI/README.md. 388/388 EditMode Passed; в Play Mode проверены меню/тренировка и полный цикл фаз хоста с серверными заглушками. MPPM/Android-приёмка открыта. |
 | 1.35 | 16.11.2026 | FR-GP-13 перенесён из этапа 7 в обязательные механики перед AR: хедшот притягиваемого врага и безопасный перехват союзника. Попадания разрешаются немедленно в порядке столкновений, без двойных смертей и двойного владения целью. 380/380 EditMode Passed; MPPM-приёмка открыта. |
 | 1.34 | 16.11.2026 | FR-GP-16: движение ограничено текущим берегом, а не командой; самостоятельное пересечение реки запрещено после притягивания. HeroConfig: задержка, интервал и урон чужой территории. Урон среды не даёт убийцу, золото, помощь и командный счёт; смерть/респавн сохраняются. 377/377 EditMode Passed; MPPM-приёмка открыта. |
 | 1.33 | 16.11.2026 | Добавлены коллизии живых героев FR-GP-15: swept-проверка движения, устранение пересечений после спавна и притягивания, учёт в prediction. Притягивание прекращается при блокировке другим героем; тела погибших не блокируют движение. 368/368 EditMode Passed; MPPM-приёмка открыта. |
@@ -623,15 +624,29 @@ flowchart LR
 | **Game.Net** | PudgeNetworkManager, NetworkBehaviour-адаптеры, сообщения, VersionAuthenticator, NetworkPrefabFactory, ServerTickRunner | Core, Unity.Mathematics (float2 в IPlayerCommands и валидации), Mirror, R3, VContainer, UniTask |
 | **Game.AR** | IArenaAnchorProvider и реализации, ArenaPlacementFlow, MarkerAlignment, TrackingMonitor | AR Foundation, UniTask, VContainer, R3, Game.Input |
 | **Game.Input** | ITouchGestures, EnhancedTouchGestures, IArenaSpace, InputRouter, AimAssist | Input System, Core, R3, VContainer |
-| **Game.Presentation** | Представления героев, хука и прицела, PlayableArenaView, VFX, индикаторы | Core, Net, Input (AimState/InputRouter), Mathematics, TMP, VContainer, R3, DOTween |
-| **Game.UI** | Экраны и презентеры | Core, Net, R3, DOTween, UniTask |
-| **Game.Services** | Загрузка сцен, экран загрузки, логирование, аудио, сервис приложения и raycast | UniTask, Alchemy, SceneReference, TMP, DOTween, R3, VContainer, Input System, uGUI |
+| **Game.Presentation** | Представления героев, хука и прицела, PlayableArenaView, VFX, индикаторы | Core, Net, Input (AimState/InputRouter), Mathematics, VContainer, R3, DOTween |
+| **Game.UI.Foundation** | UiState (ScriptableObject), ReactiveDocument, runtime-панели | UI Toolkit, R3; без Core/Net/Services |
+| **Game.UI** | Презентеры меню/матча и точки сборки экранов | Foundation, Core, Net, R3, VContainer |
+| **Game.Services** | Загрузка сцен, экран загрузки, логирование, аудио, сервис приложения и raycast | Foundation (модель/представление загрузки), UniTask, Alchemy, SceneReference, DOTween, R3, VContainer, Input System |
 | **Game.App** | LifetimeScope'ы, точки входа, development-оверлей | Все сборки |
-| **Game.Tests** | EditMode / PlayMode тесты | Core, Net, Input, Services, UniTask |
+| **Game.Tests** | EditMode / PlayMode тесты | Core, Net, Input, Services, Foundation, UniTask |
 
 У Game.Core включены только ссылки на сборки (asmdef), Override References выключен. Поэтому ей автоматически доступны предкомпилированные DLL проекта — R3 и ObservableCollections из NuGet, DOTween. Компилятор их не запрещает; `using R3`, `using ObservableCollections`, `using DG.Tweening` в Core недопустимы и отсекаются на ревью. Mirror, AR Foundation и Input System подключены через asmdef и в Core недоступны физически.
 
 Game.Input не ссылается на Game.Net: InputRouter публикует намерения в интерфейс `IPlayerCommands`, объявленный в Core, а реализацию (отправку Command) регистрирует Game.Net.
+
+### Реактивный интерфейс UI Toolkit (редакция 1.36)
+
+Обязательная миграция перед AR: весь runtime-интерфейс — меню подключения/поиска, лобби, HUD, магазин, результаты, HP-бары, обучение, диагностика и загрузочный экран — использует UI Toolkit вместо Canvas/TMP/uGUI. Разметка и оформление хранятся в отдельных UXML/USS, редактируемых UI Builder.
+
+- Game.UI.Foundation: UiState — ScriptableObject с сериализованными параметрами отображения (текст, число/прогресс, доступность, видимость, строки списка, экранная позиция). Изменение через Set-методы публикует R3-событие только при реальном изменении; OnValidate публикует изменения Inspector. Модель не содержит Mirror, игровых правил, команд и ссылок на сетевые компоненты.
+- ReactiveDocument читает только UiState, подписывается на изменения и обновляет соответствующие VisualElement. Нажатия/изменения полей публикуются как действия представления; оно не вызывает сетевые команды и не ищет HeroNet/MatchStateNet. Разметка загружается из UXML, внешний вид — из USS.
+- Презентеры меню и матча в Game.UI преобразуют данные NetworkSessionController, HeroNet и MatchStateNet в параметры моделей. Действия UI передаются через презентер в прежние серверные команды; проверка покупки/готовности/фазы остаётся на сервере. Числа, дедлайны и списки форматируются в презентере, а не в представлении. Переходы сцен и обучение подключаются App через явные callbacks.
+- Для каждого экрана создаётся runtime-клон шаблона UiState; проектные assets не изменяются при игре, данные игроков и нескольких экземпляров MPPM не разделяются. Инспектор runtime-модели доступен через компонент представления; для независимого предпросмотра можно связать модель с UIDocument без сети.
+- Game.UI.Foundation зависит только от Unity UI Toolkit и R3. Game.UI зависит от Foundation, Core, Net и VContainer; Game.Services зависит от Foundation для модели/представления загрузки, не от Game.UI/Net. Game.App собирает зависимости и связывает навигацию. Game.Core и Game.Net не знают о UI-моделях.
+- Таймеры и экранные позиции HP-баров вычисляются презентерами из NetworkTime/положения камеры. Представления получают готовые значения реактивно и не опрашивают игровой мир в Update. HP-бары — неинтерактивные ProgressBar в экранном UI Toolkit, спроецированные над героями; они не перехватывают ввод. Перезарядка отображается ProgressBar.
+- Загрузка: GameLoadingScreen сохраняет существующий контракт и управление отменой/переходами; SimpleLoadingScreen заполняет отдельный UiState и показывает UIDocument. Меню, матч и диагностика имеют независимые модели/порядок отрисовки; загрузочный документ расположен выше них и блокирует ввод при показе.
+- FR-IN-06 сохраняется: EnhancedTouch игнорирует начало жеста над UI Toolkit через PanelRaycaster, пустая область HUD пропускает касания в арену. Переходы экранов, отключение/повторное включение документа, отписки и уничтожение runtime-моделей не оставляют подписок.
 
 ### 10.3 Структура папок
 
@@ -672,7 +687,7 @@ Assets/Game/
 
 Менеджер переопределяет ServerChangeScene и обработчик SceneMessage клиента: выставляет флаги загрузки Mirror, уведомляет клиентов и вызывает INetworkSceneLoader. После завершения загрузки и готовности GameplayScope вызывает FinishLoadScene; до этого клиенты не объявляют Ready. Хост загружает сцену один раз. При StopServer/StopClient запрашивается возврат в меню; запросы выполняются последовательно, более новый запрос заменяет ожидающий, завершение устаревшей загрузки не возобновляет сетевой сеанс. Разрешены только пути меню и Gameplay. Ошибка загрузки завершает соединение и снимает флаги ожидания. autoCreatePlayer=false, Player Prefab пустой; игроки создаются вручную через фабрику (раздел 10.5).
 
-Game.Services содержит загрузку сцен, экран загрузки, логирование, аудио, сервис приложения и raycast. Зависимости: UniTask, Alchemy, SceneReference, TMP, DOTween, R3, VContainer, Input System, uGUI. Инструменты редактора вынесены в Game.Services.Editor. SceneLoader относится к Services, не App.
+Game.Services содержит загрузку сцен, экран загрузки, логирование, аудио, сервис приложения и raycast. Зависимости: Foundation (модель/представление загрузки), UniTask, Alchemy, SceneReference, DOTween, R3, VContainer, Input System. Инструменты редактора вынесены в Game.Services.Editor. SceneLoader относится к Services, не App.
 
 Разработка этапа 0: оверлей FPS и Application.version — uGUI-префаб Assets/Game/Prefabs/UI/Development Overlay.prefab с экземпляром в Boot. Разметка и ссылка TMP задаются в префабе; компонент обновляет средний FPS по unscaled-времени с настраиваемым интервалом 0.5 с. В обычных сборках экземпляр выключается в Awake; в редакторе и development-сборках работает, не перехватывает ввод. Boot обеспечивает время жизни между сценами. Версия протокола: `Game.Core.NetworkProtocol.ProtocolVersion = 1`. Окно помощи — 10 с (FR-GP-10), лимит MVP — 4 игрока. ToData возвращает независимые readonly-снимки, коллекции копируются и доступны только для чтения. Obstacles откладываются до этапа 7.
 
@@ -908,7 +923,7 @@ CmdThrowHook передаёт направление, ненулевой мон�
 
 #### Первый инкремент 2.7: меню подключения
 
-Main Menu использует существующий uGUI Canvas. NetworkMenuView размещён в отдельном префабе под Canvas: Create game, IPv4 address, Join by IP, Cancel и строка состояния. Существующая кнопка офлайн-песочницы сохраняется. MainMenuScope регистрирует представление; ProjectScope регистрирует NetworkSessionController как entry point, поэтому состояние соединения и тайм-аут переживают выгрузку Menu и возвращение из Gameplay.
+Main Menu использует Menu.uxml/UI Toolkit. NetworkMenuView собирает MenuPresenter, runtime-клон MenuState и ReactiveDocument: Create game, IPv4 address, Join by IP, поиск, Cancel и строка состояния. Тренировка запускается через callback Game.App. MainMenuScope регистрирует представление; ProjectScope регистрирует NetworkSessionController как entry point, поэтому состояние соединения и тайм-аут переживают выгрузку Menu и возвращение из Gameplay.
 
 Принимается только dotted-decimal IPv4 из четырёх десятичных октетов без ведущих нулей, после Trim. DNS/localhost, IPv6, 0.x.x.x, multicast и зарезервированный диапазон >=224 отклоняются; loopback 127.0.0.1 разрешён для MPPM. Новые попытки блокируются до завершения предыдущей и сетевого перехода сцен. Подключение клиента ожидает OnClientConnect максимум 5 с через UniTask.Delay с ignoreTimeScale; успешное подключение, отмена, ошибка или остановка отменяют timeout. Идентификатор попытки защищает от старого timeout после повторного запуска. Это локальный тайм-аут соединения, не время симуляции.
 

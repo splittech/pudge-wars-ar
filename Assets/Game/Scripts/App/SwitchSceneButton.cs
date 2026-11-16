@@ -5,14 +5,14 @@ using Game.Net;
 using Mirror;
 using R3;
 using UnityEngine;
-using UnityEngine.UI;
+
 using VContainer;
 
 namespace Game.App
 {
     public class SwitchSceneButton : MonoBehaviour
     {
-        [SerializeField] private Button _button;
+
         [SerializeField] private SceneMetaAsset _sceneToSwitch;
         [SerializeField] private string _switchSceneProgressText;
 
@@ -31,12 +31,7 @@ namespace Game.App
             _networkScenes = networkScenes;
         }
 
-        private void Start()
-        {
-            _button.OnClickAsObservable()
-                .Subscribe(_ => SwitchSceneAsync().Forget())
-                .AddTo(this);
-        }
+        public void Navigate() => SwitchSceneAsync().Forget();
 
         private async UniTask SwitchSceneAsync()
         {
@@ -46,7 +41,7 @@ namespace Game.App
                     _networkManager.StopSession();
                 return;
             }
-            _button.interactable = false;
+
             try
             {
                 await _loadingScreen.ShowScreenAsync();
@@ -56,8 +51,7 @@ namespace Game.App
             finally
             {
                 await _loadingScreen.HideScreenAsync();
-                if (this != null)
-                    _button.interactable = true;
+
             }
         }
     }

@@ -1,4 +1,4 @@
-using TMPro;
+using Game.UI.Foundation;
 using Mirror;
 using Game.Net;
 using UnityEngine;
@@ -7,7 +7,9 @@ namespace Game.App
 {
     public sealed class DevelopmentOverlay : MonoBehaviour
     {
-        [SerializeField] private TMP_Text _label;
+        [SerializeField] private UiState _runtimeModel;
+        private ReactiveDocument _document;
+        private string _text;
         [SerializeField, Min(0.1f)] private float _refreshInterval = 0.5f;
 
         private float _elapsed;
@@ -26,7 +28,12 @@ namespace Game.App
         {
             _elapsed = 0f;
             _frames = 0;
-            _label.text = $"v{Application.version}";
+            if (_document == null)
+            {
+                _document = ToolkitRuntime.Create(gameObject, "Overlay", "OverlayState", 100);
+                _runtimeModel = _document.Model;
+            }
+            _runtimeModel.Text("diagnostics", $"v{Application.version}");
         }
 
         private void Update()
@@ -39,8 +46,8 @@ namespace Game.App
             string role = NetworkServer.active ? (NetworkClient.active ? "host" : "server")
                 : NetworkClient.isConnected ? "client" : "offline";
             string rtt = NetworkClient.isConnected ? $"{NetworkTime.rtt * 1000:0} ms" : "-";
-            _label.text = $"FPS: {_frames / _elapsed:0} | v{Application.version} | {role} | RTT: {rtt}";
-            if (MatchStateNet.Active != null) _label.text += $" | {MatchStateNet.Active.Summary.Phase}";
+            _text = $"FPS: {_frames / _elapsed:0} | v{Application.version} | {role} | RTT: {rtt}";
+            if (MatchStateNet.Active != null) _text += $" | {MatchStateNet.Active.Summary.Phase}";
             var hero = NetworkClient.localPlayer != null ? NetworkClient.localPlayer.GetComponent<HeroNet>() : null;
             if (hero != null)
             {
@@ -49,12 +56,13 @@ namespace Game.App
                 float corrections = Mathf.Max(0, movement.Corrections - _lastCorrections) / _elapsed;
                 float sent = Mathf.Max(0, hero.MovementPackets - _lastPackets) / _elapsed;
                 float received = Mathf.Max(0, hero.MovementSnapshots - _lastSnapshots) / _elapsed;
-                _label.text += $"\nPred {(NetworkServer.active ? "HOST" : hero.PredictionEnabled ? "ON" : "OFF")} <color={color}>err {movement.Error:0.000}</color>"
+                _text += $"\nPred {(NetworkServer.active ? "HOST" : hero.PredictionEnabled ? "ON" : "OFF")} <color={color}>err {movement.Error:0.000}</color>"
                     + $" c/s {corrections:0} h {movement.HistorySize} ack {movement.AckSequence}/t{movement.LastServerTick}"
                     + $" send/snap {sent:0}/{received:0}";
                 _lastCorrections = movement.Corrections; _lastPackets = hero.MovementPackets;
                 _lastSnapshots = hero.MovementSnapshots;
             }
+            _runtimeModel.Text("diagnostics", _text);
             _elapsed = 0;
             _frames = 0;
         }

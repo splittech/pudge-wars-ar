@@ -1,0 +1,6 @@
+{
+    "name": "Game.UI.Foundation",
+    "rootNamespace": "Game.UI.Foundation",
+    "references": [],
+    "autoReferenced": true
+}

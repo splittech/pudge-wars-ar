@@ -1,0 +1,48 @@
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Interface.uss" />
+  <ui:VisualElement class="screen" picking-mode="Ignore">
+    <ui:VisualElement name="worldBars" class="world-layer" picking-mode="Ignore" />
+    <ui:VisualElement name="lobby" class="panel hidden">
+      <ui:Label text="ЛОББИ" class="title" />
+      <ui:VisualElement class="row">
+        <ui:Label name="teamA" class="team" />
+        <ui:Label name="teamB" class="team" />
+      </ui:VisualElement>
+      <ui:VisualElement class="row">
+        <ui:Button name="selectA" text="Команда A" class="column" />
+        <ui:Button name="selectB" text="Команда B" class="column" />
+      </ui:VisualElement>
+      <ui:Button name="ready" text="Готов" />
+      <ui:Button name="start" text="Начать" />
+    </ui:VisualElement>
+    <ui:VisualElement name="hud" class="hud hidden" picking-mode="Ignore">
+      <ui:VisualElement class="panel top-bar">
+        <ui:Label name="score" />
+        <ui:Label name="timer" />
+      </ui:VisualElement>
+      <ui:Label name="feed" class="feed" picking-mode="Ignore" />
+      <ui:VisualElement class="spacer" picking-mode="Ignore" />
+      <ui:VisualElement name="shop" class="panel shop">
+        <ui:Label text="УЛУЧШЕНИЯ" class="subtitle" />
+        <ui:Button name="buyRange" /><ui:Button name="buySpeed" />
+        <ui:Button name="buyRadius" /><ui:Button name="buyDamage" />
+      </ui:VisualElement>
+      <ui:VisualElement class="panel player-bar">
+        <ui:Label name="health" /><ui:Label name="gold" />
+        <ui:ProgressBar name="cooldown" low-value="0" high-value="1" title="Хук" class="cooldown" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:Label name="countdown" class="countdown" picking-mode="Ignore" />
+    <ui:VisualElement name="results" class="panel hidden">
+      <ui:Label text="РЕЗУЛЬТАТЫ" class="title" />
+      <ui:ScrollView><ui:Label name="statistics" /></ui:ScrollView>
+      <ui:Button name="rematch" text="Реванш" /><ui:Button name="returnToLobby" text="В лобби" />
+    </ui:VisualElement>
+    <ui:VisualElement name="trainingPanel" class="panel hidden">
+      <ui:Label text="ТРЕНИРОВКА" class="subtitle" />
+      <ui:Label name="trainingStatus" />
+      <ui:Button name="resetTraining" text="Сбросить тренировку" />
+    </ui:VisualElement>
+    <ui:Button name="leave" text="В меню" />
+  </ui:VisualElement>
+</ui:UXML>

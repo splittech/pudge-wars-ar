@@ -1,0 +1,6 @@
+﻿{
+    "name": "Game.UI.Editor",
+    "rootNamespace": "Game.UI.Editor",
+    "references": ["Game.UI.Foundation", "Unity.TextMeshPro", "UnityEngine.UI"],
+    "includePlatforms": ["Editor"]
+}
