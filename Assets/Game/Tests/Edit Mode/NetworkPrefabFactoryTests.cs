@@ -58,7 +58,7 @@ namespace Game.Tests.EditMode
             _matchConfig = ScriptableObject.CreateInstance<MatchConfig>();
             _heroConfig = ScriptableObject.CreateInstance<HeroConfig>();
             _hookConfig = ScriptableObject.CreateInstance<HookConfig>();
-            _simulation = Setup.MatchSimulation(System.Array.Empty<Game.Core.Hero.HeroState>());
+            _simulation = Setup.MatchSimulation(System.Array.Empty<Game.Core.Hero.HeroState>(), arena: _arenaConfig.ToData());
             _commands = new ServerPlayerCommands(_simulation, _arenaConfig);
             _resolver = Setup.NetworkSpawnContainer(_arenaConfig, _matchConfig, _commands, _hookConfig, _heroConfig);
             _arenaRoot = new GameObject("Local arena");
@@ -128,6 +128,83 @@ namespace Game.Tests.EditMode
             {
                 isAuthenticated = true, isReady = true, authenticationData = player
             };
+        }
+
+        [Test]
+        public void IsViewAvailable_DestroyedHero_ReturnsFalseWithoutAccessingTransform()
+        {
+            // Arrange.
+            var connection = StartTestServer();
+            var hero = _factory.SpawnPlayer(connection);
+            UnityEngine.Object.DestroyImmediate(hero.gameObject);
+            // Act.
+            bool available = hero.IsViewAvailable;
+            // Assert.
+            Assert.That(available, Is.False);
+        }
+
+        [Test]
+        public void Reconnect_UpgradedHero_PreservesEconomyAndMatchPhase()
+        {
+            // Arrange.
+            var original = StartTestServer();
+            _simulation.ConfigureRules(Setup.MatchConfig(), new EconomyConfigData(150, 50, 10, 1000, new[] { 100, 200, 300, 400 }));
+            var hero = _factory.SpawnPlayer(original);
+            _factory.SpawnPlayer(AuthenticatedConnection(2));
+            var admission = (SessionPlayer)original.authenticationData;
+            string token = (string)typeof(SessionPlayer).GetProperty("Token",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(admission);
+            var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
+            _simulation.Rules.Begin(NetworkTime.time, true, true, 1, 1);
+            _simulation.Rules.ArenaPlaced(NetworkTime.time);
+            _simulation.Step(Setup.TickDeltaTime, _simulation.Rules.CountdownEnd);
+            _simulation.TryBuyUpgrade(hero.SessionPlayerId, Game.Core.Economy.UpgradeId.Range, out _);
+            manager.OnServerDisconnect(original);
+            _simulation.Step(Setup.TickDeltaTime);
+
+            // Act.
+            var result = manager.Roster.TryJoin(new AuthRequest
+            {
+                ProtocolVersion = Game.Core.NetworkProtocol.ProtocolVersion,
+                Nickname = admission.Info.Nickname, ReconnectToken = token
+            }, out var restored);
+            var connection = new CapturedConnection(3) { isAuthenticated = true, isReady = true, authenticationData = restored };
+            var sameHero = _factory.SpawnPlayer(connection);
+            _sink.Apply(_simulation);
+
+            // Assert.
+            Assert.That(result, Is.EqualTo(AuthCode.Accepted));
+            Assert.That(sameHero, Is.SameAs(hero));
+            Assert.That(hero.CurrentStatus.Gold, Is.EqualTo(900));
+            Assert.That(hero.CurrentStatus.RangeLevel, Is.EqualTo(1));
+            Assert.That(hero.CurrentStatus.Range, Is.EqualTo(13.5f));
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Playing));
+            Assert.That(_simulation.HeroCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Advance_ReservedTeam_WinsOnlyAfterReservationExpires()
+        {
+            // Arrange.
+            var first = StartTestServer();
+            _simulation.ConfigureRules(Setup.MatchConfig(), new EconomyConfigData(150, 50, 10, 0, new[] { 100, 200, 300, 400 }));
+            _factory.SpawnPlayer(first);
+            var second = AuthenticatedConnection(2);
+            _factory.SpawnPlayer(second);
+            _simulation.Rules.Begin(NetworkTime.time, true, true, 1, 1);
+            _simulation.Rules.ArenaPlaced(NetworkTime.time);
+            _simulation.Step(Setup.TickDeltaTime, _simulation.Rules.CountdownEnd);
+            _managerRoot.GetComponent<PudgeNetworkManager>().OnServerDisconnect(second);
+            _simulation.Step(Setup.TickDeltaTime);
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Playing));
+
+            // Act.
+            new ServerTickRunner(_simulation, _sink, _factory, _commands)
+                .Advance(ServerTickRunner.StepDelta, NetworkTime.time + 31, true);
+
+            // Assert.
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Results));
+            Assert.That(_simulation.Rules.Winner, Is.EqualTo(MatchWinner.A));
         }
 
         [TestCase(ActionKind.Throw)]

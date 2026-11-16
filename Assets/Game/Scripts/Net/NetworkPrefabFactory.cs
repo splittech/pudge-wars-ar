@@ -107,6 +107,7 @@ namespace Game.Net
             if (_matchState == null)
             {
                 _matchState = SpawnServer(_catalog.MatchState.gameObject).GetComponent<MatchStateNet>();
+                _matchState.BindRuntime(_simulation, _manager, _commands);
                 SynchronizeRoster();
             }
         }
@@ -166,6 +167,8 @@ namespace Game.Net
                     throw new InvalidOperationException("Mirror could not assign the player to the connection.");
                 _players[slot] = hero;
                 _manager.Roster.MarkSpawned(admission);
+                if (_simulation.Rules != null)
+                    _simulation.SetTeam(playerId, admission.Info.Team);
                 admission.Connection = connection;
                 return hero;
             }

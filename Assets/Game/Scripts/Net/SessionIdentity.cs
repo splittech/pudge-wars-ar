@@ -91,6 +91,44 @@ namespace Game.Net
         public IReadOnlyList<PlayerInfo> Players => _players;
         public event Action Changed;
 
+        public bool SetTeam(uint id, Team team)
+        {
+            if (team != Team.A && team != Team.B) return false;
+            SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
+            if (player == null || !player.Info.Connected) return false;
+            int count = 0;
+            foreach (var item in _slots) if (item != null && item.Info.Team == team) count++;
+            if (player.Info.Team != team && count >= 2) return false;
+            var info = player.Info; info.Team = team; info.Ready = false; player.Info = info;
+            Publish();
+            return true;
+        }
+
+        public bool SetReady(uint id, bool ready)
+        {
+            SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
+            if (player == null || !player.Info.Connected || !player.HasHero) return false;
+            var info = player.Info; info.Ready = ready; player.Info = info; Publish();
+            return true;
+        }
+
+        public void ClearReady()
+        {
+            foreach (var player in _slots)
+            {
+                if (player == null) continue;
+                var info = player.Info; info.Ready = false; player.Info = info;
+            }
+            Publish();
+        }
+
+        public uint AdvanceEpoch(uint id)
+        {
+            SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
+            if (player == null || player.Epoch == uint.MaxValue) return 0;
+            return ++player.Epoch;
+        }
+
         public AuthCode TryJoin(AuthRequest request, out SessionPlayer player)
         {
             player = null;
@@ -130,6 +168,12 @@ namespace Game.Net
             if (slot < 0 || _nextId == 0)
                 return AuthCode.ServerFull;
             player = new SessionPlayer(_nextId++, nickname, slot);
+            int teamA = 0, teamB = 0;
+            foreach (var item in _slots)
+                if (item != null) { if (item.Info.Team == Team.A) teamA++; else teamB++; }
+            var joinedInfo = player.Info;
+            joinedInfo.Team = teamA <= teamB ? Team.A : Team.B;
+            player.Info = joinedInfo;
             player.Token = NewToken();
             _slots[slot] = player;
             Publish();

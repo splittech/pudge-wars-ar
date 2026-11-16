@@ -2,6 +2,6 @@ namespace Game.Core
 {
     public static class NetworkProtocol
     {
-        public const int ProtocolVersion = 9;
+        public const int ProtocolVersion = 10;
     }
 }

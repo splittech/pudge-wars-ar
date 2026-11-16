@@ -10,7 +10,7 @@ using Unity.Mathematics;
 
 namespace Game.Core.Match
 {
-    public sealed class MatchSimulation
+    public sealed partial class MatchSimulation
     {
         private HeroState[] _heroes;
         private HookState[] _hooks;
@@ -70,6 +70,7 @@ namespace Game.Core.Match
                 var bounds = ArenaBounds.ForTeam(arena, _heroes[i].Team, _heroes[i].Radius);
                 _heroes[i].Pos = Geo2D.ClampToRect(_heroes[i].Pos, bounds);
                 _heroes[i].MoveTarget = _heroes[i].Pos;
+                InitializeHookStats(ref _heroes[i]);
                 _hooks[i].OwnerId = _heroes[i].Id;
             }
         }
@@ -84,6 +85,8 @@ namespace Game.Core.Match
                 throw new ArgumentException("A unique nonzero ID and finite position and radius are required.", nameof(hero));
             hero.Pos = Geo2D.ClampToRect(hero.Pos, ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
             hero.MoveTarget = hero.Pos;
+            InitializeHookStats(ref hero);
+            if (Rules != null) hero.Gold = _economy.StartGold;
             int index = _heroes.Length;
             Array.Resize(ref _heroes, index + 1);
             Array.Resize(ref _hooks, index + 1);
@@ -151,6 +154,17 @@ namespace Game.Core.Match
             Time = stepStartTime;
             TickCount++;
             _throws.Clear(); _hits.Clear(); _clashes.Clear(); _damage.Clear(); _deaths.Clear();
+            if (Rules != null)
+            {
+                Rules.Advance(Time, CountTeam(Team.A), CountTeam(Team.B));
+                if (Rules.Phase != MatchPhase.Playing)
+                {
+                    _intents.Clear();
+                    Time += dt;
+                    return;
+                }
+                RespawnHeroes();
+            }
             while (_intents.Count > 0)
             {
                 Intent intent = _intents.Dequeue();
@@ -176,7 +190,7 @@ namespace Game.Core.Match
             for (int i = 0; i < _hooks.Length; i++)
                 for (int j = i + 1; j < _hooks.Length; j++)
                     if (_hooks[i].Phase == HookPhase.Extending && _hooks[j].Phase == HookPhase.Extending &&
-                        Geo2D.CircleCircle(_hooks[i].Tip, _hookConfig.Radius, _hooks[j].Tip, _hookConfig.Radius))
+                        Geo2D.CircleCircle(_hooks[i].Tip, _hooks[i].Radius, _hooks[j].Tip, _hooks[j].Radius))
                     {
                         HookSimulation.Turn(ref _hooks[i], HookPhase.Retracting, Time);
                         HookSimulation.Turn(ref _hooks[j], HookPhase.Retracting, Time);
@@ -187,13 +201,15 @@ namespace Game.Core.Match
             {
                 int target = Find(hit.TargetId);
                 int owner = Find(hit.OwnerId);
-                int damage = Combat.Combat.ApplyHit(ref _heroes[target], _heroes[owner], _hookConfig.Damage);
+                if (Rules != null) _heroes[owner].HookHits++;
+                int damage = Combat.Combat.ApplyHit(ref _heroes[target], _heroes[owner], _hooks[owner].Damage);
                 if (damage <= 0)
                     continue;
                 _damage.Add(new HeroDamaged(hit.TargetId, hit.OwnerId, damage, _heroes[target].Hp, Time));
                 if (!_heroes[target].Alive)
                     _deaths.Add(new HeroDied(hit.TargetId, hit.OwnerId, Time));
             }
+            if (Rules != null) ApplyMatchRules();
         }
 
         private void StepHook(int index, float dt)
@@ -203,7 +219,7 @@ namespace Game.Core.Match
                 return;
             if (hook.Phase == HookPhase.Extending)
             {
-                float nextLength = math.min(_hookConfig.Range, hook.Length + _hookConfig.Speed * dt);
+                float nextLength = math.min(hook.Range, hook.Length + hook.Speed * dt);
                 float2 nextTip = hook.Origin + hook.Dir * nextLength;
                 int target = -1;
                 float firstT = float.PositiveInfinity;
@@ -211,7 +227,7 @@ namespace Game.Core.Match
                 {
                     if (j == index || !_heroes[j].Alive || _heroes[j].IsPulled)
                         continue;
-                    if (Geo2D.SweptCircle(hook.Tip, nextTip, _hookConfig.Radius,
+                    if (Geo2D.SweptCircle(hook.Tip, nextTip, hook.Radius,
                         _heroes[j].Pos, _heroes[j].Radius, out float t) && t < firstT)
                     { firstT = t; target = j; }
                 }
@@ -228,13 +244,14 @@ namespace Game.Core.Match
                 }
                 hook.Tip = nextTip;
                 hook.Length = nextLength;
-                if (nextLength >= _hookConfig.Range)
+                if (nextLength >= hook.Range)
                     HookSimulation.Turn(ref hook, HookPhase.Retracting, Time);
                 return;
             }
 
             int pulled = hook.Phase == HookPhase.Pulling ? Find(hook.TargetId) : -1;
-            bool finished = HookSimulation.Return(ref hook, _heroes[index], _hookConfig, dt);
+            var config = new HookConfigData(hook.Range, hook.Speed, hook.Radius, hook.Damage, _hookConfig.Cooldown, 0, 0, 0, 0, 4);
+            bool finished = HookSimulation.Return(ref hook, _heroes[index], config, dt);
             if (pulled >= 0)
                 _heroes[pulled].Pos = hook.Tip;
             if (!finished)

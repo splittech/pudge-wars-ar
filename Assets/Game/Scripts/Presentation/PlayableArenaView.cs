@@ -30,6 +30,22 @@ namespace Game.Presentation
         private int _lastCooldown = -1;
         private HookPhase _lastPhase;
 
+        private void LateUpdate()
+        {
+            var hero = Game.Net.HeroNet.Local;
+            if (ReferenceEquals(hero, null)) return;
+            bool visible = hero.CanAct && hero.Alive;
+            _aim.gameObject.SetActive(visible);
+            if (!visible) return;
+            var aim = _router.Aim.CurrentValue;
+            _aim.enabled = aim.IsActive;
+            float range = hero.CurrentStatus.Range > 0 ? hero.CurrentStatus.Range : _range;
+            Vector3 position = hero.DisplayPosition;
+            _aim.startColor = _aim.endColor = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
+            _aim.SetPosition(0, new Vector3(position.x, 0.55f, position.z));
+            _aim.SetPosition(1, new Vector3(position.x + aim.Direction.x * range, 0.55f, position.z + aim.Direction.y * range));
+        }
+
         private void OnEnable()
         {
             _previousCamera = Camera.main;

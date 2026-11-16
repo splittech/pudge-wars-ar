@@ -23,7 +23,7 @@ namespace Game.Net
                     var hook = simulation.GetHook(i);
                     uint targetNetId = _heroes.TryGetValue(hook.TargetId, out HeroNet target) && target != null
                         ? target.netId : 0;
-                    hero.ApplyServerHook(HookNetState.FromSimulation(hook, targetNetId));
+                    hero.ApplyServerHook(HookNetState.FromSimulation(hook, targetNetId), hook.Speed, hook.Range);
                 }
             }
             foreach (var hit in simulation.Hits)
@@ -37,6 +37,9 @@ namespace Game.Net
                 if (_heroes.TryGetValue(clash.SecondOwnerId, out HeroNet second) && second != null)
                     second.RpcHookClash(position);
             }
+            if (simulation.Rules != null)
+                foreach (var death in simulation.Deaths)
+                    MatchStateNet.Active?.RpcKill(new KillNotice { KillerId = death.KillerId, VictimId = death.HeroId });
         }
     }
 }

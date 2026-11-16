@@ -40,6 +40,7 @@ namespace Game.App
                 : NetworkClient.isConnected ? "client" : "offline";
             string rtt = NetworkClient.isConnected ? $"{NetworkTime.rtt * 1000:0} ms" : "-";
             _label.text = $"FPS: {_frames / _elapsed:0} | v{Application.version} | {role} | RTT: {rtt}";
+            if (MatchStateNet.Active != null) _label.text += $" | {MatchStateNet.Active.Summary.Phase}";
             var hero = NetworkClient.localPlayer != null ? NetworkClient.localPlayer.GetComponent<HeroNet>() : null;
             if (hero != null)
             {

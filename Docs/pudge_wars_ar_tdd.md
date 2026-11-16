@@ -2,7 +2,7 @@
 
 Мультиплеерная дуэль на крюках в дополненной реальности. Обзор аналогов, требования, обоснование стека, архитектура, сетевой протокол.
 
-- **Версия:** 1.29
+- **Версия:** 1.30
 - **Статус:** Утверждён к реализации (учебный проект)
 - **Дата:** 13 ноября 2026
 - **Платформа:** Android (ARCore). iOS не поддерживается.
@@ -64,6 +64,7 @@
 
 | Версия | Дата | Изменения |
 |---|---|---|
+| 1.30 | 13.11.2026 | Этап 3: MatchRules, команды лобби, фазы, респавн, счёт, помощь и экономика; протокол 10. HeroNet сохраняется как объект владения с момента входа для reconnect; Countdown сбрасывает игровое состояние вместо пересоздания NetworkIdentity. PlayerInfo сохраняет стабильный SessionPlayerId, netId разрешается через HeroNet. Плоское Placement завершается сразу; CmdArenaPlaced предусмотрен для этапа 4. Вне Playing бой заморожен и боевые команды отклоняются; резервы продолжают истекать. Итоговая статистика сохраняет вышедших участников до следующего раунда. Параметры активного хука фиксируются при броске; покупка влияет на следующий бросок. Скорость/дальность активного хука передаются отдельными SyncVar HeroNet, формат HookNetState остаётся 49 байт. UI матча создаётся в существующем Canvas при построении GameplayScope. |
 | 1.29 | 13.11.2026 | Android: фиксированная Landscape Left; uGUI Scale With Screen Size, reference 1920×1080, Match Width Or Height 0.5 для Boot/Menu/Gameplay и диагностического оверлея. Разрешение рендера устройства не фиксируется. |
 | 1.28 | 13.11.2026 | 2.12: интервальные счётчики Mirror/transport payload, автоматические development CSV 10 с warmup + 60 с измерений ×3, сценарий и метаданные сборки, proxy input-to-view latency. UDP packets и измеренная потеря — N/A без прямого источника; PowerShell summary mean/p95 и единая ручная приёмка. Протокол 9 не меняется. |
 | 1.27 | 13.11.2026 | 2.11: протокол 9, фиксированные MovementBatch (до 4 кадров), адресные снимки, серверный TickCount и валидация epoch/sequence/tick. Клиентский ring history 120 тиков, общий HeroMovement, сверка на ServerTick и replay после него. Локальный визуал отдельно от сетевого корня, host не предсказывается повторно. Диагностика и Prediction Enabled в инспекторе, независимые send/snapshot rates. |
@@ -674,9 +675,9 @@ StartHostSession/StartClientSession разрешены только после �
 | `MatchSimulation` | Владеет массивами HeroState и HookState, очередью намерений и буфером событий. Метод `Step(float dt)`. |
 | `HeroMovement` | Движение к цели, ограничение половиной команды. |
 | `HookSimulation` | Машина состояний хука, коллизии с героями, клэш. |
-| `Combat` | Урон, смерть, история урона для помощи. |
-| `Economy` | Начисление золота, проверка и применение покупок. |
-| `MatchRules` | Счёт, условия победы, респавн. |
+| `Combat` / `DamageHistory` | Урон и смерть; последние попадания каждого участника по жертве для помощи. |
+| `MatchSimulation.Rules` | Респавн, сброс раунда, начисление золота, проверка и применение покупок, итоговые параметры хука. |
+| `MatchRules` | Фазы, абсолютные дедлайны, счёт и условия победы. |
 | `Geo2D` | SweptCircle, клампинг к прямоугольнику, отрезок–круг. |
 
 Модель данных этапа 1:
@@ -684,6 +685,8 @@ StartHostSession/StartClientSession разрешены только после �
 - HeroState (Game.Core.Hero): uint Id, Team, float2 Pos/MoveTarget, float Radius, int Hp, bool Alive/IsPulled, double HookCooldownEnd.
 - HookState (Game.Core.Hook): uint OwnerId/TargetId, HookPhase (byte: Idle=0, Extending=1, Retracting=2, Pulling=3), float2 Origin/Dir/Tip, float Length/TurnLength, double StartTime/TurnTime. Resolve — мгновенное действие, не хранимая фаза. Идентификатор 0 зарезервирован для отсутствующей цели.
 - Team (Game.Core.Match): A=0, B=1. UpgradeId остаётся в Game.Core.Economy.
+
+Расширения этапа 3: HeroState хранит Gold, Kills/Deaths/Assists/HookHits, четыре уровня улучшений, итоговые HookRange/HookSpeed/HookRadius/HookDamage и абсолютный RespawnAt. HookState фиксирует Range/Speed/Radius/Damage на момент броска. При смерти отменяются собственный хук и притягивание жертвы, затем в первый серверный тик с Time ≥ RespawnAt восстанавливаются HP и позиция команды; золото, уровни и статистика сохраняются. ResetRound очищает их, возвращает StartGold и базовые параметры. MatchRules подключается через ConfigureRules только в сетевом Gameplay; офлайн-песочница этапа 1 сохраняет прежнее поведение.
 - Readonly-намерения в Game.Core.Commands: MoveIntent (PlayerId, ArenaPoint), ThrowHookIntent (PlayerId, Direction, ClientTime), BuyUpgradeIntent (PlayerId, UpgradeId). ClientTime передаётся для будущего сетевого адаптера, но не даёт клиенту управлять серверным временем.
 - Readonly-события в Game.Core.Events: HookThrown (OwnerId, Origin, Direction), HookHit (OwnerId, TargetId, Position), HookClash (FirstOwnerId, SecondOwnerId, Position), HeroDamaged (HeroId, AttackerId, Damage, RemainingHp), HeroDied (HeroId, KillerId); каждое содержит double Time. Будущая симуляция переиспользует типизированные List<T> без boxing.
 - Rect2 хранит Min/Max (float2), включая границы; ArenaBounds.ForTeam вычисляет допустимый прямоугольник центра героя из ArenaConfigData и радиуса. Некорректные размеры, радиусы, команды и нечисловые входы отклоняются ArgumentException/ArgumentOutOfRangeException.
@@ -691,12 +694,12 @@ StartHostSession/StartClientSession разрешены только после �
 
 Порядок шага симуляции:
 
-1. Применить намерения из очереди (с валидацией).
+1. Обновить фазу и условия окончания. Вне Playing очистить события/намерения и продвинуть серверное время без боя. В Playing выполнить респавн, чей абсолютный дедлайн достигнут, затем применить намерения из очереди (с валидацией).
 2. Движение героев (кроме притягиваемых и мёртвых).
 3. Шаг хуков: Extending → коллизии → клэши; Pulling / Retracting.
 4. Разрешение попаданий: урон, смерти, золото.
-5. Таймеры: перезарядки, респавн, окончание матча.
-6. Сформировать события тика (HookThrown, HookHit, HookClash, HeroDied, HeroRespawned, GoldChanged, MatchEnded).
+5. Начислить KillGold/AssistGold, назначить RespawnAt, отменить хуки погибшего и проверить окончание матча после изменения счёта.
+6. Сохранить события тика (HookThrown, HookHit, HookClash, HeroDamaged, HeroDied). HP/золото/респавн/фаза доступны через снимок состояния; сетевой адаптер публикует убийства в MatchEventBus.
 
 **Коллизии хука (фаза Extending).** За тик кончик хука проходит отрезок от прошлого положения до нового (длина увеличивается на Speed·dt, но не больше Range). Этот отрезок, «утолщённый» на радиус хука, проверяется против кругов всех живых героев, кроме владельца (функция `Geo2D.SweptCircle`): решается пересечение отрезка движения с окружностью суммарного радиуса; t — доля пути до первого контакта в [0; 1], при начальном пересечении t = 0. Касание считается попаданием; неподвижный кончик попадает только при начальном пересечении. Это позволяет выбирать первое касание, даже когда радиусы целей различаются. Из всех попаданий выбирается герой с минимальным t — тот, кого хук коснулся первым. Есть попадание — фаза Pulling с этим героем; нет, но достигнута дальность — Retracting. Проверка по всему отрезку исключает «пролёт сквозь» героя при большой скорости хука и низкой частоте тика.
 

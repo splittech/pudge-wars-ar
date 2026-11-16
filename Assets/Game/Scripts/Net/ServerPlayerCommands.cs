@@ -37,6 +37,7 @@ namespace Game.Net
         private readonly Dictionary<uint, Pending> _pending = new(4);
         public event Action<uint, uint, uint, bool, string> ThrowCompleted;
         public uint ServerTick => _simulation.TickCount;
+        public MatchSimulation Simulation => _simulation;
         public double ServerTime => _simulation.Time;
         public void ResyncMovementClock(uint id)
         {
@@ -50,6 +51,7 @@ namespace Game.Net
             if (!owner || epoch == 0 || frame.SessionEpoch != epoch || frame.Sequence == 0
                 || !math.isfinite(now) || (frame.HasMoveTarget && !SessionSerialization.Finite(frame.Target)))
                 return Reject("Invalid movement identity or coordinates", out reason);
+            if (!_simulation.CanPlay) return Reject("Match is not playing", out reason);
             if (!_simulation.TryGetHero(id, out var hero)) return Reject("Unknown hero", out reason);
             if (Math.Abs((long)frame.ClientTick - _simulation.TickCount) > MovementPredictor.Capacity)
                 return Reject("Movement tick outside history window", out reason);
@@ -166,6 +168,8 @@ namespace Game.Net
             reason = string.Empty;
             if (!ownsHero)
                 return Reject("Sender does not own hero", out reason);
+            if (!_simulation.CanPlay)
+                return Reject("Match is not playing", out reason);
             if (!math.isfinite(now) || !math.all(math.isfinite(value)))
                 return Reject("Non-finite input", out reason);
             if (!_simulation.TryGetHero(id, out hero))

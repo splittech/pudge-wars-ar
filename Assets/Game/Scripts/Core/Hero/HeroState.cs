@@ -14,5 +14,19 @@ namespace Game.Core.Hero
         public bool Alive;
         public bool IsPulled;
         public double HookCooldownEnd;
+        public double RespawnAt;
+        public int Gold;
+        public int Kills;
+        public int Deaths;
+        public int Assists;
+        public int HookHits;
+        public int RangeLevel;
+        public int SpeedLevel;
+        public int RadiusLevel;
+        public int DamageLevel;
+        public float HookRange;
+        public float HookSpeed;
+        public float HookRadius;
+        public int HookDamage;
     }
 }

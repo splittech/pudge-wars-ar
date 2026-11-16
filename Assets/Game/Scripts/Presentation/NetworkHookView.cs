@@ -45,14 +45,16 @@ namespace Game.Presentation
                 return;
             var state = _hero.DisplayHookState;
             bool predicted = _hero.IsHookPredicted;
-            bool visible = _hero.IsClientView && state.Phase != HookPhase.Idle;
+            bool visible = _hero.IsClientView && _hero.CanAct && state.Phase != HookPhase.Idle;
             _line.enabled = visible;
             if (!visible)
                 return;
             Transform arena = transform.parent;
             Vector3 position = _hero.DisplayPosition;
             Vector2 tip = state.EvaluateTip(_hero.SynchronizedTime,
-                new Vector2(position.x, position.z), _config.Speed, _config.Range);
+                new Vector2(position.x, position.z),
+                _hero.HookViewSpeed > 0 ? _hero.HookViewSpeed : _config.Speed,
+                _hero.HookViewRange > 0 ? _hero.HookViewRange : _config.Range);
             _line.SetPosition(0, arena.TransformPoint(new Vector3(position.x, _height, position.z)));
             _line.SetPosition(1, arena.TransformPoint(new Vector3(tip.x, _height, tip.y)));
             _line.widthMultiplier = _width * Mathf.Abs(arena.lossyScale.x);

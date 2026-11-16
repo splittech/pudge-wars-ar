@@ -14,5 +14,9 @@ namespace Game.Core.Hook
         public double TurnTime;
         public float TurnLength;
         public double StartTime;
+        public float Speed;
+        public float Range;
+        public float Radius;
+        public int Damage;
     }
 }

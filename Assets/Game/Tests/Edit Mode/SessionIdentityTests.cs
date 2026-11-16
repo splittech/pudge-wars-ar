@@ -7,6 +7,64 @@ namespace Game.Tests.EditMode
 {
     public sealed class SessionIdentityTests
     {
+        [Test]
+        public void SetTeam_FullTeam_RejectsIncludingReservedSlots()
+        {
+            // Arrange.
+            var roster = new SessionRoster();
+            roster.TryJoin(Request("Alpha"), out var first);
+            roster.TryJoin(Request("Bravo"), out var second);
+            roster.TryJoin(Request("Charlie"), out var third);
+            roster.MarkSpawned(first); roster.Disconnect(first, true);
+            // Act.
+            bool accepted = roster.SetTeam(second.Info.SessionPlayerId, Game.Core.Match.Team.A);
+            // Assert.
+            Assert.That(accepted, Is.False);
+            Assert.That(second.Info.Team, Is.EqualTo(Game.Core.Match.Team.B));
+        }
+
+        [Test]
+        public void SetTeam_ReadyPlayer_ClearsReadiness()
+        {
+            // Arrange.
+            var roster = new SessionRoster();
+            roster.TryJoin(Request("Alpha"), out var player); roster.MarkSpawned(player);
+            roster.SetReady(player.Info.SessionPlayerId, true);
+            // Act.
+            bool accepted = roster.SetTeam(player.Info.SessionPlayerId, Game.Core.Match.Team.B);
+            // Assert.
+            Assert.That(accepted, Is.True);
+            Assert.That(player.Info.Ready, Is.False);
+            Assert.That(player.Info.Team, Is.EqualTo(Game.Core.Match.Team.B));
+        }
+
+        [Test]
+        public void SetReady_DisconnectedPlayer_Rejects()
+        {
+            // Arrange.
+            var roster = new SessionRoster();
+            roster.TryJoin(Request("Alpha"), out var player); roster.MarkSpawned(player);
+            roster.SetReady(player.Info.SessionPlayerId, true); roster.Disconnect(player, true);
+            // Act.
+            bool accepted = roster.SetReady(player.Info.SessionPlayerId, true);
+            // Assert.
+            Assert.That(accepted, Is.False);
+            Assert.That(player.Info.Ready, Is.False);
+        }
+
+        [Test]
+        public void TryJoin_AfterTeamSwitch_ChoosesTeamWithSpace()
+        {
+            // Arrange.
+            var roster = new SessionRoster();
+            roster.TryJoin(Request("Alpha"), out var first);
+            roster.SetTeam(first.Info.SessionPlayerId, Game.Core.Match.Team.B);
+            // Act.
+            roster.TryJoin(Request("Bravo"), out var second);
+            // Assert.
+            Assert.That(second.Info.Team, Is.EqualTo(Game.Core.Match.Team.A));
+        }
+
         private static AuthRequest Request(string name) => new()
         {
             ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = name
@@ -117,8 +175,8 @@ namespace Game.Tests.EditMode
         }
 
         [TestCase(0, "Alice", null, AuthCode.IncompatibleVersion)]
-        [TestCase(9, "A", null, AuthCode.InvalidNickname)]
-        [TestCase(9, "Alice", "0123456789abcdef0123456789abcdef", AuthCode.InvalidReconnectToken)]
+        [TestCase(NetworkProtocol.ProtocolVersion, "A", null, AuthCode.InvalidNickname)]
+        [TestCase(NetworkProtocol.ProtocolVersion, "Alice", "0123456789abcdef0123456789abcdef", AuthCode.InvalidReconnectToken)]
         public void TryJoin_RejectedHandshake_DoesNotOccupySlot(int version, string name, string token, AuthCode expected)
         {
             // Arrange.

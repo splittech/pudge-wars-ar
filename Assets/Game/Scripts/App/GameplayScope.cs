@@ -24,9 +24,14 @@ namespace Game.App
             if (NetworkServer.active || NetworkClient.active)
             {
                 builder.RegisterInstance(_arenaRoot);
-                builder.Register(resolver => new MatchSimulation(
-                    resolver.Resolve<ArenaConfig>().ToData(), resolver.Resolve<HeroConfig>().ToData(),
-                    resolver.Resolve<HookConfig>().ToData(), System.Array.Empty<HeroState>()), Lifetime.Scoped);
+                builder.Register(resolver =>
+                {
+                    var simulation = new MatchSimulation(resolver.Resolve<ArenaConfig>().ToData(),
+                        resolver.Resolve<HeroConfig>().ToData(), resolver.Resolve<HookConfig>().ToData(),
+                        System.Array.Empty<HeroState>());
+                    simulation.ConfigureRules(resolver.Resolve<MatchConfig>().ToData(), resolver.Resolve<EconomyConfig>().ToData());
+                    return simulation;
+                }, Lifetime.Scoped);
                 builder.Register<MatchStateSink>(Lifetime.Scoped).AsSelf().As<IMatchStateSink>();
                 builder.Register<ReconnectRegistry>(Lifetime.Scoped);
                 builder.Register<LocalPlayerCommands>(Lifetime.Scoped).AsSelf().AsImplementedInterfaces();
@@ -34,6 +39,9 @@ namespace Game.App
                     resolver.Resolve<ArenaConfig>()), Lifetime.Scoped);
                 builder.RegisterEntryPoint<NetworkPrefabFactory>().AsSelf();
                 builder.RegisterEntryPoint<ServerTickRunner>().AsSelf();
+                builder.RegisterBuildCallback(resolver => Game.UI.MatchInterface.Create(
+                    FindGameplayCanvas(), resolver.Resolve<HeroConfig>(),
+                    resolver.Resolve<HookConfig>(), resolver.Resolve<EconomyConfig>()));
             }
             // Input. RegisterEntryPoint binds all implemented interfaces, including ITouchGestures.
             builder.RegisterEntryPoint<EnhancedTouchGestures>();
@@ -45,6 +53,16 @@ namespace Game.App
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);
+        }
+
+        private Canvas FindGameplayCanvas()
+        {
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                var canvas = root.GetComponentInChildren<Canvas>(true);
+                if (canvas != null) return canvas;
+            }
+            throw new System.InvalidOperationException("Gameplay requires a Canvas.");
         }
     }
 }

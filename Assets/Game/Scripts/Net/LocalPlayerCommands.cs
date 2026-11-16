@@ -36,7 +36,7 @@ namespace Game.Net
         public bool TryGetPosition(out float2 position)
         {
             position = default;
-            if (_hero == null || !_hero.IsLocalHero || !_hero.Alive)
+            if (_hero == null || !_hero.IsLocalHero || !_hero.Alive || !_hero.CanAct)
                 return false;
             var local = _hero.DisplayPosition;
             position = new float2(local.x, local.z);

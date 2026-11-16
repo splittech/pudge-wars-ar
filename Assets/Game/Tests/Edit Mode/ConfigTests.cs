@@ -92,13 +92,13 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void ProtocolVersion_MovementProtocol_IsNine()
+        public void ProtocolVersion_MatchRulesProtocol_IsTen()
         {
             // Act.
             int version = NetworkProtocol.ProtocolVersion;
 
             // Assert.
-            Assert.That(version, Is.EqualTo(9));
+            Assert.That(version, Is.EqualTo(10));
         }
 
         [Test]

@@ -12,7 +12,7 @@ using R3;
 
 namespace Game.Net
 {
-    public sealed class HeroNet : NetworkBehaviour, IPlayerCommands
+    public sealed partial class HeroNet : NetworkBehaviour, IPlayerCommands
     {
         [SyncVar] private uint _sessionPlayerId;
         [SyncVar] private int _slot = -1;
@@ -85,7 +85,7 @@ namespace Game.Net
         {
             get
             {
-                if (!HasPredictedMovement) return transform.localPosition;
+                if (!HasPredictedMovement || !CanAct) return transform.localPosition;
                 Vector2 point = _predictionEnabled ? _movement.Position + _movementVisualOffset : _movement.AuthoritativePosition;
                 return new Vector3(point.x, transform.localPosition.y, point.y);
             }
@@ -108,7 +108,16 @@ namespace Game.Net
 
         private void Update()
         {
-            if (!isLocalPlayer || !NetworkClient.ready || !_movement.Ready) return;
+            if (!isLocalPlayer || !NetworkClient.ready) return;
+            if (!CanAct)
+            {
+                _movementBatch = default;
+                _movementVisualOffset = Vector2.zero;
+                _movementOffsetRemaining = 0;
+                _movementClock.Reset();
+                return;
+            }
+            if (!_movement.Ready) return;
             if (_lastPredictionEnabled != _predictionEnabled)
             {
                 _movementVisualOffset = Vector2.zero; _movementOffsetRemaining = 0;
@@ -187,7 +196,7 @@ namespace Game.Net
         [TargetRpc(channel = Channels.Unreliable)]
         private void TargetMovementSnapshot(NetworkConnectionToClient target, MovementSnapshot snapshot)
         {
-            if (!isLocalPlayer || snapshot.SessionEpoch != _sessionEpoch) return;
+            if (!isLocalPlayer || !CanAct || snapshot.SessionEpoch != _sessionEpoch) return;
             Vector2 previous = _movement.Position + _movementVisualOffset;
             bool wasMoving = _movement.CanMove;
             int resyncs = _movement.Resyncs;
@@ -255,7 +264,7 @@ namespace Game.Net
 
         public void MoveTo(float2 point)
         {
-            if (isLocalPlayer && NetworkClient.ready)
+            if (isLocalPlayer && NetworkClient.ready && CanAct)
             {
                 Vector2 previousTarget = _movement.Target;
                 if (_movement.Move(new Vector2(point.x, point.y)))
@@ -269,7 +278,7 @@ namespace Game.Net
 
         public void ThrowHook(float2 direction)
         {
-            if (!isLocalPlayer || !NetworkClient.ready || !_alive || _isPulled
+            if (!isLocalPlayer || !NetworkClient.ready || !CanAct || !_alive || _isPulled
                 || _hookState.Phase != Game.Core.Hook.HookPhase.Idle
                 || NetworkTime.time < _hookCooldownEnd)
                 return;
@@ -307,11 +316,9 @@ namespace Game.Net
                 LogRejected("BuyUpgrade", "Sender does not own hero");
                 return;
             }
-            string reason;
-            if (_purchaseSequence.TryConsume(requestId, epoch, out reason))
-                reason = id < UpgradeId.Range || id > UpgradeId.Damage
-                    ? "Unknown upgrade" : "Purchases are not available until match economy is enabled";
-            TargetActionResult(sender, ActionKind.BuyUpgrade, requestId, epoch, false, reason);
+            bool accepted = _purchaseSequence.TryConsume(requestId, epoch, out string reason)
+                && _serverCommands.Simulation.TryBuyUpgrade(_sessionPlayerId, id, out reason);
+            TargetActionResult(sender, ActionKind.BuyUpgrade, requestId, epoch, accepted, reason);
         }
 
         [Command(requiresAuthority = false)]
@@ -426,6 +433,9 @@ namespace Game.Net
         internal void ApplyServerState(HeroState state)
         {
             _movementServerState = state;
+            _team = state.Team;
+            _status = HeroStatus.From(state);
+            _statusProperty.Value = _status;
             if (state.Id != _sessionPlayerId)
                 throw new ArgumentException("Simulation player ID does not match the network hero.", nameof(state));
             Vector3 position = transform.localPosition;
@@ -441,12 +451,16 @@ namespace Game.Net
         {
             RequireDependencies();
             ClientStartedAfterInjection = true;
+            ClientHeroes.Add(this);
             _health.Value = _hp;
+            _statusProperty.Value = _status;
             gameObject.name = $"Hero {_sessionPlayerId} ({_team})";
         }
 
-        internal void ApplyServerHook(HookNetState state)
+        internal void ApplyServerHook(HookNetState state, float speed, float range)
         {
+            _flightSpeed = speed;
+            _flightRange = range;
             state.RequestId = _serverHookRequestId;
             state.SessionEpoch = _serverHookEpoch;
             if (_hookState.Phase != state.Phase || _hookState.StartTime != state.StartTime
@@ -465,10 +479,12 @@ namespace Game.Net
 
         private void OnDestroy()
         {
+            ClientHeroes.Remove(this);
             _health.Dispose();
             _hookHits.Dispose();
             _hookClashes.Dispose();
             _actionResults.Dispose();
+            _statusProperty.Dispose();
         }
 
         private void RequireDependencies()

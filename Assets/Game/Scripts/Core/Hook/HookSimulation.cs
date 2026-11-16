@@ -15,7 +15,8 @@ namespace Game.Core.Hook
             hook = new HookState
             {
                 OwnerId = owner.Id, Phase = HookPhase.Extending, Origin = owner.Pos,
-                Tip = owner.Pos, Dir = math.normalize(direction), StartTime = now
+                Tip = owner.Pos, Dir = math.normalize(direction), StartTime = now,
+                Speed = owner.HookSpeed, Range = owner.HookRange, Radius = owner.HookRadius, Damage = owner.HookDamage
             };
             return true;
         }

@@ -44,6 +44,7 @@ namespace Game.Presentation
 
         private void LateUpdate()
         {
+            _body.enabled = _hero.Alive;
             Vector3 delta = _hero.DisplayPosition - transform.localPosition;
             if (_body.transform != transform) _body.transform.localPosition = _bodyOrigin + delta;
             if (_localRing.transform != transform) _localRing.transform.localPosition = _ringOrigin + delta;
@@ -59,8 +60,9 @@ namespace Game.Presentation
                 _shownTeam = _hero.Team;
                 _shownFlash = flash;
             }
-            if (_localRing.activeSelf != _hero.IsLocalHero)
-                _localRing.SetActive(_hero.IsLocalHero);
+            bool showRing = _hero.IsLocalHero && _hero.Alive;
+            if (_localRing.activeSelf != showRing)
+                _localRing.SetActive(showRing);
         }
     }
 }

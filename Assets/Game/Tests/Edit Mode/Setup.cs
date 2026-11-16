@@ -24,6 +24,24 @@ namespace Game.Tests.EditMode
     {
         public const float TickDeltaTime = 1f / 30f;
 
+        public static MatchConfigData MatchConfig(int killsToWin = 15, float duration = 480)
+            => new(30, killsToWin, duration, 3, 120, 4);
+
+        public static MatchSimulation MatchWithRules(int startGold = 0, int victimHp = 1000)
+        {
+            var arena = new ArenaConfigData(new float2(24, 14), 3.5f,
+                new[] { new float2(-4, 0), new float2(-4, 3) },
+                new[] { new float2(4, 0), new float2(4, 3) });
+            var simulation = new MatchSimulation(arena, HeroConfig(), HookConfig(),
+                new[] { Hero(), Hero(id: 2, team: Team.B, x: 4, hp: victimHp) });
+            simulation.ConfigureRules(MatchConfig(), new EconomyConfigData(150, 50, 10, startGold, new[] { 100, 200, 300, 400 }));
+            simulation.Rules.Begin(0, true, true, 1, 1);
+            simulation.Rules.ArenaPlaced(0);
+            if (startGold > 0) simulation.ResetRound();
+            simulation.Step(TickDeltaTime, 3);
+            return simulation;
+        }
+
         public static ArenaConfigData Arena(float2? size = null, float riverWidth = 3.5f)
         {
             return new ArenaConfigData(size ?? new float2(24f, 14f), riverWidth,
@@ -61,9 +79,9 @@ namespace Game.Tests.EditMode
             return MatchSimulation(new[] { Hero(), Hero(id: 2, team: Team.B, x: 4f) });
         }
 
-        public static MatchSimulation MatchSimulation(HeroState[] heroes, float hookSpeed = 20f)
+        public static MatchSimulation MatchSimulation(HeroState[] heroes, float hookSpeed = 20f, ArenaConfigData? arena = null)
         {
-            return new MatchSimulation(Arena(), HeroConfig(), HookConfig(hookSpeed), heroes);
+            return new MatchSimulation(arena ?? Arena(), HeroConfig(), HookConfig(hookSpeed), heroes);
         }
 
         public static void Advance(MatchSimulation simulation, int ticks)

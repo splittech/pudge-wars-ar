@@ -58,7 +58,7 @@ namespace Game.Tests.EditMode
                 // Act.
                 handler.Invoke(auth, new object[] { new VersionAuthResponse { ProtocolVersion = 6 } });
                 // Assert.
-                Assert.That(rejection, Does.Contain("client 9, host 6"));
+                Assert.That(rejection, Does.Contain($"client {NetworkProtocol.ProtocolVersion}, host 6"));
                 Assert.That(auth.LastResponse.Code, Is.EqualTo(AuthCode.IncompatibleVersion));
                 Assert.That(auth.LastResponse.SessionPlayerId, Is.Zero);
             }
@@ -69,7 +69,7 @@ namespace Game.Tests.EditMode
             }
         }
 
-        [TestCase(9, true)]
+        [TestCase(NetworkProtocol.ProtocolVersion, true)]
         [TestCase(5, false)]
         [TestCase(0, false)]
         [TestCase(int.MaxValue, false)]
