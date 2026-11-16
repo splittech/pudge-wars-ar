@@ -92,13 +92,13 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void ProtocolVersion_MatchRulesProtocol_IsTen()
+        public void ProtocolVersion_HookBounceProtocol_IsEleven()
         {
             // Act.
             int version = NetworkProtocol.ProtocolVersion;
 
             // Assert.
-            Assert.That(version, Is.EqualTo(10));
+            Assert.That(version, Is.EqualTo(11));
         }
 
         [Test]

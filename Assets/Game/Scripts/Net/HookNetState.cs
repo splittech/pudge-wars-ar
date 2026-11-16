@@ -14,6 +14,8 @@ namespace Game.Net
         public uint TargetNetId;
         public uint RequestId;
         public uint SessionEpoch;
+        public float SegmentRange;
+        public Vector2 HalfBounds;
 
         public static HookNetState FromSimulation(HookState hook, uint targetNetId) => new()
         {
@@ -23,6 +25,8 @@ namespace Game.Net
             StartTime = hook.StartTime,
             TurnTime = hook.TurnTime,
             TurnLength = hook.TurnLength,
+            SegmentRange = Mathf.Max(0, hook.Range - hook.Travelled + hook.Length),
+            HalfBounds = new Vector2(hook.HalfBounds.x, hook.HalfBounds.y),
             TargetNetId = targetNetId
         };
 
@@ -31,7 +35,13 @@ namespace Game.Net
             if (Phase == HookPhase.Idle)
                 return owner;
             if (Phase == HookPhase.Extending)
-                return Origin + Dir * Mathf.Clamp((float)(now - StartTime) * speed, 0, range);
+                {
+                Vector2 tip = Origin + Dir * Mathf.Clamp((float)(now - StartTime) * speed, 0,
+                    SegmentRange > 0 ? SegmentRange : range);
+                if (HalfBounds.x > 0 && HalfBounds.y > 0)
+                    tip = Vector2.Min(HalfBounds, Vector2.Max(-HalfBounds, tip));
+                return tip;
+            }
             Vector2 turn = Origin + Dir * TurnLength;
             return Vector2.MoveTowards(turn, owner, Mathf.Max(0, (float)(now - TurnTime)) * speed);
         }

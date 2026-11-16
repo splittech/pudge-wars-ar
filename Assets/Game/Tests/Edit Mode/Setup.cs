@@ -27,12 +27,12 @@ namespace Game.Tests.EditMode
         public static MatchConfigData MatchConfig(int killsToWin = 15, float duration = 480)
             => new(30, killsToWin, duration, 3, 120, 4);
 
-        public static MatchSimulation MatchWithRules(int startGold = 0, int victimHp = 1000)
+        public static MatchSimulation MatchWithRules(int startGold = 0, int victimHp = 1000, int territoryDamage = 50)
         {
             var arena = new ArenaConfigData(new float2(24, 14), 3.5f,
                 new[] { new float2(-4, 0), new float2(-4, 3) },
                 new[] { new float2(4, 0), new float2(4, 3) });
-            var simulation = new MatchSimulation(arena, HeroConfig(), HookConfig(),
+            var simulation = new MatchSimulation(arena, new HeroConfigData(1000, 3.2f, 0.5f, 4, enemyTerritoryDamage: territoryDamage), HookConfig(),
                 new[] { Hero(), Hero(id: 2, team: Team.B, x: 4, hp: victimHp) });
             simulation.ConfigureRules(MatchConfig(), new EconomyConfigData(150, 50, 10, startGold, new[] { 100, 200, 300, 400 }));
             simulation.Rules.Begin(0, true, true, 1, 1);

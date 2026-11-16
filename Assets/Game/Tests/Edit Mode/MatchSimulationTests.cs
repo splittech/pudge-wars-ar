@@ -165,7 +165,7 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void Step_PullHasFinished_TargetIsReleasedAtOwner()
+        public void Step_PullHasFinished_TargetIsReleasedAtContactWithOwner()
         {
             // Arrange.
             MatchSimulation simulation = Setup.MatchSimulation();
@@ -177,7 +177,8 @@ namespace Game.Tests.EditMode
             // Assert.
             HeroState target = simulation.GetHero(1);
             Assert.That(target.IsPulled, Is.False);
-            Assert.That(target.Pos, Is.EqualTo(simulation.GetHero(0).Pos));
+            Assert.That(math.distance(target.Pos, simulation.GetHero(0).Pos),
+                Is.EqualTo(target.Radius + simulation.GetHero(0).Radius).Within(0.0001f));
             Assert.That(target.MoveTarget, Is.EqualTo(target.Pos));
         }
 
@@ -217,7 +218,7 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void Step_ReleasedTargetMovesBackToOwnHalf_TargetReachesDestination()
+        public void Step_ReleasedTargetAttemptsToWalkHome_StopsAtCurrentRiverBank()
         {
             // Arrange.
             MatchSimulation simulation = Setup.MatchSimulation();
@@ -230,7 +231,7 @@ namespace Game.Tests.EditMode
             Setup.Advance(simulation, ticks: 101);
 
             // Assert.
-            Assert.That(simulation.GetHero(1).Pos, Is.EqualTo(target));
+            Assert.That(simulation.GetHero(1).Pos, Is.EqualTo(new float2(-2.25f, 0)));
         }
 
         [Test]
@@ -296,10 +297,10 @@ namespace Game.Tests.EditMode
 
             // Act.
             simulation.Enqueue(new ThrowHookIntent(1, new float2(0f, 1f), 0));
-            Setup.Advance(simulation, ticks: 19);
+            Setup.Advance(simulation, ticks: 18);
 
             // Assert.
-            Assert.That(simulation.GetHook(0).Length, Is.EqualTo(12f));
+            Assert.That(simulation.GetHook(0).Travelled, Is.EqualTo(12f).Within(0.0001f));
             Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(HookPhase.Retracting));
         }
 
@@ -373,7 +374,7 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void Step_OpposingHookTipsMeet_BothHooksRetractAndClashIsEmitted()
+        public void Step_OpposingHookTipsMeet_BothHooksBounceAndClashIsEmitted()
         {
             // Arrange.
             MatchSimulation simulation = Setup.MatchSimulation();
@@ -384,8 +385,8 @@ namespace Game.Tests.EditMode
             Setup.Advance(simulation, ticks: 6);
 
             // Assert.
-            Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(HookPhase.Retracting));
-            Assert.That(simulation.GetHook(1).Phase, Is.EqualTo(HookPhase.Retracting));
+            Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(HookPhase.Extending));
+            Assert.That(simulation.GetHook(1).Phase, Is.EqualTo(HookPhase.Extending));
             Assert.That(simulation.Clashes.Count, Is.EqualTo(1));
         }
 

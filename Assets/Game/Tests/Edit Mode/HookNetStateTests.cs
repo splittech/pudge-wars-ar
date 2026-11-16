@@ -86,7 +86,7 @@ namespace Game.Tests.EditMode
             {
                 Phase = HookPhase.Pulling, Origin = new Vector2(-4, 2), Dir = Vector2.right,
                 StartTime = 100.125, TurnTime = 100.5, TurnLength = 7.5f, TargetNetId = targetNetId,
-                RequestId = uint.MaxValue, SessionEpoch = 7
+                RequestId = uint.MaxValue, SessionEpoch = 7, SegmentRange = 3.5f, HalfBounds = new Vector2(11, 6)
             };
             using var writer = NetworkWriterPool.Get();
 
@@ -105,7 +105,9 @@ namespace Game.Tests.EditMode
             Assert.That(actual.TargetNetId, Is.EqualTo(expected.TargetNetId));
             Assert.That(actual.RequestId, Is.EqualTo(expected.RequestId));
             Assert.That(actual.SessionEpoch, Is.EqualTo(expected.SessionEpoch));
-            Assert.That(writer.Position, Is.EqualTo(49));
+            Assert.That(actual.SegmentRange, Is.EqualTo(expected.SegmentRange));
+            Assert.That(actual.HalfBounds, Is.EqualTo(expected.HalfBounds));
+            Assert.That(writer.Position, Is.EqualTo(61));
             Assert.That(reader.Remaining, Is.Zero);
         }
     }

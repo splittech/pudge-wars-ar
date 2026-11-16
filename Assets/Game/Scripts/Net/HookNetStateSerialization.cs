@@ -17,6 +17,8 @@ namespace Game.Net
             writer.WriteUInt(value.TargetNetId);
             writer.WriteUInt(value.RequestId);
             writer.WriteUInt(value.SessionEpoch);
+            writer.WriteFloat(value.SegmentRange);
+            writer.WriteVector2(value.HalfBounds);
         }
 
         public static HookNetState ReadHookNetState(this NetworkReader reader)
@@ -31,7 +33,9 @@ namespace Game.Net
                 TurnLength = reader.ReadFloat(),
                 TargetNetId = reader.ReadUInt(),
                 RequestId = reader.ReadUInt(),
-                SessionEpoch = reader.ReadUInt()
+                SessionEpoch = reader.ReadUInt(),
+                SegmentRange = reader.ReadFloat(),
+                HalfBounds = reader.ReadVector2()
             };
             Validate(value);
             return value;
@@ -42,6 +46,8 @@ namespace Game.Net
             SessionSerialization.Require(value.Phase <= HookPhase.Pulling
                 && SessionSerialization.Finite(value.Origin) && SessionSerialization.Finite(value.Dir)
                 && SessionSerialization.TimeValid(value.StartTime) && SessionSerialization.TimeValid(value.TurnTime)
+                && float.IsFinite(value.SegmentRange) && value.SegmentRange >= 0
+                && SessionSerialization.Finite(value.HalfBounds) && value.HalfBounds.x >= 0 && value.HalfBounds.y >= 0
                 && float.IsFinite(value.TurnLength) && value.TurnLength >= 0);
             if (value.Phase != HookPhase.Idle)
                 SessionSerialization.Require(UnityEngine.Mathf.Abs(value.Dir.sqrMagnitude - 1) < 0.001f);

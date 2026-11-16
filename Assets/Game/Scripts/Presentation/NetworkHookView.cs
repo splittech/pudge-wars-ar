@@ -53,7 +53,7 @@ namespace Game.Presentation
             Vector3 position = _hero.DisplayPosition;
             Vector2 tip = state.EvaluateTip(_hero.SynchronizedTime,
                 new Vector2(position.x, position.z),
-                _hero.HookViewSpeed > 0 ? _hero.HookViewSpeed : _config.Speed,
+                Mathf.Max(0, _hero.HookViewSpeed),
                 _hero.HookViewRange > 0 ? _hero.HookViewRange : _config.Range);
             _line.SetPosition(0, arena.TransformPoint(new Vector3(position.x, _height, position.z)));
             _line.SetPosition(1, arena.TransformPoint(new Vector3(tip.x, _height, tip.y)));

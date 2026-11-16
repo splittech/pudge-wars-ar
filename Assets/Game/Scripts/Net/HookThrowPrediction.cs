@@ -23,7 +23,7 @@ namespace Game.Net
 
         public void Cancel() => IsPending = false;
 
-        public bool TryBegin(Vector2 origin, Vector2 direction, double now, out uint requestId)
+        public bool TryBegin(Vector2 origin, Vector2 direction, double now, out uint requestId, Vector2 halfBounds = default)
         {
             requestId = 0;
             Expire(now);
@@ -36,7 +36,7 @@ namespace Game.Net
             _state = new HookNetState
             {
                 Phase = HookPhase.Extending, Origin = origin, Dir = direction / Mathf.Sqrt(lengthSquared),
-                StartTime = now, RequestId = requestId, SessionEpoch = _epoch
+                HalfBounds = halfBounds, StartTime = now, RequestId = requestId, SessionEpoch = _epoch
             };
             _deadline = now + TimeoutSeconds;
             IsPending = true;

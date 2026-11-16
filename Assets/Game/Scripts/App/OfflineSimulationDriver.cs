@@ -148,7 +148,7 @@ namespace Game.App
             {
                 HeroState hero = Simulation.GetHero(i);
                 Gizmos.color = hero.Team == Team.A ? Color.cyan : new Color(1, 0.5f, 0);
-                Rect2 bounds = ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius);
+                Rect2 bounds = ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius);
                 float2 center = (bounds.Min + bounds.Max) * 0.5f;
                 float2 size = bounds.Max - bounds.Min;
                 Gizmos.DrawWireCube(new Vector3(center.x, 0.03f, center.y), new Vector3(size.x, 0, size.y));

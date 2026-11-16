@@ -18,9 +18,17 @@ namespace Game.Core.Configs
         [BoxGroup("Hero")]
         [SerializeField] private float _respawnTime = 4f;
 
+        [BoxGroup("Enemy Territory"), Min(0)]
+        [SerializeField] private float _enemyTerritoryGracePeriod = 5f;
+        [BoxGroup("Enemy Territory"), Min(0.01f)]
+        [SerializeField] private float _enemyTerritoryDamageInterval = 1f;
+        [BoxGroup("Enemy Territory"), Min(0)]
+        [SerializeField] private int _enemyTerritoryDamage = 50;
+
         public HeroConfigData ToData()
         {
-            return new HeroConfigData(_maxHp, _moveSpeed, _radius, _respawnTime);
+            return new HeroConfigData(_maxHp, _moveSpeed, _radius, _respawnTime,
+                _enemyTerritoryGracePeriod, _enemyTerritoryDamageInterval, _enemyTerritoryDamage);
         }
     }
 }

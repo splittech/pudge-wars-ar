@@ -159,6 +159,7 @@ namespace Game.Core.Match
                 Rules.Advance(Time, CountTeam(Team.A), CountTeam(Team.B));
                 if (Rules.Phase != MatchPhase.Playing)
                 {
+                    ResolveHeroOverlaps();
                     _intents.Clear();
                     Time += dt;
                     return;
@@ -179,37 +180,23 @@ namespace Game.Core.Match
                 }
                 else
                     _heroes[index].MoveTarget = Geo2D.ClampToRect(intent.Value,
-                        ArenaBounds.ForTeam(_arena, _heroes[index].Team, _heroes[index].Radius));
+                        ArenaBounds.ForPosition(_arena, _heroes[index].Pos, _heroes[index].Radius));
             }
+            ResolveHeroOverlaps();
             for (int i = 0; i < _heroes.Length; i++)
+            {
+                HeroState previous = _heroes[i];
                 HeroMovement.Step(ref _heroes[i], _heroConfig.MoveSpeed,
-                    ArenaBounds.ForTeam(_arena, _heroes[i].Team, _heroes[i].Radius), dt);
+                    ArenaBounds.ForPosition(_arena, _heroes[i].Pos, _heroes[i].Radius), dt);
+                _heroes[i].Pos = HeroCollision.Move(previous, _heroes[i].Pos, _heroes);
+            }
             Time += dt;
             for (int i = 0; i < _hooks.Length; i++)
-                StepHook(i, dt);
-            for (int i = 0; i < _hooks.Length; i++)
-                for (int j = i + 1; j < _hooks.Length; j++)
-                    if (_hooks[i].Phase == HookPhase.Extending && _hooks[j].Phase == HookPhase.Extending &&
-                        Geo2D.CircleCircle(_hooks[i].Tip, _hooks[i].Radius, _hooks[j].Tip, _hooks[j].Radius))
-                    {
-                        HookSimulation.Turn(ref _hooks[i], HookPhase.Retracting, Time);
-                        HookSimulation.Turn(ref _hooks[j], HookPhase.Retracting, Time);
-                        _clashes.Add(new HookClash(_hooks[i].OwnerId, _hooks[j].OwnerId,
-                            (_hooks[i].Tip + _hooks[j].Tip) * 0.5f, Time));
-                    }
-            foreach (HookHit hit in _hits)
-            {
-                int target = Find(hit.TargetId);
-                int owner = Find(hit.OwnerId);
-                if (Rules != null) _heroes[owner].HookHits++;
-                int damage = Combat.Combat.ApplyHit(ref _heroes[target], _heroes[owner], _hooks[owner].Damage);
-                if (damage <= 0)
-                    continue;
-                _damage.Add(new HeroDamaged(hit.TargetId, hit.OwnerId, damage, _heroes[target].Hp, Time));
-                if (!_heroes[target].Alive)
-                    _deaths.Add(new HeroDied(hit.TargetId, hit.OwnerId, Time));
-            }
+                if (_hooks[i].Phase != HookPhase.Extending) StepHook(i, dt);
+            StepFlyingHooks(dt);
+            ApplyTerritoryDamage();
             if (Rules != null) ApplyMatchRules();
+            ResolveHeroOverlaps();
         }
 
         private void StepHook(int index, float dt)
@@ -217,43 +204,28 @@ namespace Game.Core.Match
             ref HookState hook = ref _hooks[index];
             if (hook.Phase == HookPhase.Idle)
                 return;
-            if (hook.Phase == HookPhase.Extending)
-            {
-                float nextLength = math.min(hook.Range, hook.Length + hook.Speed * dt);
-                float2 nextTip = hook.Origin + hook.Dir * nextLength;
-                int target = -1;
-                float firstT = float.PositiveInfinity;
-                for (int j = 0; j < _heroes.Length; j++)
-                {
-                    if (j == index || !_heroes[j].Alive || _heroes[j].IsPulled)
-                        continue;
-                    if (Geo2D.SweptCircle(hook.Tip, nextTip, hook.Radius,
-                        _heroes[j].Pos, _heroes[j].Radius, out float t) && t < firstT)
-                    { firstT = t; target = j; }
-                }
-                if (target >= 0)
-                {
-                    hook.Tip = math.lerp(hook.Tip, nextTip, firstT);
-                    hook.Length = math.distance(hook.Origin, hook.Tip);
-                    hook.TargetId = _heroes[target].Id;
-                    HookSimulation.Turn(ref hook, HookPhase.Pulling, Time);
-                    _heroes[target].IsPulled = true;
-                    _heroes[target].Pos = hook.Tip;
-                    _hits.Add(new HookHit(hook.OwnerId, hook.TargetId, hook.Tip, Time));
-                    return;
-                }
-                hook.Tip = nextTip;
-                hook.Length = nextLength;
-                if (nextLength >= hook.Range)
-                    HookSimulation.Turn(ref hook, HookPhase.Retracting, Time);
-                return;
-            }
-
             int pulled = hook.Phase == HookPhase.Pulling ? Find(hook.TargetId) : -1;
             var config = new HookConfigData(hook.Range, hook.Speed, hook.Radius, hook.Damage, _hookConfig.Cooldown, 0, 0, 0, 0, 4);
             bool finished = HookSimulation.Return(ref hook, _heroes[index], config, dt);
             if (pulled >= 0)
-                _heroes[pulled].Pos = hook.Tip;
+            {
+                float2 desired = hook.Tip;
+                float2 position = HeroCollision.Move(_heroes[pulled], desired, _heroes);
+                bool blocked = math.distancesq(position, desired) > 1e-10f;
+                _heroes[pulled].Pos = position;
+                hook.Tip = position;
+                if (blocked || finished)
+                {
+                    _heroes[pulled].IsPulled = false;
+                    _heroes[pulled].MoveTarget = position;
+                    hook.Origin = position;
+                    hook.Length = 0;
+                    hook.StartTime = Time;
+                    hook.TargetId = 0;
+                    HookSimulation.Turn(ref hook, HookPhase.Retracting, Time);
+                    return;
+                }
+            }
             if (!finished)
                 return;
             if (pulled >= 0)

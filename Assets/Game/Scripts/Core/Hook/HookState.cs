@@ -9,6 +9,8 @@ namespace Game.Core.Hook
         public float2 Origin;
         public float2 Dir;
         public float Length;
+        public float Travelled;
+        public float2 HalfBounds;
         public float2 Tip;
         public uint TargetId;
         public double TurnTime;

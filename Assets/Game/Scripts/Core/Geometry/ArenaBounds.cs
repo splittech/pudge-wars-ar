@@ -7,6 +7,9 @@ namespace Game.Core.Geometry
 {
     public static class ArenaBounds
     {
+        public static Rect2 ForPosition(ArenaConfigData arena, float2 position, float heroRadius)
+            => ForTeam(arena, position.x <= 0 ? Team.A : Team.B, heroRadius);
+
         public static Rect2 ForTeam(ArenaConfigData arena, Team team, float heroRadius)
         {
             if (!math.all(math.isfinite(arena.Size)) || math.any(arena.Size <= 0f))

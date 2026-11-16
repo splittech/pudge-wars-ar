@@ -193,6 +193,7 @@ namespace Game.UI
         private void ToggleReady() { if (!ReferenceEquals(_hero, null) && !ReferenceEquals(_match, null)) _actions.SetReady(!IsReady()); }
         private string PlayerName(uint id)
         {
+            if (id == 0) return "Территория";
             foreach (var row in _match.StatRows) if (row.PlayerId == id) return row.Nickname ?? id.ToString();
             return id.ToString();
         }

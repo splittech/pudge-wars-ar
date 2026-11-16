@@ -59,6 +59,7 @@ namespace Game.Core.Match
             hero.MoveTarget = hero.Pos;
             hero.Hp = _heroConfig.MaxHp; hero.Alive = true; hero.IsPulled = false;
             hero.HookCooldownEnd = 0; hero.RespawnAt = 0;
+            hero.EnemyTerritoryExposed = false; hero.EnemyTerritoryDamageAt = 0;
             _hooks[index] = new HookState { OwnerId = hero.Id };
         }
 
@@ -115,7 +116,8 @@ namespace Game.Core.Match
 
         private void ApplyMatchRules()
         {
-            foreach (var hit in _damage) _damageHistory.Record(hit.HeroId, hit.AttackerId, hit.Time);
+            foreach (var hit in _damage)
+                if (hit.AttackerId != 0) _damageHistory.Record(hit.HeroId, hit.AttackerId, hit.Time);
             foreach (var death in _deaths)
             {
                 int victim = Find(death.HeroId);
@@ -124,15 +126,18 @@ namespace Game.Core.Match
                 _heroes[victim].RespawnAt = Time + _heroConfig.RespawnTime;
                 _heroes[victim].IsPulled = false;
                 _heroes[victim].MoveTarget = _heroes[victim].Pos;
-                _heroes[killer].Kills++;
-                _heroes[killer].Gold += _economy.KillGold;
-                Rules.AddKill(_heroes[killer].Team);
-                foreach (uint id in _damageHistory.Assists(death.HeroId, death.KillerId, Time, _economy.AssistWindow))
+                if (killer >= 0)
                 {
-                    int assistant = Find(id);
-                    if (assistant < 0 || _heroes[assistant].Team != _heroes[killer].Team) continue;
-                    _heroes[assistant].Gold += _economy.AssistGold;
-                    _heroes[assistant].Assists++;
+                    _heroes[killer].Kills++;
+                    _heroes[killer].Gold += _economy.KillGold;
+                    Rules.AddKill(_heroes[killer].Team);
+                    foreach (uint id in _damageHistory.Assists(death.HeroId, death.KillerId, Time, _economy.AssistWindow))
+                    {
+                        int assistant = Find(id);
+                        if (assistant < 0 || _heroes[assistant].Team != _heroes[killer].Team) continue;
+                        _heroes[assistant].Gold += _economy.AssistGold;
+                        _heroes[assistant].Assists++;
+                    }
                 }
                 _damageHistory.Remove(death.HeroId);
                 // Death cancels both the victim's own hook and any hook carrying the victim.

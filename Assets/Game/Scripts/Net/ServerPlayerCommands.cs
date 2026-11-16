@@ -69,7 +69,7 @@ namespace Game.Net
             if (frame.HasMoveTarget && hero.Alive && !hero.IsPulled)
             {
                 pending.Move = Geo2D.ClampToRect(new float2(frame.Target.x, frame.Target.y),
-                    ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
+                    ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius));
                 pending.HasMove = true;
             }
             return true;
@@ -91,7 +91,7 @@ namespace Game.Net
             Pending pending = GetPending(id, now);
             if (++pending.Moves > 30)
                 return Reject("Move rate exceeded", out reason);
-            pending.Move = Geo2D.ClampToRect(point, ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
+            pending.Move = Geo2D.ClampToRect(point, ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius));
             pending.HasMove = true;
             return true;
         }

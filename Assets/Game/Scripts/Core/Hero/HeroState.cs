@@ -15,6 +15,8 @@ namespace Game.Core.Hero
         public bool IsPulled;
         public double HookCooldownEnd;
         public double RespawnAt;
+        public bool EnemyTerritoryExposed;
+        public double EnemyTerritoryDamageAt;
         public int Gold;
         public int Kills;
         public int Deaths;

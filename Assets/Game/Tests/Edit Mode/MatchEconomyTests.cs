@@ -15,7 +15,7 @@ namespace Game.Tests.EditMode
         public void Step_AssistedKill_AwardsOnlyRecentDamage(float delay, int assistGold)
         {
             // Arrange.
-            var simulation = Setup.MatchWithRules(victimHp: 350);
+            var simulation = Setup.MatchWithRules(victimHp: 350, territoryDamage: 0);
             simulation.AddHero(Setup.Hero(id: 3, y: 3));
             simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), simulation.Time));
             Setup.Advance(simulation, 60);

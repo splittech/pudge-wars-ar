@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Game.Core.Configs;
 using Game.Core.Match;
 using Game.Core.Hero;
@@ -37,6 +38,7 @@ namespace Game.Net
         private LocalPlayerCommands _localCommands;
         private ServerPlayerCommands _serverCommands;
         private readonly MovementPredictor _movement = new();
+        private readonly List<HeroState> _collisionObstacles = new(4);
         [SerializeField] private bool _predictionEnabled = true;
         [SerializeField, Range(10, 30)] private int _movementSendRate = 30;
         [SerializeField, Range(10, 30)] private int _movementSnapshotRate = 30;
@@ -87,6 +89,14 @@ namespace Game.Net
             {
                 if (!HasPredictedMovement || !CanAct) return transform.localPosition;
                 Vector2 point = _predictionEnabled ? _movement.Position + _movementVisualOffset : _movement.AuthoritativePosition;
+                if (_predictionEnabled && _alive && !_isPulled)
+                {
+                    Vector2 predicted = _movement.Position;
+                    float2 visible = HeroCollision.Move(new HeroState { Id = _sessionPlayerId, Alive = true,
+                        Radius = _heroRadius, Pos = new float2(predicted.x, predicted.y) },
+                        new float2(point.x, point.y), _collisionObstacles);
+                    point = new Vector2(visible.x, visible.y);
+                }
                 return new Vector3(point.x, transform.localPosition.y, point.y);
             }
         }
@@ -124,6 +134,16 @@ namespace Game.Net
                 _lastPredictionEnabled = _predictionEnabled;
             }
             if (!_alive || _isPulled) _movement.Suspend(_alive, _isPulled);
+            _collisionObstacles.Clear();
+            foreach (var identity in NetworkClient.spawned.Values)
+            {
+                if (identity == null || !identity.TryGetComponent<HeroNet>(out var other)
+                    || other == this || !other.Alive) continue;
+                Vector3 point = other.transform.localPosition;
+                _collisionObstacles.Add(new HeroState { Id = other.SessionPlayerId, Alive = true,
+                    Radius = other._heroRadius, Pos = new float2(point.x, point.z) });
+            }
+            _movement.SetCollisionContext(_sessionPlayerId, _heroRadius, _collisionObstacles);
             if (_movementOffsetRemaining > 0)
             {
                 float elapsed = Mathf.Min(Time.unscaledDeltaTime, _movementOffsetRemaining);
@@ -284,7 +304,7 @@ namespace Game.Net
                 return;
             Vector3 origin = DisplayPosition;
             Vector2 value = new(direction.x, direction.y);
-            if (_prediction.TryBegin(new Vector2(origin.x, origin.z), value, NetworkTime.time, out uint requestId))
+            if (_prediction.TryBegin(new Vector2(origin.x, origin.z), value, NetworkTime.time, out uint requestId, new Vector2(_arena.Size.x * 0.5f - _status.Radius, _arena.Size.y * 0.5f - _status.Radius)))
                 CmdThrowHook(value, requestId, _sessionEpoch);
         }
 

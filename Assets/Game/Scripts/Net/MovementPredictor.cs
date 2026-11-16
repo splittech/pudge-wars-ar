@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Game.Core.Geometry;
 using Game.Core.Hero;
 using Unity.Mathematics;
@@ -10,10 +11,12 @@ namespace Game.Net
     {
         public const int Capacity = 120;
         public const float Delta = 1f / 30f;
-        private struct Entry { public uint Tick; public MovementFrame Frame; public HeroState State; }
+        private struct Entry { public uint Tick; public MovementFrame Frame; public HeroState State; public HeroState[] Obstacles; }
+        private IReadOnlyList<HeroState> _obstacles;
         private readonly Entry[] _history = new Entry[Capacity];
         private HeroState _state;
         private Rect2 _bounds;
+        private Rect2 _homeBounds;
         private float _speed;
         private uint _epoch;
         private uint _sequence;
@@ -35,8 +38,24 @@ namespace Game.Net
         public Vector2 AuthoritativePosition { get; private set; }
         public double ServerTime { get; private set; }
 
+        public void SetCollisionContext(uint id, float radius, IReadOnlyList<HeroState> obstacles)
+        {
+            _state.Id = id;
+            _state.Radius = radius;
+            _obstacles = obstacles;
+        }
+
+        private void Predict(IReadOnlyList<HeroState> obstacles)
+        {
+            SelectBank(_state.Pos.x);
+            HeroState previous = _state;
+            HeroMovement.Step(ref _state, _speed, _bounds, Delta);
+            _state.Pos = HeroCollision.Move(previous, _state.Pos, obstacles);
+        }
+
         public void Reset(uint epoch, Rect2 bounds)
         {
+            _homeBounds = bounds;
             _epoch = epoch; _bounds = bounds; _sequence = 0; Tick = 0;
             LastServerTick = 0; AckSequence = 0; HistorySize = 0;
             _pendingTarget = false; _initialized = false; Error = 0;
@@ -65,8 +84,12 @@ namespace Game.Net
             frame = new MovementFrame { Sequence = ++_sequence, ClientTick = ++Tick, SessionEpoch = _epoch,
                 HasMoveTarget = _pendingTarget, Target = new Vector2(_target.x, _target.y) };
             if (_pendingTarget && _targetSequence == 0) _targetSequence = frame.Sequence;
-            if (predict) HeroMovement.Step(ref _state, _speed, _bounds, Delta);
-            _history[Tick % Capacity] = new Entry { Tick = Tick, Frame = frame, State = _state };
+            ref Entry entry = ref _history[Tick % Capacity];
+            int count = _obstacles?.Count ?? 0;
+            if (entry.Obstacles == null || entry.Obstacles.Length != count) entry.Obstacles = new HeroState[count];
+            for (int i = 0; i < count; i++) entry.Obstacles[i] = _obstacles[i];
+            if (predict) Predict(entry.Obstacles);
+            entry.Tick = Tick; entry.Frame = frame; entry.State = _state;
             HistorySize = Math.Min(Capacity, HistorySize + 1);
             return true;
         }
@@ -86,6 +109,7 @@ namespace Game.Net
             if (Error > 0.00001f) Corrections++;
             uint replayEnd = Tick;
             _state.Pos = new float2(snapshot.Pos.x, snapshot.Pos.y);
+            SelectBank(_state.Pos.x);
             _state.MoveTarget = new float2(snapshot.MoveTarget.x, snapshot.MoveTarget.y);
             _state.Alive = snapshot.Alive; _state.IsPulled = snapshot.IsPulled; _speed = snapshot.MoveSpeed;
             AuthoritativePosition = snapshot.Pos; ServerTime = snapshot.ServerTime;
@@ -105,7 +129,7 @@ namespace Game.Net
                     ref Entry entry = ref _history[tick % Capacity];
                     if (entry.Frame.HasMoveTarget && entry.Frame.Sequence > AckSequence)
                         _state.MoveTarget = new float2(entry.Frame.Target.x, entry.Frame.Target.y);
-                    if (predict) HeroMovement.Step(ref _state, _speed, _bounds, Delta);
+                    if (predict) Predict(entry.Obstacles);
                     entry.State = _state;
                 }
                 HistorySize = (int)(replayEnd - snapshot.ServerTick);
@@ -113,6 +137,14 @@ namespace Game.Net
             if (_pendingTarget) _state.MoveTarget = _target;
             _initialized = true;
             return true;
+        }
+
+        private void SelectBank(float x)
+        {
+            bool sameSide = (x <= 0) == (_homeBounds.Max.x <= 0);
+            _bounds = sameSide ? _homeBounds : new Rect2(
+                new float2(-_homeBounds.Max.x, _homeBounds.Min.y),
+                new float2(-_homeBounds.Min.x, _homeBounds.Max.y));
         }
     }
 }
