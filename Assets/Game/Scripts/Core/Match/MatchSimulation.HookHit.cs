@@ -22,17 +22,30 @@ namespace Game.Core.Match
             bool intercepted = victim.IsPulled;
             bool headshot = intercepted && victim.Team != _heroes[owner].Team;
             if (intercepted)
+            {
                 for (int i = 0; i < _hooks.Length; i++)
+                {
                     if (_hooks[i].Phase == HookPhase.Pulling && _hooks[i].TargetId == victim.Id)
+                    {
                         DetachHook(i, time);
+                    }
+                }
+            }
 
             _hits.Add(new HookHit(hook.OwnerId, victim.Id, hook.Tip, time));
-            if (Rules != null) _heroes[owner].HookHits++;
+            if (Rules != null)
+            {
+                _heroes[owner].HookHits++;
+            }
+
             int damage = Combat.Combat.ApplyHit(ref victim, _heroes[owner], headshot ? victim.Hp : hook.Damage);
             if (damage > 0)
             {
                 _damage.Add(new HeroDamaged(victim.Id, hook.OwnerId, damage, victim.Hp, time));
-                if (!victim.Alive) _deaths.Add(new HeroDied(victim.Id, hook.OwnerId, time));
+                if (!victim.Alive)
+                {
+                    _deaths.Add(new HeroDied(victim.Id, hook.OwnerId, time));
+                }
             }
             if (headshot)
             {

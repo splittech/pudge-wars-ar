@@ -61,7 +61,10 @@ namespace Game.Net
         private int _movementFramesProduced;
         private readonly MovementLatencyProbe _inputLatency = new();
         public double LastInputToViewMs { get; private set; } = double.NaN;
-        public int InputLatencySamples { get; private set; }
+        public int InputLatencySamples
+        {
+            get; private set;
+        }
         public event Action<double> MovementPresented;
         private Action<Vector3> _presentedMovementReporter;
         public Action<Vector3> PresentedMovementReporter => _presentedMovementReporter ??= ReportPresentedMovement;
@@ -73,13 +76,20 @@ namespace Game.Net
         public void ReportPresentedMovement(Vector3 position)
         {
             if (!isLocalPlayer || !_inputLatency.TryPresent(new Vector2(position.x, position.z), _alive && !_isPulled,
-                NetworkTime.time, out double milliseconds)) return;
+                NetworkTime.time, out double milliseconds))
+            {
+                return;
+            }
+
             LastInputToViewMs = milliseconds;
             InputLatencySamples++;
             MovementPresented?.Invoke(LastInputToViewMs);
         }
         public MovementPredictor Movement => _movement;
-        public bool PredictionEnabled { get => _predictionEnabled; set => _predictionEnabled = value; }
+        public bool PredictionEnabled
+        {
+            get => _predictionEnabled; set => _predictionEnabled = value;
+        }
         public int MovementPackets => _sentMovementPackets;
         public int MovementSnapshots => _receivedMovementSnapshots;
         public bool HasPredictedMovement => isLocalPlayer && !isServer && _movement.Ready;
@@ -87,13 +97,22 @@ namespace Game.Net
         {
             get
             {
-                if (!HasPredictedMovement || !CanAct) return transform.localPosition;
+                if (!HasPredictedMovement || !CanAct)
+                {
+                    return transform.localPosition;
+                }
+
                 Vector2 point = _predictionEnabled ? _movement.Position + _movementVisualOffset : _movement.AuthoritativePosition;
                 if (_predictionEnabled && _alive && !_isPulled)
                 {
                     Vector2 predicted = _movement.Position;
-                    float2 visible = HeroCollision.Move(new HeroState { Id = _sessionPlayerId, Alive = true,
-                        Radius = _heroRadius, Pos = new float2(predicted.x, predicted.y) },
+                    float2 visible = HeroCollision.Move(new HeroState
+                    {
+                        Id = _sessionPlayerId,
+                        Alive = true,
+                        Radius = _heroRadius,
+                        Pos = new float2(predicted.x, predicted.y)
+                    },
                         new float2(point.x, point.y), _collisionObstacles);
                     point = new Vector2(visible.x, visible.y);
                 }
@@ -104,13 +123,17 @@ namespace Game.Net
         [Inject]
         public void ConstructMovement(HeroConfig config)
         {
-            var data = config.ToData(); _moveSpeed = data.MoveSpeed; _heroRadius = data.Radius;
+            var data = config.ToData();
+            _moveSpeed = data.MoveSpeed;
+            _heroRadius = data.Radius;
         }
 
         private void ResetMovement()
         {
             _movement.Reset(_sessionEpoch, Game.Core.Geometry.ArenaBounds.ForTeam(_arena, _team, _heroRadius));
-            _movementBatch = default; _movementVisualOffset = Vector2.zero; _movementOffsetRemaining = 0;
+            _movementBatch = default;
+            _movementVisualOffset = Vector2.zero;
+            _movementOffsetRemaining = 0;
             _nextMovementSend = 0;
             _movementClock.Reset();
             _inputLatency.Reset();
@@ -118,7 +141,11 @@ namespace Game.Net
 
         private void Update()
         {
-            if (!isLocalPlayer || !NetworkClient.ready) return;
+            if (!isLocalPlayer || !NetworkClient.ready)
+            {
+                return;
+            }
+
             if (!CanAct)
             {
                 _movementBatch = default;
@@ -127,21 +154,39 @@ namespace Game.Net
                 _movementClock.Reset();
                 return;
             }
-            if (!_movement.Ready) return;
+            if (!_movement.Ready)
+            {
+                return;
+            }
+
             if (_lastPredictionEnabled != _predictionEnabled)
             {
-                _movementVisualOffset = Vector2.zero; _movementOffsetRemaining = 0;
+                _movementVisualOffset = Vector2.zero;
+                _movementOffsetRemaining = 0;
                 _lastPredictionEnabled = _predictionEnabled;
             }
-            if (!_alive || _isPulled) _movement.Suspend(_alive, _isPulled);
+            if (!_alive || _isPulled)
+            {
+                _movement.Suspend(_alive, _isPulled);
+            }
+
             _collisionObstacles.Clear();
             foreach (var identity in NetworkClient.spawned.Values)
             {
                 if (identity == null || !identity.TryGetComponent<HeroNet>(out var other)
-                    || other == this || !other.Alive) continue;
+                    || other == this || !other.Alive)
+                {
+                    continue;
+                }
+
                 Vector3 point = other.transform.localPosition;
-                _collisionObstacles.Add(new HeroState { Id = other.SessionPlayerId, Alive = true,
-                    Radius = other._heroRadius, Pos = new float2(point.x, point.z) });
+                _collisionObstacles.Add(new HeroState
+                {
+                    Id = other.SessionPlayerId,
+                    Alive = true,
+                    Radius = other._heroRadius,
+                    Pos = new float2(point.x, point.z)
+                });
             }
             _movement.SetCollisionContext(_sessionPlayerId, _heroRadius, _collisionObstacles);
             if (_movementOffsetRemaining > 0)
@@ -154,16 +199,27 @@ namespace Game.Net
             int steps = _movementClock.Advance(NetworkTime.time);
             for (int i = 0; i < steps; i++)
             {
-                if (!_movement.Step(out var frame, !isServer && _predictionEnabled)) break;
+                if (!_movement.Step(out var frame, !isServer && _predictionEnabled))
+                {
+                    break;
+                }
+
                 _movementFramesProduced++;
-                if (_movementBatch.Count == 4) SendMovement();
+                if (_movementBatch.Count == 4)
+                {
+                    SendMovement();
+                }
+
                 _movementBatch.Add(frame);
             }
             if (_movementClock.DroppedTime)
             {
                 CmdRequestMovementSnapshot();
             }
-            if (_movementBatch.Count > 0 && NetworkTime.time >= _nextMovementSend) SendMovement();
+            if (_movementBatch.Count > 0 && NetworkTime.time >= _nextMovementSend)
+            {
+                SendMovement();
+            }
         }
 
         private void SendMovement()
@@ -179,15 +235,25 @@ namespace Game.Net
         [Command(requiresAuthority = false, channel = Channels.Unreliable)]
         private void CmdMovement(MovementBatch batch, NetworkConnectionToClient sender = null)
         {
-            if (!OwnsHero(sender) || batch.Count == 0 || batch.Count > 4) return;
+            if (!OwnsHero(sender) || batch.Count == 0 || batch.Count > 4)
+            {
+                return;
+            }
+
             for (int i = 0; i < batch.Count; i++)
+            {
                 _serverCommands.TryMovement(_sessionPlayerId, batch.Get(i), _sessionEpoch, NetworkTime.time, true, out _);
+            }
         }
 
         [Command]
         private void CmdRequestMovementSnapshot()
         {
-            if (NetworkTime.time < _nextMovementResync) return;
+            if (NetworkTime.time < _nextMovementResync)
+            {
+                return;
+            }
+
             _nextMovementResync = NetworkTime.time + 0.5;
             _serverCommands.ResyncMovementClock(_sessionPlayerId);
             _nextMovementSnapshot = 0;
@@ -197,30 +263,53 @@ namespace Game.Net
 
         internal void PublishMovement(uint tick, double time, HeroState state)
         {
-            if (connectionToClient == null || !NetworkServer.active) return;
+            if (connectionToClient == null || !NetworkServer.active)
+            {
+                return;
+            }
+
             bool forced = _lastMovementEpoch != _sessionEpoch || _lastMovementAlive != state.Alive || _lastMovementPulled != state.IsPulled;
-            if (!forced && time < _nextMovementSnapshot) return;
-            _lastMovementEpoch = _sessionEpoch; _lastMovementAlive = state.Alive; _lastMovementPulled = state.IsPulled;
+            if (!forced && time < _nextMovementSnapshot)
+            {
+                return;
+            }
+
+            _lastMovementEpoch = _sessionEpoch;
+            _lastMovementAlive = state.Alive;
+            _lastMovementPulled = state.IsPulled;
             double interval = 1.0 / Mathf.Clamp(_movementSnapshotRate, 10, 30);
             _nextMovementSnapshot = forced || _nextMovementSnapshot == 0 ? time + interval
                 : Math.Max(_nextMovementSnapshot + interval, time - interval);
             TargetMovementSnapshot(connectionToClient, new MovementSnapshot
             {
-                ServerTick = tick, ServerTime = time, AckSequence = _serverCommands.MovementAck(_sessionPlayerId),
-                SessionEpoch = _sessionEpoch, Pos = new Vector2(state.Pos.x, state.Pos.y),
-                MoveTarget = new Vector2(state.MoveTarget.x, state.MoveTarget.y), MoveSpeed = _moveSpeed,
-                Alive = state.Alive, IsPulled = state.IsPulled
+                ServerTick = tick,
+                ServerTime = time,
+                AckSequence = _serverCommands.MovementAck(_sessionPlayerId),
+                SessionEpoch = _sessionEpoch,
+                Pos = new Vector2(state.Pos.x, state.Pos.y),
+                MoveTarget = new Vector2(state.MoveTarget.x, state.MoveTarget.y),
+                MoveSpeed = _moveSpeed,
+                Alive = state.Alive,
+                IsPulled = state.IsPulled
             });
         }
 
         [TargetRpc(channel = Channels.Unreliable)]
         private void TargetMovementSnapshot(NetworkConnectionToClient target, MovementSnapshot snapshot)
         {
-            if (!isLocalPlayer || !CanAct || snapshot.SessionEpoch != _sessionEpoch) return;
+            if (!isLocalPlayer || !CanAct || snapshot.SessionEpoch != _sessionEpoch)
+            {
+                return;
+            }
+
             Vector2 previous = _movement.Position + _movementVisualOffset;
             bool wasMoving = _movement.CanMove;
             int resyncs = _movement.Resyncs;
-            if (!_movement.Receive(snapshot, !isServer && _predictionEnabled)) return;
+            if (!_movement.Receive(snapshot, !isServer && _predictionEnabled))
+            {
+                return;
+            }
+
             if (_movement.Resyncs != resyncs)
             {
                 _movementBatch = default;
@@ -250,8 +339,14 @@ namespace Game.Net
         public bool IsLocalHero => isLocalPlayer;
         public bool IsClientView => isClient;
         public double SynchronizedTime => NetworkTime.time;
-        public bool HasDependencies { get; private set; }
-        public bool ClientStartedAfterInjection { get; private set; }
+        public bool HasDependencies
+        {
+            get; private set;
+        }
+        public bool ClientStartedAfterInjection
+        {
+            get; private set;
+        }
 
         [Inject]
         public void Construct(ArenaConfig arena)
@@ -301,11 +396,16 @@ namespace Game.Net
             if (!isLocalPlayer || !NetworkClient.ready || !CanAct || !_alive || _isPulled
                 || _hookState.Phase != Game.Core.Hook.HookPhase.Idle
                 || NetworkTime.time < _hookCooldownEnd)
+            {
                 return;
+            }
+
             Vector3 origin = DisplayPosition;
             Vector2 value = new(direction.x, direction.y);
             if (_prediction.TryBegin(new Vector2(origin.x, origin.z), value, NetworkTime.time, out uint requestId, new Vector2(_arena.Size.x * 0.5f - _status.Radius, _arena.Size.y * 0.5f - _status.Radius)))
+            {
                 CmdThrowHook(value, requestId, _sessionEpoch);
+            }
         }
 
         public bool IsHookPredicted => isLocalPlayer && _prediction.IsPending;
@@ -315,7 +415,10 @@ namespace Game.Net
             get
             {
                 if (!isLocalPlayer || !_alive || _isPulled)
+                {
                     _prediction.Cancel();
+                }
+
                 _prediction.TryGetState(NetworkTime.time, _hookState, out HookNetState state);
                 return state;
             }
@@ -324,7 +427,9 @@ namespace Game.Net
         public void BuyUpgrade(UpgradeId id)
         {
             if (isLocalPlayer && NetworkClient.ready && _nextPurchaseRequestId != uint.MaxValue)
+            {
                 CmdBuyUpgrade(id, ++_nextPurchaseRequestId, _sessionEpoch);
+            }
         }
 
         [Command(requiresAuthority = false)]
@@ -369,33 +474,53 @@ namespace Game.Net
             uint epoch, bool accepted, string reason)
         {
             if (!isLocalPlayer || epoch != _sessionEpoch)
+            {
                 return;
+            }
+
             if (kind == ActionKind.Throw)
+            {
                 _prediction.ApplyResult(requestId, epoch, accepted);
+            }
+
             _actionResults.OnNext(new ActionResult(kind, requestId, epoch, accepted, reason));
             if (!accepted && Debug.isDebugBuild)
+            {
                 Debug.Log($"{kind} request {requestId} rejected: {reason}");
+            }
         }
 
         private void OnThrowCompleted(uint playerId, uint requestId, uint epoch, bool accepted, string reason)
         {
             if (playerId != _sessionPlayerId)
+            {
                 return;
+            }
+
             if (accepted)
             {
                 _serverHookRequestId = requestId;
                 _serverHookEpoch = epoch == 0 ? _sessionEpoch : epoch;
             }
             if (requestId != 0 && connectionToClient != null)
+            {
                 TargetActionResult(connectionToClient, ActionKind.Throw, requestId, epoch, accepted, reason);
+            }
+
             if (!accepted)
+            {
                 LogRejected("Throw", reason);
+            }
         }
 
         private void OnSessionEpochChanged(uint previous, uint current)
         {
             _prediction.Reset(current);
-            if (isLocalPlayer) ResetMovement();
+            if (isLocalPlayer)
+            {
+                ResetMovement();
+            }
+
             _nextPurchaseRequestId = 0;
         }
 
@@ -406,20 +531,26 @@ namespace Game.Net
         private void LogRejected(string action, string reason)
         {
             if (Debug.isDebugBuild)
+            {
                 Debug.LogWarning($"{action} rejected for player {_sessionPlayerId}: {reason}");
+            }
         }
 
         internal void InitializePlayer(uint sessionPlayerId, int slot)
         {
             RequireDependencies();
             if (sessionPlayerId == 0 || slot < 0 || slot >= 4)
+            {
                 throw new ArgumentOutOfRangeException(nameof(slot), "A nonzero session ID and a slot in 0..3 are required.");
+            }
 
             Team team = slot % 2 == 0 ? Team.A : Team.B;
             var points = team == Team.A ? _arena.TeamASpawnPoints : _arena.TeamBSpawnPoints;
             int index = slot / 2;
             if (index >= points.Count)
+            {
                 throw new InvalidOperationException("ArenaConfig does not contain enough spawn points.");
+            }
 
             _sessionPlayerId = sessionPlayerId;
             _sessionEpoch = 1;
@@ -457,7 +588,10 @@ namespace Game.Net
             _status = HeroStatus.From(state);
             _statusProperty.Value = _status;
             if (state.Id != _sessionPlayerId)
+            {
                 throw new ArgumentException("Simulation player ID does not match the network hero.", nameof(state));
+            }
+
             Vector3 position = transform.localPosition;
             transform.localPosition = new Vector3(state.Pos.x, position.y, state.Pos.y);
             _hp = state.Hp;
@@ -486,7 +620,9 @@ namespace Game.Net
             if (_hookState.Phase != state.Phase || _hookState.StartTime != state.StartTime
                 || _hookState.TargetNetId != state.TargetNetId || _hookState.RequestId != state.RequestId
                 || _hookState.SessionEpoch != state.SessionEpoch)
+            {
                 _hookState = state;
+            }
         }
 
         private void OnHpChanged(int previous, int current) => _health.Value = current;
@@ -510,7 +646,9 @@ namespace Game.Net
         private void RequireDependencies()
         {
             if (!HasDependencies)
+            {
                 throw new InvalidOperationException("HeroNet must be created through NetworkPrefabFactory before network callbacks.");
+            }
         }
     }
 }

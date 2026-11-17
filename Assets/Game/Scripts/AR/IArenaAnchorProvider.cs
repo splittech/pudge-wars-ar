@@ -8,7 +8,10 @@ namespace Game.AR
 {
     public interface IArenaAnchorProvider : IDisposable
     {
-        ReadOnlyReactiveProperty<bool> IsTracking { get; }
+        ReadOnlyReactiveProperty<bool> IsTracking
+        {
+            get;
+        }
         UniTask<Pose> AcquireArenaPoseAsync(CancellationToken cancellationToken);
     }
 }

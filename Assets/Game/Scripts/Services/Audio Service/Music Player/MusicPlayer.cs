@@ -77,7 +77,9 @@ namespace Game.Services.AudioService
         private void SwitchCurrentAudioSource(AudioSource audioSource)
         {
             if (_currentAudioSource != null)
+            {
                 _previousAudioSource = _currentAudioSource;
+            }
 
             _currentAudioSource = audioSource;
         }
@@ -120,7 +122,9 @@ namespace Game.Services.AudioService
         private void DisableAudioSource(AudioSource audioSource)
         {
             if (audioSource == null)
+            {
                 return;
+            }
 
             audioSource.Stop();
             audioSource.gameObject.SetActive(false);

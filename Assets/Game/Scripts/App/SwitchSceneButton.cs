@@ -38,7 +38,10 @@ namespace Game.App
             if (NetworkServer.active || NetworkClient.active)
             {
                 if (_sceneToSwitch.SceneReference.Path == _networkScenes.OfflineScenePath)
+                {
                     _networkManager.StopSession();
+                }
+
                 return;
             }
 

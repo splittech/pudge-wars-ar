@@ -38,7 +38,9 @@ namespace Game.Services.AudioService
         public void Release()
         {
             if (_state == SoundState.Released)
+            {
                 return;
+            }
 
             _pool.Release(this);
             _state = SoundState.Released;
@@ -55,7 +57,9 @@ namespace Game.Services.AudioService
             CheckIsNotReleased();
 
             if (_state == SoundState.Playing)
+            {
                 return;
+            }
 
             _state = SoundState.Playing;
 
@@ -65,7 +69,9 @@ namespace Game.Services.AudioService
         public void Stop()
         {
             if (_state is not (SoundState.Playing or SoundState.Paused))
+            {
                 return;
+            }
 
             _state = SoundState.Stopped;
 
@@ -75,7 +81,9 @@ namespace Game.Services.AudioService
         public void Pause()
         {
             if (_state != SoundState.Playing)
+            {
                 return;
+            }
 
             _state = SoundState.Paused;
 
@@ -85,7 +93,9 @@ namespace Game.Services.AudioService
         public void Unpause()
         {
             if (_state != SoundState.Paused)
+            {
                 return;
+            }
 
             _state = SoundState.Playing;
 

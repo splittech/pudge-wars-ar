@@ -60,7 +60,9 @@ namespace Game.Input.Gestures
             // TouchSimulation is a hidden MonoBehaviour: created outside Play Mode (e.g. by EditMode tests)
             // it never receives OnEnable and stays broken in later Play Mode sessions.
             if (Application.isPlaying)
+            {
                 TouchSimulation.Enable();
+            }
 #endif
         }
 
@@ -70,7 +72,9 @@ namespace Game.Input.Gestures
 
             // activeTouches still contains touches that ended this frame, so their final phase is observed here.
             foreach (Touch touch in touches)
+            {
                 ProcessPrimaryTouch(touch);
+            }
 
             ProcessPinchTwist(touches);
         }
@@ -79,7 +83,9 @@ namespace Game.Input.Gestures
         {
 #if UNITY_EDITOR
             if (Application.isPlaying)
+            {
                 TouchSimulation.Disable();
+            }
 #endif
             EnhancedTouchSupport.Disable();
 
@@ -93,15 +99,21 @@ namespace Game.Input.Gestures
             if (touch.phase == TouchPhase.Began)
             {
                 if (_primaryTouchId == NoTouch)
+                {
                     BeginPrimary(touch);
+                }
                 else
+                {
                     IgnorePrimary(touch);
+                }
 
                 return;
             }
 
             if (touch.touchId != _primaryTouchId)
+            {
                 return;
+            }
 
             switch (touch.phase)
             {
@@ -131,12 +143,16 @@ namespace Game.Input.Gestures
         private void UpdatePrimary(Touch touch)
         {
             if (_isPrimaryIgnored)
+            {
                 return;
+            }
 
             if (_isDragging)
             {
                 if (touch.phase == TouchPhase.Moved)
+                {
                     _drag.OnNext(new DragGesture(DragPhase.Moved, touch.startScreenPosition, touch.screenPosition));
+                }
 
                 return;
             }
@@ -153,9 +169,13 @@ namespace Game.Input.Gestures
             if (!_isPrimaryIgnored)
             {
                 if (_isDragging)
+                {
                     _drag.OnNext(new DragGesture(DragPhase.Ended, touch.startScreenPosition, touch.screenPosition));
+                }
                 else if (touch.time - touch.startTime <= _tapMaxTime && !HasMovedBeyondThreshold(touch))
+                {
                     _tap.OnNext(touch.screenPosition);
+                }
             }
 
             _primaryTouchId = NoTouch;
@@ -167,7 +187,9 @@ namespace Game.Input.Gestures
         private void IgnorePrimary(Touch touch)
         {
             if (_isDragging && !_isPrimaryIgnored)
+            {
                 _drag.OnNext(new DragGesture(DragPhase.Cancelled, touch.startScreenPosition, touch.screenPosition));
+            }
 
             _isPrimaryIgnored = true;
             _isDragging = false;
@@ -198,7 +220,9 @@ namespace Game.Input.Gestures
                 float angleDelta = Mathf.DeltaAngle(_pinchAngle, angle);
 
                 if (!Mathf.Approximately(scaleFactor, 1f) || !Mathf.Approximately(angleDelta, 0f))
+                {
                     _pinchTwist.OnNext(new PinchTwistGesture(scaleFactor, angleDelta));
+                }
             }
 
             _pinchFirstTouchId = first.touchId;
@@ -223,9 +247,14 @@ namespace Game.Input.Gestures
             EventSystem eventSystem = EventSystem.current;
 
             if (eventSystem == null)
+            {
                 return false;
+            }
 
-            PointerEventData pointerData = new(eventSystem) { position = screenPosition };
+            PointerEventData pointerData = new(eventSystem)
+            {
+                position = screenPosition
+            };
             eventSystem.RaycastAll(pointerData, _uiRaycastResults);
 
             // Only UI raycasters count; physics hits must not suppress arena gestures.

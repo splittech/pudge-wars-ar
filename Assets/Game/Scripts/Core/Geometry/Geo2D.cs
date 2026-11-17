@@ -41,24 +41,32 @@ namespace Game.Core.Geometry
             double radius = (double)movingRadius + targetRadius;
             double c = math.dot(offset, offset) - radius * radius;
             if (c <= 0d)
+            {
                 return true;
+            }
 
             double a = math.dot(direction, direction);
             double b = math.dot(offset, direction);
             if (a == 0d || b >= 0d)
+            {
                 return false;
+            }
 
             // Use the cross product for the discriminant to avoid subtracting
             // large squared longitudinal distances for a distant target.
             double cross = offset.x * direction.y - offset.y * direction.x;
             double discriminant = a * radius * radius - cross * cross;
             if (discriminant < 0d)
+            {
                 return false;
+            }
 
             // Equivalent to (-b - sqrt(discriminant)) / a, with less cancellation.
             double contact = c / (-b + math.sqrt(discriminant));
             if (contact > 1d)
+            {
                 return false;
+            }
 
             t = (float)contact;
             return true;
@@ -67,13 +75,17 @@ namespace Game.Core.Geometry
         private static void ValidatePoint(float2 point, string parameter)
         {
             if (!math.all(math.isfinite(point)))
+            {
                 throw new ArgumentException("Coordinates must be finite.", parameter);
+            }
         }
 
         private static void ValidateRadius(float radius, string parameter)
         {
             if (!math.isfinite(radius) || radius < 0f)
+            {
                 throw new ArgumentOutOfRangeException(parameter, "Radius must be finite and nonnegative.");
+            }
         }
     }
 }

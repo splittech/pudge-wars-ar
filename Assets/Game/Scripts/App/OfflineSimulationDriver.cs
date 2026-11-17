@@ -30,12 +30,17 @@ namespace Game.App
         private HeroState _previousHero;
         private HeroState _previousDummy;
         private HookState _previousHook;
-        public MatchSimulation Simulation { get; private set; }
+        public MatchSimulation Simulation
+        {
+            get; private set;
+        }
 
         [Inject]
         public void Construct(ArenaConfig arena, HeroConfig hero, HookConfig hook)
         {
-            _arena = arena.ToData(); _hero = hero.ToData(); _hook = hook.ToData();
+            _arena = arena.ToData();
+            _hero = hero.ToData();
+            _hook = hook.ToData();
             bool networkSession = Mirror.NetworkServer.active || Mirror.NetworkClient.active;
             _view.Configure(_arena, _hook.Range);
             _view.SetSandboxVisible(!networkSession);
@@ -65,15 +70,23 @@ namespace Game.App
 
         private HeroState NewHero(uint id, Team team, float2 position) => new()
         {
-            Id = id, Team = team, Pos = position, MoveTarget = position,
-            Radius = _hero.Radius, Hp = _hero.MaxHp, Alive = true
+            Id = id,
+            Team = team,
+            Pos = position,
+            MoveTarget = position,
+            Radius = _hero.Radius,
+            Hp = _hero.MaxHp,
+            Alive = true
         };
 
         private void Update()
         {
             ApplyFrameLimit();
             if (Simulation == null)
+            {
                 return;
+            }
+
             const float dt = 1f / 30f;
             _accumulator += UnityEngine.Time.deltaTime;
             int steps = 0;
@@ -83,7 +96,10 @@ namespace Game.App
                 Simulation.Step(dt);
                 _accumulator -= dt;
                 if (Simulation.Hits.Count > 0)
+                {
                     _dummyResetAt = Simulation.Time + 2;
+                }
+
                 if (Simulation.Time >= _dummyResetAt && Simulation.GetHook(0).Phase == HookPhase.Idle)
                 {
                     Simulation = new MatchSimulation(_arena, _hero, _hook,
@@ -93,7 +109,10 @@ namespace Game.App
                 }
             }
             if (_accumulator >= dt)
+            {
                 _accumulator %= dt;
+            }
+
             _view.Render(Simulation, _previousHero, _previousDummy, _previousHook, _accumulator / dt);
         }
 
@@ -105,12 +124,17 @@ namespace Game.App
 
         public void MoveTo(float2 point) => Simulation?.Enqueue(new MoveIntent(1, point));
         public void ThrowHook(float2 direction) => Simulation?.Enqueue(new ThrowHookIntent(1, direction, Simulation.Time));
-        public void BuyUpgrade(UpgradeId id) { }
+        public void BuyUpgrade(UpgradeId id)
+        {
+        }
 
         private void ApplyFrameLimit()
         {
             if (!Application.isPlaying || !Debug.isDebugBuild)
+            {
                 return;
+            }
+
             if (_frameRateLimit > 0)
             {
                 if (!_frameLimitApplied)
@@ -123,7 +147,9 @@ namespace Game.App
                 Application.targetFrameRate = _frameRateLimit;
             }
             else
+            {
                 RestoreFrameLimit();
+            }
         }
 
         private void OnDisable() => RestoreFrameLimit();
@@ -131,7 +157,10 @@ namespace Game.App
         private void RestoreFrameLimit()
         {
             if (!_frameLimitApplied)
+            {
                 return;
+            }
+
             Application.targetFrameRate = _previousTargetFrameRate;
             QualitySettings.vSyncCount = _previousVSyncCount;
             _frameLimitApplied = false;
@@ -140,7 +169,10 @@ namespace Game.App
         private void OnDrawGizmos()
         {
             if (!_drawSimulationGizmos || Simulation == null || _view == null)
+            {
                 return;
+            }
+
             Matrix4x4 previousMatrix = Gizmos.matrix;
             Color previousColor = Gizmos.color;
             Gizmos.matrix = _view.transform.localToWorldMatrix;
@@ -155,7 +187,10 @@ namespace Game.App
                 DrawCircle(hero.Pos, hero.Radius);
                 HookState hook = Simulation.GetHook(i);
                 if (hook.Phase == HookPhase.Idle)
+                {
                     continue;
+                }
+
                 Gizmos.color = Color.yellow;
                 DrawCircle(hook.Tip, _hook.Radius);
                 Gizmos.DrawLine(new Vector3(hero.Pos.x, 0.5f, hero.Pos.y),

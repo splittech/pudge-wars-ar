@@ -7,7 +7,11 @@ namespace Game.Net
 {
     public static class NetworkBuildInfo
     {
-        [Serializable] public sealed class Data { public string commit; public string buildUtc; }
+        [Serializable]
+        public sealed class Data
+        {
+            public string commit; public string buildUtc;
+        }
         public static string Commit()
         {
 #if UNITY_EDITOR
@@ -26,14 +30,26 @@ namespace Game.Net
                 if (head.StartsWith("ref: ", StringComparison.Ordinal))
                 {
                     string reference = head.Substring(5);
-                    if (!reference.StartsWith("refs/", StringComparison.Ordinal) || reference.Contains("..")) return "unknown";
+                    if (!reference.StartsWith("refs/", StringComparison.Ordinal) || reference.Contains(".."))
+                    {
+                        return "unknown";
+                    }
+
                     string loose = Path.Combine(git, reference);
-                    if (File.Exists(loose)) head = File.ReadAllText(loose).Trim();
+                    if (File.Exists(loose))
+                    {
+                        head = File.ReadAllText(loose).Trim();
+                    }
                     else
                     {
                         head = "unknown";
                         foreach (string line in File.ReadLines(Path.Combine(git, "packed-refs")))
-                            if (line.EndsWith(" " + reference, StringComparison.Ordinal)) head = line.Split(' ')[0];
+                        {
+                            if (line.EndsWith(" " + reference, StringComparison.Ordinal))
+                            {
+                                head = line.Split(' ')[0];
+                            }
+                        }
                     }
                 }
                 return Regex.IsMatch(head, "^[a-fA-F0-9]{40,64}$") ? head : "unknown";

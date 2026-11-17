@@ -49,9 +49,15 @@ namespace Game.Net
         public void Initialize()
         {
             if (_disposed)
+            {
                 throw new ObjectDisposedException(nameof(NetworkPrefabFactory));
+            }
+
             if (_initialized)
+            {
                 return;
+            }
+
             _catalog.Validate();
             foreach (GameObject prefab in _catalog.Prefabs)
             {
@@ -68,7 +74,10 @@ namespace Game.Net
         public GameObject SpawnClient(SpawnMessage message)
         {
             if (!_prefabsById.TryGetValue(message.assetId, out GameObject prefab))
+            {
                 throw new ArgumentException("Unknown network prefab assetId.", nameof(message));
+            }
+
             GameObject instance = Create(prefab);
             instance.transform.localPosition = message.position;
             instance.transform.localRotation = message.rotation;
@@ -79,9 +88,15 @@ namespace Game.Net
         private GameObject Create(GameObject prefab)
         {
             if (_disposed || !_initialized)
+            {
                 throw new InvalidOperationException("Network prefab factory is not ready.");
+            }
+
             if (!_registered.Contains(prefab))
+            {
                 throw new ArgumentException("Prefab is not registered in NetworkPrefabList.", nameof(prefab));
+            }
+
             return _resolver.Instantiate(prefab, _arenaRoot, false);
         }
 
@@ -115,37 +130,55 @@ namespace Game.Net
         private void SynchronizeRoster()
         {
             if (_matchState == null || !NetworkServer.active)
+            {
                 return;
+            }
+
             _matchState.Players.Clear();
             foreach (PlayerInfo player in _manager.Roster.Players)
+            {
                 _matchState.Players.Add(player);
+            }
         }
 
         public HeroNet SpawnPlayer(NetworkConnectionToClient connection)
         {
             RequireServer();
             if (connection == null || !connection.isAuthenticated || !connection.isReady || connection.identity != null)
+            {
                 throw new InvalidOperationException("A ready authenticated connection without a player is required.");
+            }
 
             var admission = connection.authenticationData as SessionPlayer;
             if (!_manager.Roster.Contains(admission) || !admission.Info.Connected)
+            {
                 throw new InvalidOperationException("Handshake must reserve an identity before player spawn.");
+            }
+
             int slot = admission.Slot;
             if (admission.HasHero)
             {
                 var existing = _players[slot];
                 if (existing == null || existing.connectionToClient != null)
+                {
                     throw new InvalidOperationException("Reserved hero is unavailable or already owned.");
+                }
+
                 existing.RestoreSession(admission.Epoch);
                 if (!NetworkServer.AddPlayerForConnection(connection, existing.gameObject))
+                {
                     throw new InvalidOperationException("Could not restore player ownership.");
+                }
+
                 admission.Connection = connection;
                 _manager.Roster.CompleteRestore(admission);
                 _reconnect.Remove(admission.Info.SessionPlayerId);
                 return existing;
             }
             if (_players[slot] != null)
+            {
                 throw new InvalidOperationException("Authenticated slot already has a hero.");
+            }
 
             GameObject instance = Create(_catalog.Hero.gameObject);
             uint playerId = admission.Info.SessionPlayerId;
@@ -156,19 +189,29 @@ namespace Game.Net
                 var points = hero.Team == Team.A ? _arena.TeamASpawnPoints : _arena.TeamBSpawnPoints;
                 _simulation.AddHero(new HeroState
                 {
-                    Id = playerId, Team = hero.Team, Pos = points[slot / 2],
-                    Radius = _heroConfig.Radius, Hp = _heroConfig.MaxHp, Alive = true
+                    Id = playerId,
+                    Team = hero.Team,
+                    Pos = points[slot / 2],
+                    Radius = _heroConfig.Radius,
+                    Hp = _heroConfig.MaxHp,
+                    Alive = true
                 });
                 _sink.Register(hero);
                 _simulation.TryGetHero(playerId, out HeroState state);
                 hero.ApplyServerState(state);
                 // AddPlayerForConnection performs the spawn and assigns the local player atomically.
                 if (!NetworkServer.AddPlayerForConnection(connection, instance))
+                {
                     throw new InvalidOperationException("Mirror could not assign the player to the connection.");
+                }
+
                 _players[slot] = hero;
                 _manager.Roster.MarkSpawned(admission);
                 if (_simulation.Rules != null)
+                {
                     _simulation.SetTeam(playerId, admission.Info.Team);
+                }
+
                 admission.Connection = connection;
                 return hero;
             }
@@ -177,9 +220,14 @@ namespace Game.Net
                 _sink.Unregister(playerId);
                 _simulation.RemoveHero(playerId);
                 if (instance.GetComponent<NetworkIdentity>().netId != 0)
+                {
                     NetworkServer.Destroy(instance);
+                }
                 else
+                {
                     DestroyInstance(instance);
+                }
+
                 throw;
             }
         }
@@ -188,7 +236,10 @@ namespace Game.Net
         {
             if (connection.authenticationData is SessionPlayer bound && bound.Connection != null
                 && !ReferenceEquals(bound.Connection, connection))
+            {
                 return;
+            }
+
             for (int i = 0; i < _players.Length; i++)
             {
                 if (_players[i] != null && _players[i].connectionToClient == connection)
@@ -203,24 +254,36 @@ namespace Game.Net
                         _manager.Roster.Disconnect(connection.authenticationData as SessionPlayer, true);
                     }
                     else
+                    {
                         RemovePlayer(id);
+                    }
+
                     return;
                 }
             }
             if (connection.authenticationData is SessionPlayer pending && _manager.Roster.Contains(pending) && pending.HasHero)
             {
                 if (reserve)
+                {
                     _reconnect.Reserve(pending.Info.SessionPlayerId, NetworkTime.time);
+                }
                 else
+                {
                     RemovePlayer(pending.Info.SessionPlayerId);
+                }
             }
         }
 
         internal void ExpireDisconnectedPlayers(double now) => _reconnect.Expire(now, id =>
         {
             foreach (var info in _manager.Roster.Players)
+            {
                 if (info.SessionPlayerId == id && info.Connected)
+                {
                     return;
+                }
+            }
+
             RemovePlayer(id);
         });
 
@@ -234,7 +297,10 @@ namespace Game.Net
             for (int i = 0; i < _players.Length; i++)
             {
                 if (_players[i] == null || _players[i].SessionPlayerId != id)
+                {
                     continue;
+                }
+
                 HeroNet hero = _players[i];
                 _players[i] = null;
                 NetworkServer.Destroy(hero.gameObject);
@@ -245,34 +311,51 @@ namespace Game.Net
         {
             _reconnect.Clear();
             for (int i = 0; i < _players.Length; i++)
+            {
                 if (_players[i] != null)
+                {
                     RemovePlayer(_players[i].SessionPlayerId);
+                }
+            }
+
             _manager.Roster.Clear();
         }
 
         private static void RequireServer()
         {
             if (!NetworkServer.active)
+            {
                 throw new InvalidOperationException("Only the active server may spawn network objects.");
+            }
         }
 
         private static void DestroyInstance(GameObject instance)
         {
             if (Application.isPlaying)
+            {
                 UnityEngine.Object.Destroy(instance);
+            }
             else
+            {
                 UnityEngine.Object.DestroyImmediate(instance);
+            }
         }
 
         public void Dispose()
         {
             if (_disposed)
+            {
                 return;
+            }
+
             _disposed = true;
             _manager.DetachMatchFactory(this);
             _manager.Roster.Changed -= SynchronizeRoster;
             foreach (GameObject prefab in _registered)
+            {
                 NetworkClient.UnregisterPrefab(prefab);
+            }
+
             _registered.Clear();
             _prefabsById.Clear();
         }

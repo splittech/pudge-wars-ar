@@ -29,13 +29,24 @@ namespace Game.Net
             foreach (GameObject prefab in Prefabs)
             {
                 if (prefab == null || !prefab.TryGetComponent(out NetworkIdentity identity))
+                {
                     throw new InvalidOperationException("Every network prefab must have a root NetworkIdentity.");
+                }
+
                 if (identity.assetId == 0 || identity.sceneId != 0)
+                {
                     throw new InvalidOperationException($"'{prefab.name}' must be a prefab asset with a nonzero assetId.");
+                }
+
                 if (prefab.GetComponentsInChildren<NetworkIdentity>(true).Length != 1)
+                {
                     throw new InvalidOperationException($"'{prefab.name}' must have exactly one NetworkIdentity.");
+                }
+
                 if (!assetIds.Add(identity.assetId))
+                {
                     throw new InvalidOperationException("Network prefab assetIds must be unique.");
+                }
             }
         }
     }

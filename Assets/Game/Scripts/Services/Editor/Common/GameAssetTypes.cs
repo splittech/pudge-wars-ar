@@ -70,7 +70,9 @@ namespace Game.Services.Editor.Common
         public static void EnsureFolder(string folder)
         {
             if (AssetDatabase.IsValidFolder(folder))
+            {
                 return;
+            }
 
             int separatorIndex = folder.LastIndexOf('/');
             string parent = folder[..separatorIndex];

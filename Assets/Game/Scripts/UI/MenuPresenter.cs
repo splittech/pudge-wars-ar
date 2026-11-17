@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Game.Net;
 using Game.UI.Foundation;
 
@@ -18,8 +18,12 @@ namespace Game.UI
         public MenuPresenter(NetworkSessionController controller, ReactiveDocument view, Action training,
             Action toggleArenaMode = null, Func<bool> useAR = null)
         {
-            _controller = controller; _view = view; _model = view.Model; _training = training;
-            _toggleArenaMode = toggleArenaMode; _useAR = useAR;
+            _controller = controller;
+            _view = view;
+            _model = view.Model;
+            _training = training;
+            _toggleArenaMode = toggleArenaMode;
+            _useAR = useAR;
             _model.Text("nickname", controller.Nickname);
             _model.Text("address", controller.LastAddress);
             _view.ActionRequested += Handle;
@@ -32,7 +36,10 @@ namespace Game.UI
             _model.Text("arenaMode", (_useAR?.Invoke() ?? false) ? "Режим: AR" : "Режим: плоский");
             _model.Enabled("arenaMode", canStart);
             foreach (string key in StartKeys)
+            {
                 _model.Enabled(key, canStart);
+            }
+
             _model.Text("nickname", _controller.Nickname);
             _model.Text("message", _controller.Message);
             _model.Visible("cancel", _controller.CanCancel);
@@ -40,11 +47,19 @@ namespace Game.UI
             var servers = _controller.Servers;
             int count = _controller.IsSearching ? servers.Count : 0;
             bool changed = _addresses.Length != count;
-            for (int i = 0; !changed && i < count; i++) changed = _addresses[i] != servers[i].Address;
+            for (int i = 0; !changed && i < count; i++)
+            {
+                changed = _addresses[i] != servers[i].Address;
+            }
+
             if (changed)
             {
                 _addresses = new string[count];
-                for (int i = 0; i < count; i++) _addresses[i] = servers[i].Address;
+                for (int i = 0; i < count; i++)
+                {
+                    _addresses[i] = servers[i].Address;
+                }
+
                 _model.Rows("servers", _addresses);
             }
             _model.Enabled("servers", canStart);
@@ -54,19 +69,46 @@ namespace Game.UI
         {
             switch (action)
             {
-                case "arenaMode": if (_controller.CanStart) _toggleArenaMode?.Invoke(); break;
-                case "nickname": _controller.SetNickname(value); break;
-                case "address": _model.Text("address", value); break;
+                case "arenaMode":
+                    if (_controller.CanStart)
+                    {
+                        _toggleArenaMode?.Invoke();
+                    }
+                    break;
+                case "nickname":
+                    _controller.SetNickname(value);
+                    break;
+                case "address":
+                    _model.Text("address", value);
+                    break;
                 case "addressSubmit":
-                case "join": _controller.Connect(_model.Read("address").Text); break;
-                case "create": _controller.CreateGame(); break;
-                case "search": _controller.SearchGames(); break;
-                case "cancel": _controller.Cancel(); break;
-                case "acknowledge": _controller.AcknowledgeHostDisconnected(); break;
-                case "training": if (_controller.CanStart) _training?.Invoke(); break;
+                case "join":
+                    _controller.Connect(_model.Read("address").Text);
+                    break;
+                case "create":
+                    _controller.CreateGame();
+                    break;
+                case "search":
+                    _controller.SearchGames();
+                    break;
+                case "cancel":
+                    _controller.Cancel();
+                    break;
+                case "acknowledge":
+                    _controller.AcknowledgeHostDisconnected();
+                    break;
+                case "training":
+                    if (_controller.CanStart)
+                    {
+                        _training?.Invoke();
+                    }
+                    break;
                 case "servers":
                     if (int.TryParse(value, out int index) && index >= 0 && index < _addresses.Length)
-                    { _model.Text("address", _addresses[index]); _controller.Connect(_addresses[index]); }
+                    {
+                        _model.Text("address", _addresses[index]);
+                        _controller.Connect(_addresses[index]);
+                    }
                     break;
             }
             Tick();
@@ -75,7 +117,10 @@ namespace Game.UI
         public void Dispose()
         {
             _view.ActionRequested -= Handle;
-            if (_controller.IsSearching) _controller.Cancel();
+            if (_controller.IsSearching)
+            {
+                _controller.Cancel();
+            }
         }
     }
 }

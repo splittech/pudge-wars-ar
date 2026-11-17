@@ -50,10 +50,14 @@ namespace Game.Services.AudioService
         public static MixerGroupConfig GetFrom(AudioMixerGroup mixerGroup, AudioServiceConfig config)
         {
             if (mixerGroup == null)
+            {
                 throw new ArgumentNullException("MixerGroup cannot be null.");
+            }
 
             if (!config.MixerGroupsConfigs.TryGetValue(mixerGroup, out var mixerGroupSettings))
+            {
                 throw new ArgumentException($"AudioServiceConfig '{config.name}': MixerGroup is not registered.");
+            }
 
             Validate(mixerGroupSettings, config);
 

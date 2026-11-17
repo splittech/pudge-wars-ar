@@ -20,10 +20,16 @@ namespace Game.Net
         private bool _stoppingServer;
         private bool _leavingSession;
 
-        public bool IsChangingScene { get; private set; }
+        public bool IsChangingScene
+        {
+            get; private set;
+        }
         public bool CanBeginSession => CanStartSession();
         public bool HasActiveSession => NetworkServer.active || NetworkClient.active;
-        public LanDiscovery Discovery { get; private set; }
+        public LanDiscovery Discovery
+        {
+            get; private set;
+        }
         public SessionRoster Roster { get; } = new();
         public event Action ClientConnected;
         public event Action<bool> SessionEnded;
@@ -42,17 +48,25 @@ namespace Game.Net
             maxConnections = 8;
             VersionAuthenticator versionAuthenticator = GetComponent<VersionAuthenticator>();
             if (versionAuthenticator == null)
+            {
                 versionAuthenticator = gameObject.AddComponent<VersionAuthenticator>();
+            }
+
             authenticator = versionAuthenticator;
             versionAuthenticator.Configure(Roster);
             versionAuthenticator.Rejected += reason => ClientConnectionError?.Invoke(reason);
             base.Awake();
             Discovery = GetComponent<LanDiscovery>();
             if (Discovery == null)
+            {
                 Discovery = gameObject.AddComponent<LanDiscovery>();
+            }
+
             Discovery.transport = transport;
             if (GetComponent<NetworkStatsRecorder>() == null)
+            {
                 gameObject.AddComponent<NetworkStatsRecorder>();
+            }
         }
 
         [Inject]
@@ -80,7 +94,9 @@ namespace Game.Net
         public void StartClientSession()
         {
             if (CanStartSession())
+            {
                 StartClient();
+            }
         }
 
         [BoxGroup("Session", -10)]
@@ -92,14 +108,22 @@ namespace Game.Net
         private void StopSessionCore(bool forgetReconnect)
         {
             if (forgetReconnect)
+            {
                 (authenticator as VersionAuthenticator)?.ClearReconnect();
+            }
+
             if (NetworkServer.active)
+            {
                 _stoppingServer = true;
+            }
             else if (forgetReconnect && NetworkClient.isConnected && NetworkClient.connection != null
                 && NetworkClient.connection.isAuthenticated)
             {
                 if (_leavingSession)
+                {
                     return;
+                }
+
                 _leavingSession = true;
                 NetworkClient.Send(new LeaveSessionMessage());
                 FinishLeavingAsync(NetworkClient.connection).Forget();
@@ -107,11 +131,17 @@ namespace Game.Net
             }
             // During StartHost's scene load, ConnectHost has not created the local client yet.
             if (mode == NetworkManagerMode.Host && NetworkClient.active)
+            {
                 StopHost();
+            }
             else if (NetworkServer.active)
+            {
                 StopServer();
+            }
             else if (NetworkClient.active)
+            {
                 StopClient();
+            }
         }
 
         private async UniTaskVoid FinishLeavingAsync(NetworkConnectionToServer connection)
@@ -120,7 +150,9 @@ namespace Game.Net
             {
                 await UniTask.Delay(1000, ignoreTimeScale: true, cancellationToken: destroyCancellationToken);
                 if (NetworkClient.active && ReferenceEquals(NetworkClient.connection, connection))
+                {
                     StopClient();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -143,9 +175,14 @@ namespace Game.Net
         public override void ServerChangeScene(string newSceneName)
         {
             if (_sceneLoader == null || newSceneName != _sceneLoader.OnlineScenePath)
+            {
                 throw new ArgumentException("Only the configured online scene is allowed.", nameof(newSceneName));
+            }
+
             if (!NetworkServer.active)
+            {
                 throw new InvalidOperationException("An active server is required to change the network scene.");
+            }
 
             NetworkServer.SetAllClientsNotReady();
             networkSceneName = newSceneName;
@@ -168,14 +205,19 @@ namespace Game.Net
         internal void AttachMatchFactory(NetworkPrefabFactory factory)
         {
             if (_matchFactory != null && _matchFactory != factory)
+            {
                 throw new InvalidOperationException("A network match factory is already attached.");
+            }
+
             _matchFactory = factory;
         }
 
         internal void DetachMatchFactory(NetworkPrefabFactory factory)
         {
             if (_matchFactory == factory)
+            {
                 _matchFactory = null;
+            }
         }
 
         public override void OnStartServer()
@@ -225,7 +267,9 @@ namespace Game.Net
         private void TryRequestPlayer()
         {
             if (_matchFactory != null && NetworkClient.ready && !_playerRequested && NetworkClient.localPlayer == null)
+            {
                 _playerRequested = NetworkClient.AddPlayer();
+            }
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient connection)
@@ -233,7 +277,10 @@ namespace Game.Net
             try
             {
                 if (_matchFactory == null)
+                {
                     throw new InvalidOperationException("Gameplay DI scope is not ready.");
+                }
+
                 _matchFactory.SpawnPlayer(connection);
             }
             catch (Exception exception)
@@ -247,15 +294,28 @@ namespace Game.Net
         {
             NetworkConnectionToClient connection = null;
             foreach (var candidate in NetworkServer.connections.Values)
+            {
                 if (candidate.authenticationData is SessionPlayer player && player.Info.SessionPlayerId == id)
-                { connection = candidate; break; }
+                {
+                    connection = candidate;
+                    break;
+                }
+            }
+
             if (connection != null && connection == NetworkServer.localConnection)
             {
                 StopSession();
                 return;
             }
-            if (connection != null) _matchFactory?.DisconnectPlayer(connection, false);
-            else _matchFactory?.RemovePlayer(id);
+            if (connection != null)
+            {
+                _matchFactory?.DisconnectPlayer(connection, false);
+            }
+            else
+            {
+                _matchFactory?.RemovePlayer(id);
+            }
+
             connection?.Disconnect();
         }
 
@@ -264,7 +324,10 @@ namespace Game.Net
             _matchFactory?.DisconnectPlayer(connection, !_stoppingServer && !_quitting);
             if (connection.authenticationData is SessionPlayer player
                 && (player.Connection == null || ReferenceEquals(player.Connection, connection)))
+            {
                 Roster.Disconnect(player, !_stoppingServer && !_quitting);
+            }
+
             base.OnServerDisconnect(connection);
         }
 
@@ -283,7 +346,10 @@ namespace Game.Net
         private void OnSceneMessage(SceneMessage message)
         {
             if (NetworkServer.active)
+            {
                 return;
+            }
+
             if (_sceneLoader == null || message.sceneName != _sceneLoader.OnlineScenePath
                 || message.sceneOperation != SceneOperation.Normal)
             {
@@ -317,25 +383,35 @@ namespace Game.Net
             base.OnStopClient();
             // StopHost calls StopClient before StopServer; the server requests the return.
             if (!NetworkServer.active)
+            {
                 RequestOfflineScene();
+            }
+
             SessionEnded?.Invoke(expected);
         }
 
         private void RequestOfflineScene()
         {
             if (!_quitting && _sceneLoader != null)
+            {
                 RequestScene(_sceneLoader.OfflineScenePath);
+            }
         }
 
         private void RequestScene(string scenePath)
         {
             if (_pendingScene == scenePath
                 || (IsChangingScene && _pendingScene == null && _currentScene == scenePath))
+            {
                 return;
+            }
+
             _pendingScene = scenePath;
             _transitionVersion++;
             if (!IsChangingScene)
+            {
                 ProcessScenesAsync().Forget();
+            }
         }
 
         private async UniTask ProcessScenesAsync()
@@ -353,13 +429,18 @@ namespace Game.Net
                     _pendingScene = null;
                     await _sceneLoader.LoadAsync(scenePath, destroyCancellationToken);
                     if (version != _transitionVersion || _quitting)
+                    {
                         continue;
+                    }
 
                     if (scenePath == _sceneLoader.OnlineScenePath
                         && (NetworkServer.active || NetworkClient.active))
                     {
                         if (_matchFactory == null)
+                        {
                             throw new InvalidOperationException("Network scene loaded without its DI spawn factory.");
+                        }
+
                         FinishLoadScene();
                     }
                     else

@@ -34,7 +34,10 @@ namespace Game.Net
             _reconnectNickname = null;
         }
         public string Nickname { get; set; } = "Player-" + Guid.NewGuid().ToString("N").Substring(0, 6);
-        public AuthResponse LastResponse { get; private set; }
+        public AuthResponse LastResponse
+        {
+            get; private set;
+        }
         public event Action<string> Rejected;
 
         public void Configure(SessionRoster roster) => _roster = roster ?? throw new ArgumentNullException(nameof(roster));
@@ -56,17 +59,23 @@ namespace Game.Net
         public override void OnServerAuthenticate(NetworkConnectionToClient connection)
         {
             if (_pending.Add(connection))
+            {
                 StartCoroutine(Expire(connection, 5f));
+            }
         }
 
         private void OnRequest(NetworkConnectionToClient connection, AuthRequest request)
         {
             if (!_pending.Remove(connection) || connection.isAuthenticated)
+            {
                 return;
+            }
+
             AuthCode code = _roster.TryJoin(request, out SessionPlayer player);
             var response = new AuthResponse
             {
-                ProtocolVersion = NetworkProtocol.ProtocolVersion, Code = code,
+                ProtocolVersion = NetworkProtocol.ProtocolVersion,
+                Code = code,
                 SessionPlayerId = player?.Info.SessionPlayerId ?? 0,
                 Nickname = player?.Info.Nickname ?? string.Empty,
                 SessionEpoch = player?.Epoch ?? 0,
@@ -89,7 +98,10 @@ namespace Game.Net
         private void OnVersionProbe(NetworkConnectionToClient connection, VersionAuthRequest request)
         {
             if (!_pending.Contains(connection) || connection.isAuthenticated)
+            {
                 return;
+            }
+
             connection.Send(new VersionAuthResponse { ProtocolVersion = NetworkProtocol.ProtocolVersion });
             if (request.ProtocolVersion != NetworkProtocol.ProtocolVersion)
             {
@@ -102,7 +114,9 @@ namespace Game.Net
         {
             yield return new WaitForSecondsRealtime(seconds);
             if (_pending.Remove(connection))
+            {
                 ServerReject(connection);
+            }
         }
 
         private IEnumerator RejectLater(NetworkConnectionToClient connection)
@@ -133,7 +147,10 @@ namespace Game.Net
         private void OnVersionResponse(VersionAuthResponse response)
         {
             if (NetworkClient.connection == null || NetworkClient.connection.isAuthenticated || _requestSent)
+            {
                 return;
+            }
+
             if (response.ProtocolVersion != NetworkProtocol.ProtocolVersion)
             {
                 OnResponse(new AuthResponse { ProtocolVersion = response.ProtocolVersion, Code = AuthCode.IncompatibleVersion });
@@ -142,7 +159,8 @@ namespace Game.Net
             _requestSent = true;
             NetworkClient.Send(new AuthRequest
             {
-                ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = Nickname,
+                ProtocolVersion = NetworkProtocol.ProtocolVersion,
+                Nickname = Nickname,
                 ReconnectToken = NetworkManager.singleton.networkAddress == _reconnectAddress
                     && string.Equals(Nickname, _reconnectNickname, StringComparison.OrdinalIgnoreCase) ? _reconnectToken : null
             });
@@ -151,7 +169,10 @@ namespace Game.Net
         private void OnResponse(AuthResponse response)
         {
             if (NetworkClient.connection == null || NetworkClient.connection.isAuthenticated)
+            {
                 return;
+            }
+
             var diagnosticResponse = response;
             diagnosticResponse.ReconnectToken = null;
             LastResponse = diagnosticResponse;
@@ -165,17 +186,25 @@ namespace Game.Net
             else
             {
                 if (response.Code == AuthCode.InvalidReconnectToken)
+                {
                     ClearReconnect();
+                }
+
                 Rejected?.Invoke(DescribeRejection(response));
                 if (NetworkClient.connection != null)
+                {
                     ClientReject();
+                }
             }
         }
 
         public static string DescribeRejection(AuthResponse response)
         {
             if (response.ProtocolVersion != NetworkProtocol.ProtocolVersion || response.Code == AuthCode.IncompatibleVersion)
+            {
                 return $"Incompatible protocol: client {NetworkProtocol.ProtocolVersion}, host {response.ProtocolVersion}. Update both games.";
+            }
+
             return response.Code switch
             {
                 AuthCode.InvalidNickname => "Nickname must contain 2-16 characters, without control characters.",

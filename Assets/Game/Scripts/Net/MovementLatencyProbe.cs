@@ -14,14 +14,23 @@ namespace Game.Net
             // Starting from rest avoids mistaking pre-existing motion for a response to a new tap.
             _waiting = canMove && settled && double.IsFinite(now) && SessionSerialization.Finite(target)
                 && (position - previousTarget).sqrMagnitude < 0.000001f && (target - position).sqrMagnitude > 0.000001f;
-            _origin = position; _start = now;
+            _origin = position;
+            _start = now;
         }
         public bool TryPresent(Vector2 position, bool canMove, double now, out double milliseconds)
         {
             milliseconds = double.NaN;
-            if (!canMove) _waiting = false;
+            if (!canMove)
+            {
+                _waiting = false;
+            }
+
             if (!_waiting || !double.IsFinite(now) || now < _start || !SessionSerialization.Finite(position)
-                || (position - _origin).sqrMagnitude < 0.000001f) return false;
+                || (position - _origin).sqrMagnitude < 0.000001f)
+            {
+                return false;
+            }
+
             milliseconds = (now - _start) * 1000;
             _waiting = false;
             return true;

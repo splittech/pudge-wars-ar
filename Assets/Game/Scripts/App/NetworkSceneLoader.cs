@@ -44,14 +44,19 @@ namespace Game.App
                 await _sceneService.SwitchSceneAsync(target, _loadingScreen.LoadingProgress, ct);
                 Scene scene = SceneManager.GetSceneByPath(scenePath);
                 if (!scene.IsValid() || !scene.isLoaded)
+                {
                     throw new InvalidOperationException($"Network scene was not loaded: {scenePath}");
+                }
+
                 SceneManager.SetActiveScene(scene);
             }
             finally
             {
                 // A failed load must not leave an opaque overlay covering the application.
                 if (this != null)
+                {
                     _loadingScreen.HideScreenImmediate();
+                }
             }
         }
     }

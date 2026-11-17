@@ -12,7 +12,9 @@ namespace Game.Services.LoggingService
         public void Log(string message)
         {
             if (_config.Muted)
+            {
                 return;
+            }
 
             LogMessage(message);
         }
@@ -20,7 +22,9 @@ namespace Game.Services.LoggingService
         public void LogWarning(string message)
         {
             if (_config.Muted)
+            {
                 return;
+            }
 
             LogWarningMessage(message);
         }
@@ -28,13 +32,21 @@ namespace Game.Services.LoggingService
         public void LogError(string message)
         {
             if (_config.Muted)
+            {
                 return;
+            }
 
             LogErrorMessage(message);
         }
 
-        protected virtual void LogMessage(string message) { }
-        protected virtual void LogWarningMessage(string message) { }
-        protected virtual void LogErrorMessage(string message) { }
+        protected virtual void LogMessage(string message)
+        {
+        }
+        protected virtual void LogWarningMessage(string message)
+        {
+        }
+        protected virtual void LogErrorMessage(string message)
+        {
+        }
     }
 }

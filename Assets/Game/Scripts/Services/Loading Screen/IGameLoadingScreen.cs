@@ -6,7 +6,10 @@ namespace Game.Services.LoadingScreen
 {
     public interface IGameLoadingScreen
     {
-        IProgress<float> LoadingProgress { get; }
+        IProgress<float> LoadingProgress
+        {
+            get;
+        }
 
         UniTask ShowScreenAsync(CancellationToken ct = default);
         UniTask HideScreenAsync(CancellationToken ct = default);

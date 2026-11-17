@@ -17,13 +17,26 @@ namespace Game.Tests.EditMode
             using var writer = NetworkWriterPool.Get();
             switch (kind)
             {
-                case 0: writer.WriteAuthRequest(new AuthRequest { ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = "Alice", ReconnectToken = "0123456789abcdef0123456789abcdef" }); break;
-                case 1: writer.WriteAuthResponse(new AuthResponse { ProtocolVersion = NetworkProtocol.ProtocolVersion, Code = AuthCode.Accepted, SessionPlayerId = uint.MaxValue, Nickname = "Alice", SessionEpoch = 1 }); break;
-                case 2: writer.WritePlayerInfo(new PlayerInfo { SessionPlayerId = uint.MaxValue, Nickname = "Alice", Team = Team.B, Connected = true, Ready = true }); break;
-                case 3: writer.WriteHookNetState(new HookNetState { Phase = HookPhase.Pulling, Origin = new Vector2(-4, 2), Dir = Vector2.right, StartTime = 100.25, TurnTime = 101, TurnLength = 8, RequestId = uint.MaxValue, SessionEpoch = 1 }); break;
-                case 4: writer.WriteMovementFrame(new MovementFrame { Sequence = uint.MaxValue, ClientTick = uint.MaxValue, HasMoveTarget = true, Target = new Vector2(2, -3), SessionEpoch = 1 }); break;
-                case 5: writer.WriteMovementSnapshot(new MovementSnapshot { ServerTick = uint.MaxValue, ServerTime = 100.125, AckSequence = uint.MaxValue, SessionEpoch = 1, Pos = new Vector2(2, -3), MoveTarget = new Vector2(4, -5), MoveSpeed = 6, Alive = true }); break;
-                default: throw new ArgumentOutOfRangeException(nameof(kind));
+                case 0:
+                    writer.WriteAuthRequest(new AuthRequest { ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = "Alice", ReconnectToken = "0123456789abcdef0123456789abcdef" });
+                    break;
+                case 1:
+                    writer.WriteAuthResponse(new AuthResponse { ProtocolVersion = NetworkProtocol.ProtocolVersion, Code = AuthCode.Accepted, SessionPlayerId = uint.MaxValue, Nickname = "Alice", SessionEpoch = 1 });
+                    break;
+                case 2:
+                    writer.WritePlayerInfo(new PlayerInfo { SessionPlayerId = uint.MaxValue, Nickname = "Alice", Team = Team.B, Connected = true, Ready = true });
+                    break;
+                case 3:
+                    writer.WriteHookNetState(new HookNetState { Phase = HookPhase.Pulling, Origin = new Vector2(-4, 2), Dir = Vector2.right, StartTime = 100.25, TurnTime = 101, TurnLength = 8, RequestId = uint.MaxValue, SessionEpoch = 1 });
+                    break;
+                case 4:
+                    writer.WriteMovementFrame(new MovementFrame { Sequence = uint.MaxValue, ClientTick = uint.MaxValue, HasMoveTarget = true, Target = new Vector2(2, -3), SessionEpoch = 1 });
+                    break;
+                case 5:
+                    writer.WriteMovementSnapshot(new MovementSnapshot { ServerTick = uint.MaxValue, ServerTime = 100.125, AckSequence = uint.MaxValue, SessionEpoch = 1, Pos = new Vector2(2, -3), MoveTarget = new Vector2(4, -5), MoveSpeed = 6, Alive = true });
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
             }
             return writer.ToArray();
         }
@@ -33,13 +46,26 @@ namespace Game.Tests.EditMode
             using var reader = NetworkReaderPool.Get(bytes);
             switch (kind)
             {
-                case 0: reader.ReadAuthRequest(); break;
-                case 1: reader.ReadAuthResponse(); break;
-                case 2: reader.ReadPlayerInfo(); break;
-                case 3: reader.ReadHookNetState(); break;
-                case 4: reader.ReadMovementFrame(); break;
-                case 5: reader.ReadMovementSnapshot(); break;
-                default: throw new ArgumentOutOfRangeException(nameof(kind));
+                case 0:
+                    reader.ReadAuthRequest();
+                    break;
+                case 1:
+                    reader.ReadAuthResponse();
+                    break;
+                case 2:
+                    reader.ReadPlayerInfo();
+                    break;
+                case 3:
+                    reader.ReadHookNetState();
+                    break;
+                case 4:
+                    reader.ReadMovementFrame();
+                    break;
+                case 5:
+                    reader.ReadMovementSnapshot();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
             }
             Assert.That(reader.Remaining, Is.Zero);
         }
@@ -151,7 +177,12 @@ namespace Game.Tests.EditMode
             Assert.That(value.IsPulled, Is.False);
         }
 
-        [TestCase(0)] [TestCase(1)] [TestCase(2)] [TestCase(3)] [TestCase(4)] [TestCase(5)]
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
         public void Read_TruncatedAtEveryByte_RejectsIncompletePayload(int kind)
         {
             // Arrange.
@@ -180,8 +211,13 @@ namespace Game.Tests.EditMode
             Assert.That(() => Read(kind, bytes), Throws.TypeOf<InvalidDataException>());
         }
 
-        [TestCase(3, 1)] [TestCase(3, 9)] [TestCase(3, 33)]
-        [TestCase(4, 9)] [TestCase(5, 20)] [TestCase(5, 28)] [TestCase(5, 36)]
+        [TestCase(3, 1)]
+        [TestCase(3, 9)]
+        [TestCase(3, 33)]
+        [TestCase(4, 9)]
+        [TestCase(5, 20)]
+        [TestCase(5, 28)]
+        [TestCase(5, 36)]
         public void Read_NonFiniteFloat_Rejects(int kind, int offset)
         {
             // Arrange.
@@ -191,7 +227,9 @@ namespace Game.Tests.EditMode
             Assert.That(() => Read(kind, bytes), Throws.TypeOf<InvalidDataException>());
         }
 
-        [TestCase(3, 17)] [TestCase(3, 25)] [TestCase(5, 4)]
+        [TestCase(3, 17)]
+        [TestCase(3, 25)]
+        [TestCase(5, 4)]
         public void Read_NonFiniteTime_Rejects(int kind, int offset)
         {
             // Arrange.
@@ -201,7 +239,9 @@ namespace Game.Tests.EditMode
             Assert.That(() => Read(kind, bytes), Throws.TypeOf<InvalidDataException>());
         }
 
-        [TestCase(0, 4)] [TestCase(1, 9)] [TestCase(2, 4)]
+        [TestCase(0, 4)]
+        [TestCase(1, 9)]
+        [TestCase(2, 4)]
         public void Read_ExcessiveStringLength_RejectsBeforeDecoding(int kind, int offset)
         {
             // Arrange.

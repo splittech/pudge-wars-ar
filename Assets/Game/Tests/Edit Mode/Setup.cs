@@ -37,7 +37,11 @@ namespace Game.Tests.EditMode
             simulation.ConfigureRules(MatchConfig(), new EconomyConfigData(150, 50, 10, startGold, new[] { 100, 200, 300, 400 }));
             simulation.Rules.Begin(0, true, true, 1, 1);
             simulation.Rules.ArenaPlaced(0);
-            if (startGold > 0) simulation.ResetRound();
+            if (startGold > 0)
+            {
+                simulation.ResetRound();
+            }
+
             simulation.Step(TickDeltaTime, 3);
             return simulation;
         }
@@ -87,7 +91,9 @@ namespace Game.Tests.EditMode
         public static void Advance(MatchSimulation simulation, int ticks)
         {
             for (int i = 0; i < ticks; i++)
+            {
                 simulation.Step(TickDeltaTime);
+            }
         }
 
         public static InputRouter InputRouter(
@@ -195,9 +201,11 @@ namespace Game.Tests.EditMode
                 container.Inject(instance);
                 // Mirror initializes its behaviour cache in Awake, which EditMode does not call.
                 if (instance is Mirror.NetworkIdentity identity)
+                {
                     typeof(Mirror.NetworkIdentity).GetMethod("Awake",
                         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                         .Invoke(identity, null);
+                }
             });
             return resolver;
         }

@@ -87,7 +87,10 @@ namespace Game.Tests.EditMode
             Assert.That(window.Take(1).MessageBytesOut, Is.EqualTo((double)int.MaxValue * 4));
         }
 
-        [TestCase(0)] [TestCase(-1)] [TestCase(double.NaN)] [TestCase(double.PositiveInfinity)]
+        [TestCase(0)]
+        [TestCase(-1)]
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
         public void Take_InvalidDuration_Rejects(double seconds)
         {
             // Arrange.
@@ -108,8 +111,12 @@ namespace Game.Tests.EditMode
                 var recorder = root.AddComponent<NetworkStatsRecorder>();
                 var flags = BindingFlags.Instance | BindingFlags.NonPublic;
                 void Set(string name, object value) => typeof(NetworkStatsRecorder).GetField(name, flags).SetValue(recorder, value);
-                Set("_manager", manager); Set("_writer", writer); Set("_runId", "unit"); Set("_runScenario", "comma,quote\"");
-                Set("_commit", "unit-commit"); Set("_actualWarmup", 10d);
+                Set("_manager", manager);
+                Set("_writer", writer);
+                Set("_runId", "unit");
+                Set("_runScenario", "comma,quote\"");
+                Set("_commit", "unit-commit");
+                Set("_actualWarmup", 10d);
                 // Act.
                 typeof(NetworkStatsRecorder).GetMethod("WriteSample", flags).Invoke(recorder, new object[] { 1d });
                 writer.Flush();

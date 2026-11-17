@@ -29,8 +29,14 @@ namespace Game.AR
         private Material _material;
         private bool _tap, _confirm, _disposed;
         private float _yaw;
-        public string Message { get; private set; }
-        public bool Unavailable { get; private set; }
+        public string Message
+        {
+            get; private set;
+        }
+        public bool Unavailable
+        {
+            get; private set;
+        }
         public bool CanConfirm => _anchor != null && IsTracking.CurrentValue;
         public ReadOnlyReactiveProperty<bool> IsTracking => _tracking.IsTracking;
 
@@ -38,11 +44,24 @@ namespace Game.AR
             ARAnchorManager anchors, Camera camera, Transform root, ITouchGestures gestures,
             InputConfigData config, Vector2 size)
         {
-            _session = session; _planes = planes; _raycasts = raycasts; _anchors = anchors;
-            _camera = camera; _root = root; _gestures = gestures; _config = config; _size = size;
+            _session = session;
+            _planes = planes;
+            _raycasts = raycasts;
+            _anchors = anchors;
+            _camera = camera;
+            _root = root;
+            _gestures = gestures;
+            _config = config;
+            _size = size;
         }
 
-        public void Confirm() { if (CanConfirm) _confirm = true; }
+        public void Confirm()
+        {
+            if (CanConfirm)
+            {
+                _confirm = true;
+            }
+        }
         public void RefreshTracking() => _tracking.Refresh(_anchor);
 
         public async UniTask<Pose> AcquireArenaPoseAsync(CancellationToken cancellationToken)
@@ -62,7 +81,8 @@ namespace Game.AR
             }
             if (ARSession.state == ARSessionState.Unsupported || ARSession.state == ARSessionState.NeedsInstall)
             {
-                Unavailable = true; Message = "AR недоступен. Выберите плоский режим.";
+                Unavailable = true;
+                Message = "AR недоступен. Выберите плоский режим.";
                 await UniTask.WaitUntil(() => false, cancellationToken: cancellationToken);
             }
             _session.enabled = true;
@@ -97,7 +117,11 @@ namespace Game.AR
                         var result = await _anchors.TryAddAnchorAsync(new Pose(_root.position, _root.rotation));
                         if (_disposed || cancellationToken.IsCancellationRequested)
                         {
-                            if (result.status.IsSuccess() && result.value != null) _anchors.TryRemoveAnchor(result.value);
+                            if (result.status.IsSuccess() && result.value != null)
+                            {
+                                _anchors.TryRemoveAnchor(result.value);
+                            }
+
                             cancellationToken.ThrowIfCancellationRequested();
                             throw new OperationCanceledException();
                         }
@@ -106,21 +130,38 @@ namespace Game.AR
                             _anchor = result.value;
                             _root.SetParent(_anchor.transform, true);
                         }
-                        else Message = "Не удалось создать якорь. Попробуйте ещё раз.";
+                        else
+                        {
+                            Message = "Не удалось создать якорь. Попробуйте ещё раз.";
+                        }
                     }
                     _tap = false;
                     await UniTask.Yield(cancellationToken);
                 }
-                foreach (var plane in _planes.trackables) plane.gameObject.SetActive(false);
+                foreach (var plane in _planes.trackables)
+                {
+                    plane.gameObject.SetActive(false);
+                }
+
                 _planes.enabled = false;
                 return new Pose(_root.position, _root.rotation);
             }
-            finally { if (_preview != null) _preview.enabled = false; }
+            finally
+            {
+                if (_preview != null)
+                {
+                    _preview.enabled = false;
+                }
+            }
         }
 
         private void OnPinchTwist(PinchTwistGesture gesture)
         {
-            if (!CanConfirm || !float.IsFinite(gesture.ScaleFactor) || !float.IsFinite(gesture.AngleDelta)) return;
+            if (!CanConfirm || !float.IsFinite(gesture.ScaleFactor) || !float.IsFinite(gesture.AngleDelta))
+            {
+                return;
+            }
+
             float scale = Mathf.Clamp(_root.localScale.x * gesture.ScaleFactor, _config.ArenaScaleMin, _config.ArenaScaleMax);
             _root.localScale = Vector3.one * scale;
             _yaw += gesture.AngleDelta;
@@ -131,7 +172,9 @@ namespace Game.AR
         {
             var go = new GameObject("Arena placement preview");
             _preview = go.AddComponent<LineRenderer>();
-            _preview.positionCount = 4; _preview.loop = true; _preview.useWorldSpace = true;
+            _preview.positionCount = 4;
+            _preview.loop = true;
+            _preview.useWorldSpace = true;
             _preview.startWidth = _preview.endWidth = 0.003f;
             _material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             _material.color = new Color(0.2f, 0.85f, 1f, 0.65f);
@@ -147,20 +190,45 @@ namespace Game.AR
         private void DrawPreview()
         {
             for (int i = 0; i < 4; i++)
+            {
                 _preview.SetPosition(i, _root.TransformPoint(new Vector3((i < 2 ? -1 : 1) * _size.x / 2,
                     0.02f, (i == 0 || i == 3 ? -1 : 1) * _size.y / 2)));
+            }
         }
 
         public void Dispose()
         {
             _disposed = true;
             _tracking.Dispose();
-            if (_root != null && _anchor != null) _root.SetParent(null, true);
-            if (_anchor != null && _anchors != null && _anchors.enabled) _anchors.TryRemoveAnchor(_anchor);
-            if (_preview != null) UnityEngine.Object.Destroy(_preview.gameObject);
-            if (_material != null) UnityEngine.Object.Destroy(_material);
-            if (_planes != null) _planes.enabled = false;
-            if (_session != null) _session.enabled = false;
+            if (_root != null && _anchor != null)
+            {
+                _root.SetParent(null, true);
+            }
+
+            if (_anchor != null && _anchors != null && _anchors.enabled)
+            {
+                _anchors.TryRemoveAnchor(_anchor);
+            }
+
+            if (_preview != null)
+            {
+                UnityEngine.Object.Destroy(_preview.gameObject);
+            }
+
+            if (_material != null)
+            {
+                UnityEngine.Object.Destroy(_material);
+            }
+
+            if (_planes != null)
+            {
+                _planes.enabled = false;
+            }
+
+            if (_session != null)
+            {
+                _session.enabled = false;
+            }
         }
     }
 }

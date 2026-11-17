@@ -11,18 +11,30 @@ namespace Game.Net
         public MovementFrame Fourth;
         public MovementFrame Get(int index) => index switch
         {
-            0 => First, 1 => Second, 2 => Third, 3 => Fourth,
+            0 => First,
+            1 => Second,
+            2 => Third,
+            3 => Fourth,
             _ => throw new System.ArgumentOutOfRangeException(nameof(index))
         };
         public void Add(MovementFrame frame)
         {
             switch (Count++)
             {
-                case 0: First = frame; break;
-                case 1: Second = frame; break;
-                case 2: Third = frame; break;
-                case 3: Fourth = frame; break;
-                default: throw new System.InvalidOperationException("Movement batch is full.");
+                case 0:
+                    First = frame;
+                    break;
+                case 1:
+                    Second = frame;
+                    break;
+                case 2:
+                    Third = frame;
+                    break;
+                case 3:
+                    Fourth = frame;
+                    break;
+                default:
+                    throw new System.InvalidOperationException("Movement batch is full.");
             }
         }
     }

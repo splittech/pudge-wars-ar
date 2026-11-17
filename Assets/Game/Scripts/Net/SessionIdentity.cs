@@ -47,14 +47,28 @@ namespace Game.Net
         {
             nickname = string.Empty;
             if (input == null || input.Length > 64)
+            {
                 return false;
+            }
+
             foreach (char character in input)
+            {
                 if (char.IsControl(character))
+                {
                     return false;
+                }
+            }
+
             string trimmed = input.Trim();
             if (trimmed.Length < 2 || trimmed.Length > 16)
+            {
                 return false;
-            try { StrictUtf8.GetByteCount(trimmed); }
+            }
+
+            try
+            {
+                StrictUtf8.GetByteCount(trimmed);
+            }
             catch (EncoderFallbackException) { return false; }
             nickname = trimmed;
             return true;
@@ -63,22 +77,45 @@ namespace Game.Net
 
     public sealed class SessionPlayer
     {
-        public PlayerInfo Info { get; internal set; }
-        public int Slot { get; }
-        public bool HasHero { get; internal set; }
-        internal string Token { get; set; }
-        internal string PreviousToken { get; set; }
-        internal NetworkConnectionToClient Connection { get; set; }
+        public PlayerInfo Info
+        {
+            get; internal set;
+        }
+        public int Slot
+        {
+            get;
+        }
+        public bool HasHero
+        {
+            get; internal set;
+        }
+        internal string Token
+        {
+            get; set;
+        }
+        internal string PreviousToken
+        {
+            get; set;
+        }
+        internal NetworkConnectionToClient Connection
+        {
+            get; set;
+        }
         public uint Epoch { get; internal set; } = 1;
-        public double Deadline { get; internal set; }
+        public double Deadline
+        {
+            get; internal set;
+        }
 
         internal SessionPlayer(uint id, string nickname, int slot)
         {
             Slot = slot;
             Info = new PlayerInfo
             {
-                SessionPlayerId = id, Nickname = nickname,
-                Team = slot % 2 == 0 ? Team.A : Team.B, Connected = true
+                SessionPlayerId = id,
+                Nickname = nickname,
+                Team = slot % 2 == 0 ? Team.A : Team.B,
+                Connected = true
             };
         }
     }
@@ -93,13 +130,35 @@ namespace Game.Net
 
         public bool SetTeam(uint id, Team team)
         {
-            if (team != Team.A && team != Team.B) return false;
+            if (team != Team.A && team != Team.B)
+            {
+                return false;
+            }
+
             SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
-            if (player == null || !player.Info.Connected) return false;
+            if (player == null || !player.Info.Connected)
+            {
+                return false;
+            }
+
             int count = 0;
-            foreach (var item in _slots) if (item != null && item.Info.Team == team) count++;
-            if (player.Info.Team != team && count >= 2) return false;
-            var info = player.Info; info.Team = team; info.Ready = false; player.Info = info;
+            foreach (var item in _slots)
+            {
+                if (item != null && item.Info.Team == team)
+                {
+                    count++;
+                }
+            }
+
+            if (player.Info.Team != team && count >= 2)
+            {
+                return false;
+            }
+
+            var info = player.Info;
+            info.Team = team;
+            info.Ready = false;
+            player.Info = info;
             Publish();
             return true;
         }
@@ -107,8 +166,15 @@ namespace Game.Net
         public bool SetReady(uint id, bool ready)
         {
             SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
-            if (player == null || !player.Info.Connected || !player.HasHero) return false;
-            var info = player.Info; info.Ready = ready; player.Info = info; Publish();
+            if (player == null || !player.Info.Connected || !player.HasHero)
+            {
+                return false;
+            }
+
+            var info = player.Info;
+            info.Ready = ready;
+            player.Info = info;
+            Publish();
             return true;
         }
 
@@ -116,8 +182,14 @@ namespace Game.Net
         {
             foreach (var player in _slots)
             {
-                if (player == null) continue;
-                var info = player.Info; info.Ready = false; player.Info = info;
+                if (player == null)
+                {
+                    continue;
+                }
+
+                var info = player.Info;
+                info.Ready = false;
+                player.Info = info;
             }
             Publish();
         }
@@ -125,7 +197,11 @@ namespace Game.Net
         public uint AdvanceEpoch(uint id)
         {
             SessionPlayer player = Array.Find(_slots, item => item != null && item.Info.SessionPlayerId == id);
-            if (player == null || player.Epoch == uint.MaxValue) return 0;
+            if (player == null || player.Epoch == uint.MaxValue)
+            {
+                return 0;
+            }
+
             return ++player.Epoch;
         }
 
@@ -133,9 +209,15 @@ namespace Game.Net
         {
             player = null;
             if (request.ProtocolVersion != NetworkProtocol.ProtocolVersion)
+            {
                 return AuthCode.IncompatibleVersion;
+            }
+
             if (!NicknamePolicy.TryNormalize(request.Nickname, out string nickname))
+            {
                 return AuthCode.InvalidNickname;
+            }
+
             if (request.ReconnectToken != null)
             {
                 foreach (var reserved in _slots)
@@ -143,11 +225,20 @@ namespace Game.Net
                     if (reserved == null || (reserved.Token != request.ReconnectToken && reserved.PreviousToken != request.ReconnectToken)
                         || !reserved.HasHero || reserved.Epoch == uint.MaxValue
                         || !string.Equals(reserved.Info.Nickname, nickname, StringComparison.OrdinalIgnoreCase))
+                    {
                         continue;
+                    }
+
                     if (reserved.Info.Connected)
+                    {
                         return AuthCode.ReconnectInUse;
+                    }
+
                     if (NetworkTime.time >= reserved.Deadline)
+                    {
                         return AuthCode.InvalidReconnectToken;
+                    }
+
                     player = reserved;
                     var info = player.Info;
                     info.Connected = true;
@@ -162,15 +253,36 @@ namespace Game.Net
                 return AuthCode.InvalidReconnectToken;
             }
             foreach (var occupied in _slots)
+            {
                 if (occupied != null && string.Equals(occupied.Info.Nickname, nickname, StringComparison.OrdinalIgnoreCase))
+                {
                     return AuthCode.NicknameTaken;
+                }
+            }
+
             int slot = Array.FindIndex(_slots, value => value == null);
             if (slot < 0 || _nextId == 0)
+            {
                 return AuthCode.ServerFull;
+            }
+
             player = new SessionPlayer(_nextId++, nickname, slot);
             int teamA = 0, teamB = 0;
             foreach (var item in _slots)
-                if (item != null) { if (item.Info.Team == Team.A) teamA++; else teamB++; }
+            {
+                if (item != null)
+                {
+                    if (item.Info.Team == Team.A)
+                    {
+                        teamA++;
+                    }
+                    else
+                    {
+                        teamB++;
+                    }
+                }
+            }
+
             var joinedInfo = player.Info;
             joinedInfo.Team = teamA <= teamB ? Team.A : Team.B;
             player.Info = joinedInfo;
@@ -186,21 +298,30 @@ namespace Game.Net
         public void MarkSpawned(SessionPlayer player)
         {
             if (!Contains(player))
+            {
                 throw new InvalidOperationException("Player has no authenticated session slot.");
+            }
+
             player.HasHero = true;
         }
 
         public void CompleteRestore(SessionPlayer player)
         {
             if (!Contains(player) || !player.HasHero || !player.Info.Connected)
+            {
                 throw new InvalidOperationException("Only an authenticated reserved hero can complete restoration.");
+            }
+
             player.PreviousToken = null;
         }
 
         public void Disconnect(SessionPlayer player, bool reserve)
         {
             if (!Contains(player))
+            {
                 return;
+            }
+
             if (!reserve || !player.HasHero)
             {
                 Remove(player.Info.SessionPlayerId);
@@ -208,7 +329,10 @@ namespace Game.Net
             }
             var info = player.Info;
             if (info.Connected)
+            {
                 player.Deadline = NetworkTime.time + ReconnectRegistry.GracePeriod;
+            }
+
             info.Connected = false;
             info.Ready = false;
             player.Info = info;
@@ -219,7 +343,10 @@ namespace Game.Net
         {
             int slot = Array.FindIndex(_slots, player => player != null && player.Info.SessionPlayerId == id);
             if (slot < 0)
+            {
                 return;
+            }
+
             _slots[slot] = null;
             Publish();
         }
@@ -235,8 +362,13 @@ namespace Game.Net
         {
             _players.Clear();
             foreach (var player in _slots)
+            {
                 if (player != null)
+                {
                     _players.Add(player.Info);
+                }
+            }
+
             Changed?.Invoke();
         }
 

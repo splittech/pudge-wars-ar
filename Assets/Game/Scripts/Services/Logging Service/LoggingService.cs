@@ -18,7 +18,9 @@ namespace Game.Services.LoggingService
         public IGameLogger GetLogger(LoggingChannel channel)
         {
             if (!_loggers.TryGetValue(channel, out var logger))
+            {
                 return EmptyLogger.Instance;
+            }
 
             return logger;
         }
@@ -39,19 +41,29 @@ namespace Game.Services.LoggingService
             List<IGameLogger> loggers = new();
 
             if (channelConfig.LoggerTypes.HasFlag(LoggerType.UnityLogger))
+            {
                 loggers.Add(new UnityLogger(channelConfig));
+            }
 
             if (channelConfig.LoggerTypes.HasFlag(LoggerType.FileLogger))
+            {
                 loggers.Add(new FileLogger(channelConfig));
+            }
 
             if (channelConfig.LoggerTypes.HasFlag(LoggerType.ServerLogger))
+            {
                 loggers.Add(new ServerLogger(channelConfig));
+            }
 
             if (loggers.Count == 0)
+            {
                 return EmptyLogger.Instance;
+            }
 
             if (loggers.Count == 1)
+            {
                 return loggers[0];
+            }
 
             return new CompositeLogger(channelConfig, loggers);
         }

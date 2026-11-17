@@ -18,6 +18,10 @@ namespace Game.AR
         public void Refresh(ARAnchor anchor)
             => _tracking.Value = ARSession.state == ARSessionState.SessionTracking
                 && (anchor == null || anchor.trackingState == UnityEngine.XR.ARSubsystems.TrackingState.Tracking);
-        public void Dispose() { ARSession.stateChanged -= OnStateChanged; _tracking.Dispose(); }
+        public void Dispose()
+        {
+            ARSession.stateChanged -= OnStateChanged;
+            _tracking.Dispose();
+        }
     }
 }

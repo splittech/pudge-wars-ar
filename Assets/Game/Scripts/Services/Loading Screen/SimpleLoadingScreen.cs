@@ -14,7 +14,10 @@ namespace Game.Services.LoadingScreen
 
         private void EnsureView()
         {
-            if (_view != null) return;
+            if (_view != null)
+            {
+                return;
+            }
 
             _view = ToolkitRuntime.Create(gameObject, "Loading", "LoadingState", 1000);
             _runtimeModel = _view.Model;
@@ -22,7 +25,8 @@ namespace Game.Services.LoadingScreen
 
         public override void SetProgressDescription(string description)
         {
-            EnsureView(); _runtimeModel.Text("description", description);
+            EnsureView();
+            _runtimeModel.Text("description", description);
         }
 
         protected override UniTask ShowAsync(CancellationToken ct) => FadeAsync(true, ct);
@@ -30,13 +34,15 @@ namespace Game.Services.LoadingScreen
 
         protected override void SetVisibleImmediate(bool visible)
         {
-            EnsureView(); _runtimeModel.Visible("loading", visible);
+            EnsureView();
+            _runtimeModel.Visible("loading", visible);
             _runtimeModel.StyleClass("loading", visible ? string.Empty : "transparent");
         }
 
         protected override void UpdateProgressVisuals(float progress)
         {
-            EnsureView(); _runtimeModel.Number("progress", progress);
+            EnsureView();
+            _runtimeModel.Number("progress", progress);
             _runtimeModel.Text("progress", $"{progress * 100:0}%");
         }
 

@@ -30,7 +30,9 @@ namespace Game.Tests.EditMode
             // Assert.
             Assert.That(type.IsValueType, Is.True);
             foreach (FieldInfo field in fields)
+            {
                 AssertValueData(field.FieldType);
+            }
         }
 
         [Test]
@@ -97,10 +99,14 @@ namespace Game.Tests.EditMode
         {
             Assert.That(type.IsValueType, Is.True, type.FullName);
             if (type.IsPrimitive || type.IsEnum)
+            {
                 return;
+            }
 
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            {
                 AssertValueData(field.FieldType);
+            }
         }
     }
 }

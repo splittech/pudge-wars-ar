@@ -33,13 +33,19 @@ namespace Game.Net
         public Vector2 EvaluateTip(double now, Vector2 owner, float speed, float range)
         {
             if (Phase == HookPhase.Idle)
+            {
                 return owner;
+            }
+
             if (Phase == HookPhase.Extending)
-                {
+            {
                 Vector2 tip = Origin + Dir * Mathf.Clamp((float)(now - StartTime) * speed, 0,
                     SegmentRange > 0 ? SegmentRange : range);
                 if (HalfBounds.x > 0 && HalfBounds.y > 0)
+                {
                     tip = Vector2.Min(HalfBounds, Vector2.Max(-HalfBounds, tip));
+                }
+
                 return tip;
             }
             Vector2 turn = Origin + Dir * TurnLength;

@@ -21,7 +21,9 @@ namespace Game.App
         private void Awake()
         {
             if (!Debug.isDebugBuild)
+            {
                 gameObject.SetActive(false);
+            }
         }
 
         private void OnEnable()
@@ -43,13 +45,19 @@ namespace Game.App
             _elapsed += Time.unscaledDeltaTime;
             _frames++;
             if (_elapsed < _refreshInterval)
+            {
                 return;
+            }
 
             string role = NetworkServer.active ? (NetworkClient.active ? "host" : "server")
                 : NetworkClient.isConnected ? "client" : "offline";
             string rtt = NetworkClient.isConnected ? $"{NetworkTime.rtt * 1000:0} ms" : "-";
             _text = $"FPS: {_frames / _elapsed:0} | v{Application.version} | {role} | RTT: {rtt}";
-            if (MatchStateNet.Active != null) _text += $" | {MatchStateNet.Active.Summary.Phase}";
+            if (MatchStateNet.Active != null)
+            {
+                _text += $" | {MatchStateNet.Active.Summary.Phase}";
+            }
+
             var hero = NetworkClient.localPlayer != null ? NetworkClient.localPlayer.GetComponent<HeroNet>() : null;
             if (hero != null)
             {
@@ -61,7 +69,8 @@ namespace Game.App
                 _text += $"\nPred {(NetworkServer.active ? "HOST" : hero.PredictionEnabled ? "ON" : "OFF")} <color={color}>err {movement.Error:0.000}</color>"
                     + $" c/s {corrections:0} h {movement.HistorySize} ack {movement.AckSequence}/t{movement.LastServerTick}"
                     + $" send/snap {sent:0}/{received:0}";
-                _lastCorrections = movement.Corrections; _lastPackets = hero.MovementPackets;
+                _lastCorrections = movement.Corrections;
+                _lastPackets = hero.MovementPackets;
                 _lastSnapshots = hero.MovementSnapshots;
             }
             _runtimeModel.Text("diagnostics", _text);
@@ -71,8 +80,17 @@ namespace Game.App
 
         private void OnAction(string action, string value)
         {
-            if (action == "arenaMode") Game.Input.Routing.ArenaMode.UseAR = !Game.Input.Routing.ArenaMode.UseAR;
+            if (action == "arenaMode")
+            {
+                Game.Input.Routing.ArenaMode.UseAR = !Game.Input.Routing.ArenaMode.UseAR;
+            }
         }
-        private void OnDestroy() { if (_document != null) _document.ActionRequested -= OnAction; }
+        private void OnDestroy()
+        {
+            if (_document != null)
+            {
+                _document.ActionRequested -= OnAction;
+            }
+        }
     }
 }

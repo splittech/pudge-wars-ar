@@ -15,8 +15,15 @@ namespace Game.Tests.EditMode
         [TearDown]
         public void Cleanup()
         {
-            if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
-            if (_state != null) UnityEngine.Object.DestroyImmediate(_state);
+            if (_root != null)
+            {
+                UnityEngine.Object.DestroyImmediate(_root);
+            }
+
+            if (_state != null)
+            {
+                UnityEngine.Object.DestroyImmediate(_state);
+            }
         }
 
         [Test]

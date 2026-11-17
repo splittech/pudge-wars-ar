@@ -36,8 +36,14 @@ namespace Game.UI
         public MatchPresenter(ReactiveDocument view, HeroConfigData hero, HookConfigData hook, EconomyConfigData economy,
             Action leave, Action reset, Func<string> training)
         {
-            _view = view; _model = view.Model; _heroConfig = hero; _hookConfig = hook; _economy = economy;
-            _leave = leave; _reset = reset; _training = training;
+            _view = view;
+            _model = view.Model;
+            _heroConfig = hero;
+            _hookConfig = hook;
+            _economy = economy;
+            _leave = leave;
+            _reset = reset;
+            _training = training;
             _view.ActionRequested += Handle;
             Tick();
         }
@@ -50,7 +56,11 @@ namespace Game.UI
             _model.Visible("lobby", network && _summary.Phase == MatchPhase.Lobby);
             _model.Visible("results", network && _summary.Phase == MatchPhase.Results);
             _model.Visible("hud", network && (_summary.Phase == MatchPhase.Playing || _summary.Phase == MatchPhase.Countdown));
-            if (!network) _model.Text("trainingStatus", _training?.Invoke() ?? string.Empty);
+            if (!network)
+            {
+                _model.Text("trainingStatus", _training?.Invoke() ?? string.Empty);
+            }
+
             if (!ReferenceEquals(_hero, null) && network)
             {
                 double now = _hero.NetworkNow;
@@ -63,7 +73,11 @@ namespace Game.UI
                 int count = _summary.Phase == MatchPhase.Countdown ? Mathf.CeilToInt((float)Math.Max(0, _summary.CountdownEnd - now)) : 0;
                 _model.Text("countdown", count > 0 ? count.ToString() : string.Empty);
             }
-            else _model.Text("countdown", string.Empty);
+            else
+            {
+                _model.Text("countdown", string.Empty);
+            }
+
             UpdateBars();
         }
 
@@ -71,57 +85,108 @@ namespace Game.UI
         {
             if (!ReferenceEquals(_match, MatchStateNet.Active))
             {
-                _matchSubscriptions?.Dispose(); _matchSubscriptions = null;
+                _matchSubscriptions?.Dispose();
+                _matchSubscriptions = null;
                 _match = MatchStateNet.Active;
-                _kills.Clear(); _model.Text("feed", string.Empty);
-                if (!ReferenceEquals(_match, null)) _matchSubscriptions = Disposable.Combine(
+                _kills.Clear();
+                _model.Text("feed", string.Empty);
+                if (!ReferenceEquals(_match, null))
+                {
+                    _matchSubscriptions = Disposable.Combine(
                     _match.State.Subscribe(value =>
                     {
                         if (_summary.Phase != value.Phase && (value.Phase == MatchPhase.Lobby || value.Phase == MatchPhase.Countdown))
-                        { _kills.Clear(); _model.Text("feed", string.Empty); }
+                        {
+                            _kills.Clear();
+                            _model.Text("feed", string.Empty);
+                        }
                         _summary = value;
                         _model.Text("score", $"A  {value.ScoreA} : {value.ScoreB}  B");
-                        RenderLobby(); RenderResults();
+                        RenderLobby();
+                        RenderResults();
                     }),
-                    _match.ContentRevision.Subscribe(_ => { RenderLobby(); RenderResults(); }),
+                    _match.ContentRevision.Subscribe(_ =>
+                    {
+                        RenderLobby();
+                        RenderResults();
+                    }),
                     _match.Events.Kills.Subscribe(value =>
                     {
                         _kills.Enqueue($"{PlayerName(value.KillerId)} → {PlayerName(value.VictimId)}");
-                        while (_kills.Count > 4) _kills.Dequeue();
+                        while (_kills.Count > 4)
+                        {
+                            _kills.Dequeue();
+                        }
+
                         _model.Text("feed", string.Join("\n", _kills));
                     }));
+                }
             }
-            if (ReferenceEquals(_hero, HeroNet.Local)) return;
-            _heroSubscriptions?.Dispose(); _heroSubscriptions = null;
+            if (ReferenceEquals(_hero, HeroNet.Local))
+            {
+                return;
+            }
+
+            _heroSubscriptions?.Dispose();
+            _heroSubscriptions = null;
             _hero = HeroNet.Local;
-            if (!ReferenceEquals(_hero, null)) _heroSubscriptions = Disposable.Combine(
+            if (!ReferenceEquals(_hero, null))
+            {
+                _heroSubscriptions = Disposable.Combine(
                 _hero.Health.Subscribe(value => _model.Text("health", $"HP {value}/{_heroConfig.MaxHp}")),
-                _hero.Status.Subscribe(value => { _status = value; RenderShop(); }));
+                _hero.Status.Subscribe(value =>
+                {
+                    _status = value;
+                    RenderShop();
+                }));
+            }
+
             RenderLobby();
         }
 
         private void RenderLobby()
         {
-            if (ReferenceEquals(_match, null)) return;
-            _model.Text("teamA", TeamText(Team.A)); _model.Text("teamB", TeamText(Team.B));
+            if (ReferenceEquals(_match, null))
+            {
+                return;
+            }
+
+            _model.Text("teamA", TeamText(Team.A));
+            _model.Text("teamB", TeamText(Team.B));
             _model.Text("ready", IsReady() ? "Не готов" : "Готов");
             _model.Visible("start", _match.IsHost);
             _model.Enabled("start", _match.CanStart);
-            _model.Visible("rematch", _match.IsHost); _model.Visible("returnToLobby", _match.IsHost);
+            _model.Visible("rematch", _match.IsHost);
+            _model.Visible("returnToLobby", _match.IsHost);
         }
 
         private string TeamText(Team team)
         {
             var text = new StringBuilder(team == Team.A ? "КОМАНДА A\n\n" : "КОМАНДА B\n\n");
             foreach (var player in _match.PlayerRows)
-                if (player.Team == team) text.AppendLine($"{player.Nickname}  {(player.Connected ? player.Ready ? "готов" : "…" : "обрыв")}");
+            {
+                if (player.Team == team)
+                {
+                    text.AppendLine($"{player.Nickname}  {(player.Connected ? player.Ready ? "готов" : "…" : "обрыв")}");
+                }
+            }
+
             return text.ToString();
         }
 
         private bool IsReady()
         {
             if (!ReferenceEquals(_match, null) && !ReferenceEquals(_hero, null))
-                foreach (var player in _match.PlayerRows) if (player.SessionPlayerId == _hero.SessionPlayerId) return player.Ready;
+            {
+                foreach (var player in _match.PlayerRows)
+                {
+                    if (player.SessionPlayerId == _hero.SessionPlayerId)
+                    {
+                        return player.Ready;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -141,18 +206,39 @@ namespace Game.UI
 
         private string PlayerName(uint id)
         {
-            if (id == 0) return "Территория";
-            if (!ReferenceEquals(_match, null)) foreach (var row in _match.StatRows) if (row.PlayerId == id) return row.Nickname ?? id.ToString();
+            if (id == 0)
+            {
+                return "Территория";
+            }
+
+            if (!ReferenceEquals(_match, null))
+            {
+                foreach (var row in _match.StatRows)
+                {
+                    if (row.PlayerId == id)
+                    {
+                        return row.Nickname ?? id.ToString();
+                    }
+                }
+            }
+
             return id.ToString();
         }
 
         private void RenderResults()
         {
-            if (ReferenceEquals(_match, null)) return;
+            if (ReferenceEquals(_match, null))
+            {
+                return;
+            }
+
             var text = new StringBuilder(_summary.Winner == MatchWinner.Draw ? "НИЧЬЯ" : $"ПОБЕДА КОМАНДЫ {_summary.Winner}");
             text.AppendLine($"\n{_summary.ScoreA} : {_summary.ScoreB}\n\nИгрок · Убийства / Смерти / Помощь · Попадания\n");
             foreach (var row in _match.StatRows)
+            {
                 text.AppendLine($"{row.Nickname} ({row.Team}) · {row.Kills} / {row.Deaths} / {row.Assists} · {row.HookHits}");
+            }
+
             _model.Text("statistics", text.ToString());
         }
 
@@ -162,40 +248,98 @@ namespace Game.UI
             if (_camera == null || !_camera.isActiveAndEnabled)
             {
                 _camera = Camera.main;
-                if (_camera == null && Camera.allCamerasCount > 0) _camera = Camera.allCameras[0];
+                if (_camera == null && Camera.allCamerasCount > 0)
+                {
+                    _camera = Camera.allCameras[0];
+                }
             }
             Camera camera = _camera;
             if (camera != null && _view.Root?.panel != null)
+            {
                 foreach (var hero in HeroNet.ClientHeroes)
                 {
-                    if (ReferenceEquals(hero, null) || !hero.Alive || !hero.CanAct || !hero.IsViewAvailable) continue;
+                    if (ReferenceEquals(hero, null) || !hero.Alive || !hero.CanAct || !hero.IsViewAvailable)
+                    {
+                        continue;
+                    }
+
                     Vector3 screen = camera.WorldToScreenPoint(hero.WorldViewPosition + Vector3.up * (1.8f * hero.ArenaScale));
-                    if (screen.z <= 0) continue;
+                    if (screen.z <= 0)
+                    {
+                        continue;
+                    }
+
                     Vector2 point = RuntimePanelUtils.ScreenToPanel(_view.Root.panel, new Vector2(screen.x, Screen.height - screen.y));
                     string key = "world_" + hero.SessionPlayerId;
-                    _visibleBars.Add(key); _bars.Add(key);
-                    _model.Set(new UiParameter { Name = key, Visible = true, Enabled = true,
-                        Number = Mathf.Clamp01((float)hero.Hp / _heroConfig.MaxHp), Position = point - new Vector2(50, 0) });
+                    _visibleBars.Add(key);
+                    _bars.Add(key);
+                    _model.Set(new UiParameter
+                    {
+                        Name = key,
+                        Visible = true,
+                        Enabled = true,
+                        Number = Mathf.Clamp01((float)hero.Hp / _heroConfig.MaxHp),
+                        Position = point - new Vector2(50, 0)
+                    });
                 }
-            foreach (string key in _bars) if (!_visibleBars.Contains(key)) _model.Visible(key, false);
+            }
+
+            foreach (string key in _bars)
+            {
+                if (!_visibleBars.Contains(key))
+                {
+                    _model.Visible(key, false);
+                }
+            }
         }
 
         private void Handle(string action, string value)
         {
-            if (action == "leave") { _leave?.Invoke(); return; }
-            if (action == "resetTraining") { _reset?.Invoke(); return; }
+            if (action == "leave")
+            {
+                _leave?.Invoke();
+                return;
+            }
+            if (action == "resetTraining")
+            {
+                _reset?.Invoke();
+                return;
+            }
             var actions = !ReferenceEquals(_hero, null) ? _hero.MatchActions : null;
-            if (actions == null) return;
+            if (actions == null)
+            {
+                return;
+            }
+
             switch (action)
             {
-                case "selectA": actions.SelectTeam(Team.A); break;
-                case "selectB": actions.SelectTeam(Team.B); break;
-                case "ready": actions.SetReady(!IsReady()); break;
-                case "start": actions.StartMatch(); break;
-                case "rematch": actions.Rematch(); break;
-                case "returnToLobby": actions.ReturnToLobby(); break;
+                case "selectA":
+                    actions.SelectTeam(Team.A);
+                    break;
+                case "selectB":
+                    actions.SelectTeam(Team.B);
+                    break;
+                case "ready":
+                    actions.SetReady(!IsReady());
+                    break;
+                case "start":
+                    actions.StartMatch();
+                    break;
+                case "rematch":
+                    actions.Rematch();
+                    break;
+                case "returnToLobby":
+                    actions.ReturnToLobby();
+                    break;
                 default:
-                    for (int i = 0; i < BuyKeys.Length; i++) if (action == BuyKeys[i]) actions.BuyUpgrade((UpgradeId)i);
+                    for (int i = 0; i < BuyKeys.Length; i++)
+                    {
+                        if (action == BuyKeys[i])
+                        {
+                            actions.BuyUpgrade((UpgradeId)i);
+                        }
+                    }
+
                     break;
             }
         }
@@ -203,7 +347,8 @@ namespace Game.UI
         public void Dispose()
         {
             _view.ActionRequested -= Handle;
-            _heroSubscriptions?.Dispose(); _matchSubscriptions?.Dispose();
+            _heroSubscriptions?.Dispose();
+            _matchSubscriptions?.Dispose();
         }
     }
 }

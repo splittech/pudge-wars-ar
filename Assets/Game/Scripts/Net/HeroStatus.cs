@@ -21,10 +21,20 @@ namespace Game.Net
 
         public static HeroStatus From(HeroState hero) => new()
         {
-            Gold = hero.Gold, Kills = hero.Kills, Deaths = hero.Deaths, Assists = hero.Assists,
-            HookHits = hero.HookHits, RangeLevel = hero.RangeLevel, SpeedLevel = hero.SpeedLevel,
-            RadiusLevel = hero.RadiusLevel, DamageLevel = hero.DamageLevel, Range = hero.HookRange,
-            Speed = hero.HookSpeed, Radius = hero.HookRadius, Damage = hero.HookDamage, RespawnAt = hero.RespawnAt
+            Gold = hero.Gold,
+            Kills = hero.Kills,
+            Deaths = hero.Deaths,
+            Assists = hero.Assists,
+            HookHits = hero.HookHits,
+            RangeLevel = hero.RangeLevel,
+            SpeedLevel = hero.SpeedLevel,
+            RadiusLevel = hero.RadiusLevel,
+            DamageLevel = hero.DamageLevel,
+            Range = hero.HookRange,
+            Speed = hero.HookSpeed,
+            Radius = hero.HookRadius,
+            Damage = hero.HookDamage,
+            RespawnAt = hero.RespawnAt
         };
     }
 }

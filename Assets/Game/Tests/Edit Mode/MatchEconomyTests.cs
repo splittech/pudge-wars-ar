@@ -21,7 +21,11 @@ namespace Game.Tests.EditMode
             Setup.Advance(simulation, 60);
             simulation.Enqueue(new MoveIntent(2, new float2(4, 0)));
             Setup.Advance(simulation, 90);
-            if (delay > 0) simulation.Step(0.01f, simulation.Time + delay);
+            if (delay > 0)
+            {
+                simulation.Step(0.01f, simulation.Time + delay);
+            }
+
             float2 direction = simulation.GetHero(1).Pos - simulation.GetHero(2).Pos;
             simulation.Enqueue(new ThrowHookIntent(3, direction, simulation.Time));
             // Act.
@@ -55,7 +59,8 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var history = new DamageHistory();
-            history.Record(3, 1, 20); history.Record(3, 2, 20);
+            history.Record(3, 1, 20);
+            history.Record(3, 2, 20);
             // Act.
             var assistants = new System.Collections.Generic.List<uint>(history.Assists(3, 2, 20 + elapsed, 10));
             // Assert.
@@ -107,7 +112,10 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var simulation = Setup.MatchWithRules(startGold: 1000);
-            for (int i = 0; i < 4; i++) Assert.That(simulation.TryBuyUpgrade(1, upgrade, out _), Is.True);
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.That(simulation.TryBuyUpgrade(1, upgrade, out _), Is.True);
+            }
             // Act.
             bool accepted = simulation.TryBuyUpgrade(1, upgrade, out _);
             // Assert.

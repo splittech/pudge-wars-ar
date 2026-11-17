@@ -29,11 +29,22 @@ namespace Game.Core.Match
             public readonly uint Id;
             public readonly float2 Value;
             public readonly bool Throw;
-            public Intent(uint id, float2 value, bool isThrow) { Id = id; Value = value; Throw = isThrow; }
+            public Intent(uint id, float2 value, bool isThrow)
+            {
+                Id = id;
+                Value = value;
+                Throw = isThrow;
+            }
         }
 
-        public double Time { get; private set; }
-        public uint TickCount { get; private set; }
+        public double Time
+        {
+            get; private set;
+        }
+        public uint TickCount
+        {
+            get; private set;
+        }
         public int HeroCount => _heroes.Length;
         public IReadOnlyList<HookThrown> Throws => _throws;
         public IReadOnlyList<HookHit> Hits => _hits;
@@ -47,13 +58,19 @@ namespace Game.Core.Match
             HookConfigData hookConfig, HeroState[] heroes, double initialTime = 0)
         {
             if (heroes == null || !math.isfinite(initialTime))
+            {
                 throw new ArgumentException("Heroes and a finite initial timestamp are required.");
+            }
+
             if (!math.isfinite(hookConfig.Speed) || hookConfig.Speed <= 0 ||
                 !math.isfinite(hookConfig.Range) || hookConfig.Range <= 0 ||
                 !math.isfinite(hookConfig.Radius) || hookConfig.Radius < 0 ||
                 !math.isfinite(hookConfig.Cooldown) || hookConfig.Cooldown < 0 ||
                 !math.isfinite(heroConfig.MoveSpeed) || heroConfig.MoveSpeed < 0)
+            {
                 throw new ArgumentException("Simulation configuration is invalid.");
+            }
+
             _arena = arena;
             _heroConfig = heroConfig;
             _hookConfig = hookConfig;
@@ -63,10 +80,18 @@ namespace Game.Core.Match
             for (int i = 0; i < heroes.Length; i++)
             {
                 if (_heroes[i].Id == 0 || !math.all(math.isfinite(_heroes[i].Pos)))
+                {
                     throw new ArgumentException("Heroes require unique nonzero IDs and finite positions.");
+                }
+
                 for (int j = 0; j < i; j++)
+                {
                     if (_heroes[i].Id == _heroes[j].Id)
+                    {
                         throw new ArgumentException("Duplicate hero ID.");
+                    }
+                }
+
                 var bounds = ArenaBounds.ForTeam(arena, _heroes[i].Team, _heroes[i].Radius);
                 _heroes[i].Pos = Geo2D.ClampToRect(_heroes[i].Pos, bounds);
                 _heroes[i].MoveTarget = _heroes[i].Pos;
@@ -82,11 +107,18 @@ namespace Game.Core.Match
         {
             if (hero.Id == 0 || Find(hero.Id) >= 0 || !math.all(math.isfinite(hero.Pos)) ||
                 !math.isfinite(hero.Radius) || hero.Radius < 0)
+            {
                 throw new ArgumentException("A unique nonzero ID and finite position and radius are required.", nameof(hero));
+            }
+
             hero.Pos = Geo2D.ClampToRect(hero.Pos, ArenaBounds.ForTeam(_arena, hero.Team, hero.Radius));
             hero.MoveTarget = hero.Pos;
             InitializeHookStats(ref hero);
-            if (Rules != null) hero.Gold = _economy.StartGold;
+            if (Rules != null)
+            {
+                hero.Gold = _economy.StartGold;
+            }
+
             int index = _heroes.Length;
             Array.Resize(ref _heroes, index + 1);
             Array.Resize(ref _hooks, index + 1);
@@ -105,14 +137,18 @@ namespace Game.Core.Match
         {
             int index = Find(playerId);
             if (index >= 0)
+            {
                 _heroes[index].MoveTarget = _heroes[index].Pos;
+            }
             // Discard queued input from the disconnected controller, preserving other players' order.
             int count = _intents.Count;
             for (int i = 0; i < count; i++)
             {
                 Intent intent = _intents.Dequeue();
                 if (intent.Id != playerId)
+                {
                     _intents.Enqueue(intent);
+                }
             }
         }
 
@@ -120,7 +156,10 @@ namespace Game.Core.Match
         {
             int index = Find(playerId);
             if (index < 0)
+            {
                 return false;
+            }
+
             StopMovement(playerId);
             int pulled = Find(_hooks[index].TargetId);
             if (_hooks[index].Phase == HookPhase.Pulling && pulled >= 0)
@@ -148,12 +187,22 @@ namespace Game.Core.Match
         public void Step(float dt, double stepStartTime)
         {
             if (!math.isfinite(dt) || dt <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(dt));
+            }
+
             if (!math.isfinite(stepStartTime) || stepStartTime < Time)
+            {
                 throw new ArgumentOutOfRangeException(nameof(stepStartTime));
+            }
+
             Time = stepStartTime;
             TickCount++;
-            _throws.Clear(); _hits.Clear(); _clashes.Clear(); _damage.Clear(); _deaths.Clear();
+            _throws.Clear();
+            _hits.Clear();
+            _clashes.Clear();
+            _damage.Clear();
+            _deaths.Clear();
             if (Rules != null)
             {
                 Rules.Advance(Time, CountTeam(Team.A), CountTeam(Team.B));
@@ -172,15 +221,22 @@ namespace Game.Core.Match
                 int index = Find(intent.Id);
                 if (index < 0 || !math.all(math.isfinite(intent.Value)) ||
                     !_heroes[index].Alive || _heroes[index].IsPulled)
+                {
                     continue;
+                }
+
                 if (intent.Throw)
                 {
                     if (HookSimulation.TryThrow(ref _hooks[index], _heroes[index], intent.Value, Time))
+                    {
                         _throws.Add(new HookThrown(intent.Id, _heroes[index].Pos, _hooks[index].Dir, Time));
+                    }
                 }
                 else
+                {
                     _heroes[index].MoveTarget = Geo2D.ClampToRect(intent.Value,
                         ArenaBounds.ForPosition(_arena, _heroes[index].Pos, _heroes[index].Radius));
+                }
             }
             ResolveHeroOverlaps();
             for (int i = 0; i < _heroes.Length; i++)
@@ -192,10 +248,20 @@ namespace Game.Core.Match
             }
             Time += dt;
             for (int i = 0; i < _hooks.Length; i++)
-                if (_hooks[i].Phase != HookPhase.Extending) StepHook(i, dt);
+            {
+                if (_hooks[i].Phase != HookPhase.Extending)
+                {
+                    StepHook(i, dt);
+                }
+            }
+
             StepFlyingHooks(dt);
             ApplyTerritoryDamage();
-            if (Rules != null) ApplyMatchRules();
+            if (Rules != null)
+            {
+                ApplyMatchRules();
+            }
+
             ResolveHeroOverlaps();
         }
 
@@ -203,7 +269,10 @@ namespace Game.Core.Match
         {
             ref HookState hook = ref _hooks[index];
             if (hook.Phase == HookPhase.Idle)
+            {
                 return;
+            }
+
             int pulled = hook.Phase == HookPhase.Pulling ? Find(hook.TargetId) : -1;
             var config = new HookConfigData(hook.Range, hook.Speed, hook.Radius, hook.Damage, _hookConfig.Cooldown, 0, 0, 0, 0, 4);
             bool finished = HookSimulation.Return(ref hook, _heroes[index], config, dt);
@@ -227,7 +296,10 @@ namespace Game.Core.Match
                 }
             }
             if (!finished)
+            {
                 return;
+            }
+
             if (pulled >= 0)
             {
                 _heroes[pulled].IsPulled = false;
@@ -242,8 +314,13 @@ namespace Game.Core.Match
         private int Find(uint id)
         {
             for (int i = 0; i < _heroes.Length; i++)
+            {
                 if (_heroes[i].Id == id)
+                {
                     return i;
+                }
+            }
+
             return -1;
         }
     }

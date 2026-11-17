@@ -23,7 +23,12 @@ namespace Game.Tests.EditMode
             {
                 value.Receive(Snapshot(tick));
                 for (int i = 0, count = clock.Advance(tick * (double)MovementPredictor.Delta); i < count; i++)
-                    if (value.Step(out _)) produced++;
+                {
+                    if (value.Step(out _))
+                    {
+                        produced++;
+                    }
+                }
             }
             // Assert.
             Assert.That(produced, Is.EqualTo(30));
@@ -45,11 +50,17 @@ namespace Game.Tests.EditMode
 
         private static MovementSnapshot Snapshot(uint tick = 0, uint ack = 0, float x = -4,
             bool alive = true, bool pulled = false, uint epoch = 1) => new()
-        {
-            ServerTick = tick, ServerTime = tick * (double)MovementPredictor.Delta,
-            AckSequence = ack, SessionEpoch = epoch, Pos = new Vector2(x, 0),
-            MoveTarget = new Vector2(x, 0), MoveSpeed = 3, Alive = alive, IsPulled = pulled
-        };
+            {
+                ServerTick = tick,
+                ServerTime = tick * (double)MovementPredictor.Delta,
+                AckSequence = ack,
+                SessionEpoch = epoch,
+                Pos = new Vector2(x, 0),
+                MoveTarget = new Vector2(x, 0),
+                MoveSpeed = 3,
+                Alive = alive,
+                IsPulled = pulled
+            };
         private static MovementPredictor Predictor()
         {
             var value = new MovementPredictor();
@@ -80,7 +91,11 @@ namespace Game.Tests.EditMode
             // Arrange.
             var value = Predictor();
             value.Move(new Vector2(-2, 0));
-            for (int i = 0; i < 3; i++) value.Step(out _);
+            for (int i = 0; i < 3; i++)
+            {
+                value.Step(out _);
+            }
+
             var snapshot = Snapshot(2, 2, -3.8f);
             snapshot.MoveTarget = new Vector2(-2, 0);
             // Act.
@@ -119,7 +134,10 @@ namespace Game.Tests.EditMode
             // Arrange.
             var value = Predictor();
             value.Move(new Vector2(-2, 0));
-            for (int i = 0; i < 5; i++) value.Step(out _);
+            for (int i = 0; i < 5; i++)
+            {
+                value.Step(out _);
+            }
             // Act.
             value.Receive(Snapshot(3, 1, -5, alive, pulled));
             value.Step(out var frame);
@@ -134,7 +152,10 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var value = Predictor();
-            for (int i = 0; i < 130; i++) value.Step(out _);
+            for (int i = 0; i < 130; i++)
+            {
+                value.Step(out _);
+            }
             // Act.
             value.Receive(Snapshot(1, 0, -6));
             // Assert.
@@ -196,10 +217,16 @@ namespace Game.Tests.EditMode
             var simulation = Setup.MatchSimulation();
             var commands = new ServerPlayerCommands(simulation, Setup.Arena());
             for (uint i = 1; i <= 20; i++)
+            {
                 Assert.That(commands.TryMovement(1, new MovementFrame
                 {
-                    Sequence = i, ClientTick = i, SessionEpoch = 1, HasMoveTarget = true, Target = new Vector2(-2.25f, 0)
+                    Sequence = i,
+                    ClientTick = i,
+                    SessionEpoch = 1,
+                    HasMoveTarget = true,
+                    Target = new Vector2(-2.25f, 0)
                 }, 1, 0, true, out _), Is.True);
+            }
             // Act.
             commands.Flush(0);
             simulation.Step(MovementPredictor.Delta);
@@ -220,19 +247,30 @@ namespace Game.Tests.EditMode
             // Act.
             bool result = commands.TryMovement(1, new MovementFrame
             {
-                Sequence = sequence, ClientTick = tick, SessionEpoch = epoch
+                Sequence = sequence,
+                ClientTick = tick,
+                SessionEpoch = epoch
             }, 1, 0, owner, out _);
             // Assert.
             Assert.That(result, Is.False);
         }
 
-        [TestCase(1)] [TestCase(4)]
+        [TestCase(1)]
+        [TestCase(4)]
         public void Batch_BoundedFrames_RoundTripsWithoutArrayAllocations(int count)
         {
             // Arrange.
             var batch = new MovementBatch();
-            for (uint i = 1; i <= count; i++) batch.Add(new MovementFrame
-                { Sequence = i, ClientTick = i, SessionEpoch = 1 });
+            for (uint i = 1; i <= count; i++)
+            {
+                batch.Add(new MovementFrame
+                {
+                    Sequence = i,
+                    ClientTick = i,
+                    SessionEpoch = 1
+                });
+            }
+
             using var writer = NetworkWriterPool.Get();
             // Act.
             writer.WriteMovementBatch(batch);

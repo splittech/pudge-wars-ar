@@ -25,7 +25,10 @@ namespace Game.Presentation
         private void OnEnable()
         {
             if (ReferenceEquals(_hero, null) || _line == null)
+            {
                 return;
+            }
+
             _subscriptions = Disposable.Combine(
                 _hero.HookHits.Subscribe(_ => _flashUntil = Time.unscaledTime + 0.15f),
                 _hero.HookClashes.Subscribe(_ => _flashUntil = Time.unscaledTime + 0.15f));
@@ -36,19 +39,27 @@ namespace Game.Presentation
             _subscriptions?.Dispose();
             _subscriptions = null;
             if (_line != null)
+            {
                 _line.enabled = false;
+            }
         }
 
         private void LateUpdate()
         {
             if (ReferenceEquals(_hero, null))
+            {
                 return;
+            }
+
             var state = _hero.DisplayHookState;
             bool predicted = _hero.IsHookPredicted;
             bool visible = _hero.IsClientView && _hero.CanAct && state.Phase != HookPhase.Idle;
             _line.enabled = visible;
             if (!visible)
+            {
                 return;
+            }
+
             Transform arena = transform.parent;
             Vector3 position = _hero.DisplayPosition;
             Vector2 tip = state.EvaluateTip(_hero.SynchronizedTime,

@@ -9,10 +9,14 @@ namespace Game.Net
         public NetworkTrafficSample(double seconds, long bytesIn, long bytesOut, long messagesIn,
             long messagesOut, long payloadIn, long payloadOut, long batchesIn, long batchesOut)
         {
-            MessageBytesIn = bytesIn / seconds; MessageBytesOut = bytesOut / seconds;
-            MessagesIn = messagesIn / seconds; MessagesOut = messagesOut / seconds;
-            PayloadBytesIn = payloadIn / seconds; PayloadBytesOut = payloadOut / seconds;
-            BatchesIn = batchesIn / seconds; BatchesOut = batchesOut / seconds;
+            MessageBytesIn = bytesIn / seconds;
+            MessageBytesOut = bytesOut / seconds;
+            MessagesIn = messagesIn / seconds;
+            MessagesOut = messagesOut / seconds;
+            PayloadBytesIn = payloadIn / seconds;
+            PayloadBytesOut = payloadOut / seconds;
+            BatchesIn = batchesIn / seconds;
+            BatchesOut = batchesOut / seconds;
         }
     }
 
@@ -22,15 +26,39 @@ namespace Game.Net
         private long _payloadIn, _payloadOut, _batchesIn, _batchesOut;
         public void Message(bool incoming, int bytes, int recipients = 1)
         {
-            if (bytes < 0 || recipients < 0) throw new ArgumentOutOfRangeException(nameof(bytes));
-            if (incoming) { _bytesIn += (long)bytes * recipients; _messagesIn += recipients; }
-            else { _bytesOut += (long)bytes * recipients; _messagesOut += recipients; }
+            if (bytes < 0 || recipients < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+
+            if (incoming)
+            {
+                _bytesIn += (long)bytes * recipients;
+                _messagesIn += recipients;
+            }
+            else
+            {
+                _bytesOut += (long)bytes * recipients;
+                _messagesOut += recipients;
+            }
         }
         public void Payload(bool incoming, int bytes)
         {
-            if (bytes < 0) throw new ArgumentOutOfRangeException(nameof(bytes));
-            if (incoming) { _payloadIn += bytes; _batchesIn++; }
-            else { _payloadOut += bytes; _batchesOut++; }
+            if (bytes < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+
+            if (incoming)
+            {
+                _payloadIn += bytes;
+                _batchesIn++;
+            }
+            else
+            {
+                _payloadOut += bytes;
+                _batchesOut++;
+            }
         }
         public void Clear()
         {
@@ -39,7 +67,11 @@ namespace Game.Net
         }
         public NetworkTrafficSample Take(double seconds)
         {
-            if (!double.IsFinite(seconds) || seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+            if (!double.IsFinite(seconds) || seconds <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(seconds));
+            }
+
             var result = new NetworkTrafficSample(seconds, _bytesIn, _bytesOut, _messagesIn,
                 _messagesOut, _payloadIn, _payloadOut, _batchesIn, _batchesOut);
             Clear();

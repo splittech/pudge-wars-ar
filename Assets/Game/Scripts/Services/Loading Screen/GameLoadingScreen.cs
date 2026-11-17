@@ -42,7 +42,9 @@ namespace Game.Services.LoadingScreen
         {
             // Progress keeps running while hiding: hide waits until the bar reaches 100%.
             if (_state is not (State.Shown or State.Hiding))
+            {
                 return;
+            }
 
             _showTime += Time.unscaledDeltaTime;
 
@@ -62,7 +64,9 @@ namespace Game.Services.LoadingScreen
         public async UniTask ShowScreenAsync(CancellationToken ct = default)
         {
             if (_state is State.Showing or State.Shown)
+            {
                 return;
+            }
 
             _logger.Log("Showing loading screen...");
 
@@ -91,7 +95,9 @@ namespace Game.Services.LoadingScreen
         public async UniTask HideScreenAsync(CancellationToken ct = default)
         {
             if (_state is State.Hiding or State.Hidden)
+            {
                 return;
+            }
 
             _logger.Log("Hiding loading screen...");
 

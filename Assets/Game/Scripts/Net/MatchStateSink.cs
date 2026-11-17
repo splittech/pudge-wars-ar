@@ -27,19 +27,33 @@ namespace Game.Net
                 }
             }
             foreach (var hit in simulation.Hits)
+            {
                 if (_heroes.TryGetValue(hit.OwnerId, out HeroNet owner) && owner != null)
+                {
                     owner.RpcHookHit(new Vector2(hit.Position.x, hit.Position.y));
+                }
+            }
+
             foreach (var clash in simulation.Clashes)
             {
                 Vector2 position = new(clash.Position.x, clash.Position.y);
                 if (_heroes.TryGetValue(clash.FirstOwnerId, out HeroNet first) && first != null)
+                {
                     first.RpcHookClash(position);
+                }
+
                 if (_heroes.TryGetValue(clash.SecondOwnerId, out HeroNet second) && second != null)
+                {
                     second.RpcHookClash(position);
+                }
             }
             if (simulation.Rules != null)
+            {
                 foreach (var death in simulation.Deaths)
+                {
                     MatchStateNet.Active?.RpcKill(new KillNotice { KillerId = death.KillerId, VictimId = death.HeroId });
+                }
+            }
         }
     }
 }

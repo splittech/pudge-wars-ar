@@ -82,7 +82,11 @@ namespace Game.Tests.EditMode
             for (int i = 0; i < 10; i++)
             {
                 simulation.Step(Setup.TickDeltaTime);
-                if (simulation.Clashes.Count == 0) continue;
+                if (simulation.Clashes.Count == 0)
+                {
+                    continue;
+                }
+
                 var first = simulation.GetHook(0);
                 var second = simulation.GetHook(1);
                 float2 v1 = first.Dir * first.Speed, v2 = second.Dir * second.Speed;

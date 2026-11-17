@@ -11,12 +11,22 @@ namespace Game.Core.Hook
             if (!owner.Alive || owner.IsPulled || hook.Phase != HookPhase.Idle ||
                 now < owner.HookCooldownEnd || !math.all(math.isfinite(direction)) ||
                 math.lengthsq(direction) < 1e-12f || !math.isfinite(math.lengthsq(direction)))
+            {
                 return false;
+            }
+
             hook = new HookState
             {
-                OwnerId = owner.Id, Phase = HookPhase.Extending, Origin = owner.Pos,
-                Tip = owner.Pos, Dir = math.normalize(direction), StartTime = now,
-                Speed = owner.HookSpeed, Range = owner.HookRange, Radius = owner.HookRadius, Damage = owner.HookDamage
+                OwnerId = owner.Id,
+                Phase = HookPhase.Extending,
+                Origin = owner.Pos,
+                Tip = owner.Pos,
+                Dir = math.normalize(direction),
+                StartTime = now,
+                Speed = owner.HookSpeed,
+                Range = owner.HookRange,
+                Radius = owner.HookRadius,
+                Damage = owner.HookDamage
             };
             return true;
         }

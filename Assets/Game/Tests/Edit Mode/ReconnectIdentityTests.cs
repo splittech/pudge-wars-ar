@@ -12,7 +12,9 @@ namespace Game.Tests.EditMode
             .GetProperty("Token", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player);
         private static AuthRequest Request(string token = null) => new()
         {
-            ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = "Alice", ReconnectToken = token
+            ProtocolVersion = NetworkProtocol.ProtocolVersion,
+            Nickname = "Alice",
+            ReconnectToken = token
         };
 
         [Test]

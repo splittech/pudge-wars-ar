@@ -81,7 +81,9 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             for (int i = 0; i < 30; i++)
+            {
                 _commands.TryMove(1, new float2(-3, 0), 0, true, out _);
+            }
 
             // Act.
             bool rejected = _commands.TryMove(1, new float2(-3, 0), 0.5, true, out _);

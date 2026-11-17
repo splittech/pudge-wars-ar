@@ -23,7 +23,9 @@ namespace Game.Tests.EditMode
                 Array.Copy(segment.Array, segment.Offset, packet, 0, segment.Count);
                 Packets.Add(packet);
             }
-            protected override void UpdatePing() { }
+            protected override void UpdatePing()
+            {
+            }
             public void Flush() => typeof(NetworkConnection).GetMethod("Update",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(this, null);
         }
@@ -123,10 +125,15 @@ namespace Game.Tests.EditMode
                 Nickname = "Player" + connectionId
             }, out SessionPlayer player);
             if (code != AuthCode.Accepted)
+            {
                 throw new InvalidOperationException("Test handshake failed.");
+            }
+
             return new CapturedConnection(connectionId)
             {
-                isAuthenticated = true, isReady = true, authenticationData = player
+                isAuthenticated = true,
+                isReady = true,
+                authenticationData = player
             };
         }
 
@@ -166,7 +173,8 @@ namespace Game.Tests.EditMode
             var result = manager.Roster.TryJoin(new AuthRequest
             {
                 ProtocolVersion = Game.Core.NetworkProtocol.ProtocolVersion,
-                Nickname = admission.Info.Nickname, ReconnectToken = token
+                Nickname = admission.Info.Nickname,
+                ReconnectToken = token
             }, out var restored);
             var connection = new CapturedConnection(3) { isAuthenticated = true, isReady = true, authenticationData = restored };
             var sameHero = _factory.SpawnPlayer(connection);
@@ -225,8 +233,11 @@ namespace Game.Tests.EditMode
                 | System.Reflection.BindingFlags.NonPublic), value => value.Name.StartsWith(prefix, StringComparison.Ordinal));
             Assert.That(method, Is.Not.Null);
             if (kind == ActionKind.Throw)
+            {
                 UnityEngine.TestTools.LogAssert.Expect(LogType.Warning,
                     new System.Text.RegularExpressions.Regex("Throw rejected for player"));
+            }
+
             object input = kind == ActionKind.Throw ? (object)Vector2.zero : Game.Core.Economy.UpgradeId.Damage;
 
             // Act.
@@ -279,11 +290,14 @@ namespace Game.Tests.EditMode
             var code = manager.Roster.TryJoin(new AuthRequest
             {
                 ProtocolVersion = Game.Core.NetworkProtocol.ProtocolVersion,
-                Nickname = admission.Info.Nickname, ReconnectToken = token
+                Nickname = admission.Info.Nickname,
+                ReconnectToken = token
             }, out var restored);
             var replacement = new CapturedConnection(2)
             {
-                isAuthenticated = true, isReady = true, authenticationData = restored
+                isAuthenticated = true,
+                isReady = true,
+                authenticationData = restored
             };
             var sameHero = _factory.SpawnPlayer(replacement);
             manager.OnServerDisconnect(original);
@@ -356,12 +370,16 @@ namespace Game.Tests.EditMode
             _commands.TryMove(target.SessionPlayerId, new Unity.Mathematics.float2(3, -4), 100, true, out _);
             var runner = new ServerTickRunner(_simulation, _sink, _factory, _commands);
             for (int i = 0; i < 60; i++)
+            {
                 runner.Advance(ServerTickRunner.StepDelta, 100 + (i + 1) * (double)ServerTickRunner.StepDelta, true);
+            }
 
             // Act.
             _commands.TryThrow(owner.SessionPlayerId, new Unity.Mathematics.float2(1, 0), 103, true, out _);
             for (int i = 0; i < 30 && owner.HookState.Phase != Game.Core.Hook.HookPhase.Pulling; i++)
+            {
                 runner.Advance(ServerTickRunner.StepDelta, 103 + (i + 1) * (double)ServerTickRunner.StepDelta, true);
+            }
 
             // Assert.
             Assert.That(owner.HookState.Phase, Is.EqualTo(Game.Core.Hook.HookPhase.Pulling));

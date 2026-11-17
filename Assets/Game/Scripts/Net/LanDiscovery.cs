@@ -11,7 +11,10 @@ namespace Game.Net
         public const long GameHandshake = 0x50574441524C414E;
         private readonly LanServerList _servers = new();
         public LanServerList Results => _servers;
-        public bool IsSearching { get; private set; }
+        public bool IsSearching
+        {
+            get; private set;
+        }
 
         private void Awake()
         {
@@ -54,13 +57,18 @@ namespace Game.Net
         private void Update()
         {
             if (IsSearching)
+            {
                 _servers.RemoveExpired(Time.realtimeSinceStartupAsDouble);
+            }
         }
 
         private void OnFound(ServerResponse response)
         {
             if (!IsSearching || response.uri == null || response.uri.Scheme != "kcp" || response.uri.Port != 7777)
+            {
                 return;
+            }
+
             _servers.Observe(response.serverId, response.EndPoint.Address.ToString(), Time.realtimeSinceStartupAsDouble);
         }
     }

@@ -6,9 +6,16 @@ namespace Game.Tests.Support
 {
     public sealed class TestLoadingScreen : GameLoadingScreen
     {
-        public bool Visible { get; private set; }
-        public override void SetProgressDescription(string description) { }
-        protected override void UpdateProgressVisuals(float progress) { }
+        public bool Visible
+        {
+            get; private set;
+        }
+        public override void SetProgressDescription(string description)
+        {
+        }
+        protected override void UpdateProgressVisuals(float progress)
+        {
+        }
         protected override void SetVisibleImmediate(bool visible) => Visible = visible;
         protected override UniTask ShowAsync(CancellationToken ct)
         {

@@ -18,7 +18,10 @@ namespace Game.Core.Configs
         {
             if (!float.IsFinite(enemyTerritoryGracePeriod) || enemyTerritoryGracePeriod < 0
                 || !float.IsFinite(enemyTerritoryDamageInterval) || enemyTerritoryDamageInterval <= 0 || enemyTerritoryDamage < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(enemyTerritoryGracePeriod));
+            }
+
             MaxHp = maxHp;
             MoveSpeed = moveSpeed;
             Radius = radius;

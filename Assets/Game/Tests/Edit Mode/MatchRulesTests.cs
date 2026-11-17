@@ -42,9 +42,18 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var rules = new MatchRules(Setup.MatchConfig(duration: 60));
-            rules.Begin(0, true, true, 1, 1); rules.ArenaPlaced(0); rules.Advance(3, 1, 1);
-            for (int i = 0; i < a; i++) rules.AddKill(Team.A);
-            for (int i = 0; i < b; i++) rules.AddKill(Team.B);
+            rules.Begin(0, true, true, 1, 1);
+            rules.ArenaPlaced(0);
+            rules.Advance(3, 1, 1);
+            for (int i = 0; i < a; i++)
+            {
+                rules.AddKill(Team.A);
+            }
+
+            for (int i = 0; i < b; i++)
+            {
+                rules.AddKill(Team.B);
+            }
             // Act.
             rules.Advance(63, 1, 1);
             // Assert.
@@ -57,7 +66,9 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var rules = new MatchRules(Setup.MatchConfig(killsToWin: 1));
-            rules.Begin(0, true, true, 1, 1); rules.ArenaPlaced(0); rules.Advance(3, 1, 1);
+            rules.Begin(0, true, true, 1, 1);
+            rules.ArenaPlaced(0);
+            rules.Advance(3, 1, 1);
             rules.AddKill(Team.B);
             // Act.
             rules.Advance(4, 1, 1);
@@ -71,7 +82,9 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var rules = new MatchRules(Setup.MatchConfig());
-            rules.Begin(0, true, true, 1, 1); rules.ArenaPlaced(0); rules.Advance(3, 1, 1);
+            rules.Begin(0, true, true, 1, 1);
+            rules.ArenaPlaced(0);
+            rules.Advance(3, 1, 1);
             // Act.
             rules.Advance(4, 0, 1);
             // Assert.
@@ -84,8 +97,11 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var rules = new MatchRules(Setup.MatchConfig(killsToWin: 1));
-            rules.Begin(0, true, true, 1, 1); rules.ArenaPlaced(0); rules.Advance(3, 1, 1);
-            rules.AddKill(Team.A); rules.Advance(4, 1, 1);
+            rules.Begin(0, true, true, 1, 1);
+            rules.ArenaPlaced(0);
+            rules.Advance(3, 1, 1);
+            rules.AddKill(Team.A);
+            rules.Advance(4, 1, 1);
             // Act.
             bool accepted = rules.Rematch(10, true, 1, 1);
             // Assert.
@@ -100,7 +116,10 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var rules = new MatchRules(Setup.MatchConfig());
-            rules.Begin(0, true, true, 1, 1); rules.ArenaPlaced(0); rules.Advance(3, 1, 1); rules.Advance(4, 0, 1);
+            rules.Begin(0, true, true, 1, 1);
+            rules.ArenaPlaced(0);
+            rules.Advance(3, 1, 1);
+            rules.Advance(4, 0, 1);
             // Act.
             bool accepted = rules.ReturnToLobby(false);
             // Assert.

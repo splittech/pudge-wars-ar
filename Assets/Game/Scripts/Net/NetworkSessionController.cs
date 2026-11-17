@@ -36,16 +36,24 @@ namespace Game.Net
         public void CreateGame()
         {
             if (!CanStart)
+            {
                 return;
+            }
+
             if (!PrepareNickname())
+            {
                 return;
+            }
+
             _manager.Discovery.StopSearch();
             long id = _attempt.Begin(true);
             try
             {
                 _manager.StartHostSession();
                 if (!_manager.HasActiveSession)
+                {
                     _attempt.Fail(id, "Could not create game.");
+                }
             }
             catch (Exception exception)
             {
@@ -58,14 +66,20 @@ namespace Game.Net
         public void Connect(string input)
         {
             if (!CanStart)
+            {
                 return;
+            }
+
             if (!Ipv4Endpoint.TryValidate(input, out string address))
             {
                 _attempt.ShowValidationError("Enter an IPv4 address, e.g. 192.168.1.10");
                 return;
             }
             if (!PrepareNickname())
+            {
                 return;
+            }
+
             long id = _attempt.Begin(false);
             _manager.Discovery.StopSearch();
             CancelTimeout();
@@ -96,15 +110,22 @@ namespace Game.Net
         public void Cancel()
         {
             if (!CanCancel)
+            {
                 return;
+            }
+
             _attempt.End(true);
             _manager.Discovery.StopSearch();
             _attempt.ShowValidationError("Cancelled.");
             CancelTimeout();
             if (NetworkServer.active || (NetworkClient.connection != null && NetworkClient.connection.isAuthenticated))
+            {
                 _manager.StopSession();
+            }
             else
+            {
                 _manager.StopSessionAfterFailure();
+            }
         }
 
         private async UniTaskVoid WaitForConnectionAsync(long id, CancellationToken ct)
@@ -114,7 +135,9 @@ namespace Game.Net
             {
                 await UniTask.WaitUntil(() => NetworkTime.time >= deadline, cancellationToken: ct);
                 if (_attempt.Fail(id, "Connection timed out (5 s). Check the IP and Wi-Fi."))
+                {
                     _manager.StopSessionAfterFailure();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -137,9 +160,14 @@ namespace Game.Net
         private void OnError(string reason)
         {
             if (_attempt.IsPending)
+            {
                 _attempt.Fail(_attempt.Id, reason);
+            }
             else
+            {
                 _attempt.End(false);
+            }
+
             CancelTimeout();
             _manager.StopSessionAfterFailure();
         }
@@ -147,7 +175,10 @@ namespace Game.Net
         public void SearchGames()
         {
             if (!CanStart)
+            {
                 return;
+            }
+
             try
             {
                 _manager.Discovery.Search();
@@ -168,7 +199,9 @@ namespace Game.Net
         public void SetNickname(string value)
         {
             if (CanStart)
+            {
                 Nickname = value;
+            }
         }
 
         private bool PrepareNickname()
@@ -194,7 +227,10 @@ namespace Game.Net
         public void Dispose()
         {
             if (_disposed)
+            {
                 return;
+            }
+
             _disposed = true;
             _manager.ClientConnected -= OnConnected;
             _manager.SessionEnded -= OnEnded;

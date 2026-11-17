@@ -19,7 +19,8 @@ namespace Game.Tests.EditMode
                 root.transform.SetPositionAndRotation(new Vector3(5, 2, -3), Quaternion.Euler(20, yaw, 0));
                 root.transform.localScale = Vector3.one * scale;
                 var camera = cameraObject.AddComponent<Camera>();
-                camera.orthographic = true; camera.orthographicSize = 20;
+                camera.orthographic = true;
+                camera.orthographicSize = 20;
                 camera.transform.position = root.transform.position + root.transform.up * 10;
                 camera.transform.rotation = Quaternion.LookRotation(-root.transform.up, root.transform.forward);
                 var space = root.AddComponent<FlatArenaSpace>();
@@ -40,7 +41,11 @@ namespace Game.Tests.EditMode
                 root.SetActive(false);
                 Assert.That(space.TryScreenToArena(screen, out _), Is.False);
             }
-            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(cameraObject); }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(cameraObject);
+            }
         }
     }
 }

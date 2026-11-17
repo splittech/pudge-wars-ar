@@ -19,14 +19,22 @@ namespace Game.Net.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(AssetPath));
             File.WriteAllText(AssetPath, JsonUtility.ToJson(new NetworkBuildInfo.Data
             {
-                commit = NetworkBuildInfo.ReadGitCommit(Path.GetFullPath(Path.Combine(Application.dataPath, ".."))), buildUtc = DateTime.UtcNow.ToString("O")
+                commit = NetworkBuildInfo.ReadGitCommit(Path.GetFullPath(Path.Combine(Application.dataPath, ".."))),
+                buildUtc = DateTime.UtcNow.ToString("O")
             }));
             AssetDatabase.ImportAsset(AssetPath);
         }
         public void OnPostprocessBuild(BuildReport report)
         {
-            if (_previous == null) AssetDatabase.DeleteAsset(AssetPath);
-            else { File.WriteAllText(AssetPath, _previous); AssetDatabase.ImportAsset(AssetPath); }
+            if (_previous == null)
+            {
+                AssetDatabase.DeleteAsset(AssetPath);
+            }
+            else
+            {
+                File.WriteAllText(AssetPath, _previous);
+                AssetDatabase.ImportAsset(AssetPath);
+            }
         }
     }
 }

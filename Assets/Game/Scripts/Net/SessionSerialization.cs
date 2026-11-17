@@ -13,7 +13,10 @@ namespace Game.Net
         {
             Require(value.Count > 0 && value.Count <= 4);
             writer.WriteByte(value.Count);
-            for (int i = 0; i < value.Count; i++) writer.WriteMovementFrame(value.Get(i));
+            for (int i = 0; i < value.Count; i++)
+            {
+                writer.WriteMovementFrame(value.Get(i));
+            }
         }
 
         public static MovementBatch ReadMovementBatch(this NetworkReader reader)
@@ -21,7 +24,11 @@ namespace Game.Net
             byte count = reader.ReadByte();
             Require(count > 0 && count <= 4);
             var batch = new MovementBatch();
-            for (int i = 0; i < count; i++) batch.Add(reader.ReadMovementFrame());
+            for (int i = 0; i < count; i++)
+            {
+                batch.Add(reader.ReadMovementFrame());
+            }
+
             return batch;
         }
         private static readonly UTF8Encoding Utf8 = new(false, true);
@@ -38,7 +45,9 @@ namespace Game.Net
             Require(reader.Remaining >= 4);
             return new AuthRequest
             {
-                ProtocolVersion = reader.ReadInt(), Nickname = ReadText(reader, 192), ReconnectToken = ReadToken(reader)
+                ProtocolVersion = reader.ReadInt(),
+                Nickname = ReadText(reader, 192),
+                ReconnectToken = ReadToken(reader)
             };
         }
 
@@ -58,9 +67,12 @@ namespace Game.Net
             Require(reader.Remaining >= 9);
             var value = new AuthResponse
             {
-                ProtocolVersion = reader.ReadInt(), Code = (AuthCode)reader.ReadByte(),
-                SessionPlayerId = reader.ReadUInt(), Nickname = ReadText(reader, 64),
-                SessionEpoch = ReadAuthEpoch(reader), ReconnectToken = ReadToken(reader)
+                ProtocolVersion = reader.ReadInt(),
+                Code = (AuthCode)reader.ReadByte(),
+                SessionPlayerId = reader.ReadUInt(),
+                Nickname = ReadText(reader, 64),
+                SessionEpoch = ReadAuthEpoch(reader),
+                ReconnectToken = ReadToken(reader)
             };
             Validate(value);
             return value;
@@ -80,8 +92,11 @@ namespace Game.Net
         {
             var value = new PlayerInfo
             {
-                SessionPlayerId = reader.ReadUInt(), Nickname = ReadText(reader, 64),
-                Team = (Team)reader.ReadByte(), Ready = ReadFlag(reader), Connected = ReadFlag(reader)
+                SessionPlayerId = reader.ReadUInt(),
+                Nickname = ReadText(reader, 64),
+                Team = (Team)reader.ReadByte(),
+                Ready = ReadFlag(reader),
+                Connected = ReadFlag(reader)
             };
             Validate(value);
             return value;
@@ -93,7 +108,11 @@ namespace Game.Net
             writer.WriteUInt(value.Sequence);
             writer.WriteUInt(value.ClientTick);
             writer.WriteBool(value.HasMoveTarget);
-            if (value.HasMoveTarget) writer.WriteVector2(value.Target);
+            if (value.HasMoveTarget)
+            {
+                writer.WriteVector2(value.Target);
+            }
+
             writer.WriteUInt(value.SessionEpoch);
         }
 
@@ -101,9 +120,15 @@ namespace Game.Net
         {
             var value = new MovementFrame
             {
-                Sequence = reader.ReadUInt(), ClientTick = reader.ReadUInt(), HasMoveTarget = ReadFlag(reader)
+                Sequence = reader.ReadUInt(),
+                ClientTick = reader.ReadUInt(),
+                HasMoveTarget = ReadFlag(reader)
             };
-            if (value.HasMoveTarget) value.Target = reader.ReadVector2();
+            if (value.HasMoveTarget)
+            {
+                value.Target = reader.ReadVector2();
+            }
+
             value.SessionEpoch = reader.ReadUInt();
             Validate(value);
             return value;
@@ -127,10 +152,15 @@ namespace Game.Net
         {
             var value = new MovementSnapshot
             {
-                ServerTick = reader.ReadUInt(), ServerTime = reader.ReadDouble(),
-                AckSequence = reader.ReadUInt(), SessionEpoch = reader.ReadUInt(),
-                Pos = reader.ReadVector2(), MoveTarget = reader.ReadVector2(), MoveSpeed = reader.ReadFloat(),
-                Alive = ReadFlag(reader), IsPulled = ReadFlag(reader)
+                ServerTick = reader.ReadUInt(),
+                ServerTime = reader.ReadDouble(),
+                AckSequence = reader.ReadUInt(),
+                SessionEpoch = reader.ReadUInt(),
+                Pos = reader.ReadVector2(),
+                MoveTarget = reader.ReadVector2(),
+                MoveSpeed = reader.ReadFloat(),
+                Alive = ReadFlag(reader),
+                IsPulled = ReadFlag(reader)
             };
             Validate(value);
             return value;
@@ -138,7 +168,10 @@ namespace Game.Net
 
         internal static void Require(bool condition)
         {
-            if (!condition) throw new InvalidDataException("Invalid network payload.");
+            if (!condition)
+            {
+                throw new InvalidDataException("Invalid network payload.");
+            }
         }
 
         internal static bool Finite(Vector2 value) => float.IsFinite(value.x) && float.IsFinite(value.y);
@@ -168,7 +201,10 @@ namespace Game.Net
             int count = reader.ReadUShort();
             Require(count <= maxBytes && reader.Remaining >= count);
             var bytes = reader.ReadBytesSegment(count);
-            try { return Utf8.GetString(bytes.Array, bytes.Offset, bytes.Count); }
+            try
+            {
+                return Utf8.GetString(bytes.Array, bytes.Offset, bytes.Count);
+            }
             catch (DecoderFallbackException) { throw new InvalidDataException("Invalid network UTF-8."); }
         }
 
@@ -181,7 +217,10 @@ namespace Game.Net
         private static void WriteToken(NetworkWriter writer, string token)
         {
             writer.WriteBool(token != null);
-            if (token != null) WriteText(writer, token, 32);
+            if (token != null)
+            {
+                WriteText(writer, token, 32);
+            }
         }
 
         private static string ReadToken(NetworkReader reader) => ReadFlag(reader) ? ReadText(reader, 32) : null;
@@ -202,8 +241,10 @@ namespace Game.Net
                 Require(NicknamePolicy.TryNormalize(value.Nickname, out string name) && name == value.Nickname);
             }
             else
+            {
                 Require(value.SessionPlayerId == 0 && value.SessionEpoch == 0 && string.IsNullOrEmpty(value.Nickname)
                     && value.ReconnectToken == null);
+            }
         }
 
         private static void Validate(MovementFrame value) => Require(value.Sequence != 0

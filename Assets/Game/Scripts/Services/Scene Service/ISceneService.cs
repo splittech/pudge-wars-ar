@@ -7,7 +7,10 @@ namespace Game.Services.SceneService
 {
     public interface ISceneService
     {
-        HashSet<SceneMetaAsset> LoadedScenes { get; }
+        HashSet<SceneMetaAsset> LoadedScenes
+        {
+            get;
+        }
 
         UniTask LoadSceneAsync(
             SceneMetaAsset sceneAsset,

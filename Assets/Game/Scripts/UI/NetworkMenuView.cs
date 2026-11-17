@@ -18,7 +18,11 @@ namespace Game.UI
         [Inject]
         public void Construct(NetworkSessionController controller) => _controller = controller;
         public void SetTrainingAction(Action training) => _training = training;
-        public void SetArenaModeActions(Action toggle, Func<bool> useAR) { _toggleArenaMode = toggle; _useAR = useAR; }
+        public void SetArenaModeActions(Action toggle, Func<bool> useAR)
+        {
+            _toggleArenaMode = toggle;
+            _useAR = useAR;
+        }
 
         private void Start()
         {
@@ -29,6 +33,10 @@ namespace Game.UI
         }
 
         private void Update() => _presenter?.Tick();
-        private void OnDestroy() { _presenter?.Dispose(); _training = null; }
+        private void OnDestroy()
+        {
+            _presenter?.Dispose();
+            _training = null;
+        }
     }
 }

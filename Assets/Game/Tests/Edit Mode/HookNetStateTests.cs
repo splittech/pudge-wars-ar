@@ -16,8 +16,10 @@ namespace Game.Tests.EditMode
             // Arrange.
             var state = new HookNetState
             {
-                Phase = HookPhase.Extending, Origin = new Vector2(-4, 2),
-                Dir = Vector2.right, StartTime = 10
+                Phase = HookPhase.Extending,
+                Origin = new Vector2(-4, 2),
+                Dir = Vector2.right,
+                StartTime = 10
             };
 
             // Act.
@@ -34,8 +36,11 @@ namespace Game.Tests.EditMode
             // Arrange.
             var state = new HookNetState
             {
-                Phase = phase, Origin = new Vector2(-4, 0), Dir = Vector2.right,
-                TurnTime = 10, TurnLength = 8
+                Phase = phase,
+                Origin = new Vector2(-4, 0),
+                Dir = Vector2.right,
+                TurnTime = 10,
+                TurnLength = 8
             };
 
             // Act.
@@ -51,7 +56,10 @@ namespace Game.Tests.EditMode
             // Arrange.
             var state = new HookNetState
             {
-                Phase = HookPhase.Retracting, Dir = Vector2.right, TurnLength = 8, TurnTime = 10
+                Phase = HookPhase.Retracting,
+                Dir = Vector2.right,
+                TurnLength = 8,
+                TurnTime = 10
             };
             Vector2 owner = new(-1, 3);
 
@@ -84,9 +92,17 @@ namespace Game.Tests.EditMode
             // Arrange.
             var expected = new HookNetState
             {
-                Phase = HookPhase.Pulling, Origin = new Vector2(-4, 2), Dir = Vector2.right,
-                StartTime = 100.125, TurnTime = 100.5, TurnLength = 7.5f, TargetNetId = targetNetId,
-                RequestId = uint.MaxValue, SessionEpoch = 7, SegmentRange = 3.5f, HalfBounds = new Vector2(11, 6)
+                Phase = HookPhase.Pulling,
+                Origin = new Vector2(-4, 2),
+                Dir = Vector2.right,
+                StartTime = 100.125,
+                TurnTime = 100.5,
+                TurnLength = 7.5f,
+                TargetNetId = targetNetId,
+                RequestId = uint.MaxValue,
+                SessionEpoch = 7,
+                SegmentRange = 3.5f,
+                HalfBounds = new Vector2(11, 6)
             };
             using var writer = NetworkWriterPool.Get();
 

@@ -30,7 +30,10 @@ namespace Game.Services.Editor.Common
         /// <summary>
         /// Names of the serialized list fields holding the entries.
         /// </summary>
-        protected abstract IReadOnlyCollection<string> EntriesPropertyNames { get; }
+        protected abstract IReadOnlyCollection<string> EntriesPropertyNames
+        {
+            get;
+        }
 
         protected abstract void CollectEntries();
 
@@ -43,7 +46,9 @@ namespace Game.Services.Editor.Common
             T window = GetWindow<T>(title);
 
             if (isNew)
+            {
                 window.position = new Rect(window.position.position, new Vector2(DefaultWidth, DefaultHeight));
+            }
         }
 
         protected virtual void OnEnable()
@@ -82,7 +87,9 @@ namespace Game.Services.Editor.Common
             File.WriteAllText(EntryOrderPath, JsonUtility.ToJson(order, true));
         }
 
-        protected override void LoadWindowData(string dataPath) { }
+        protected override void LoadWindowData(string dataPath)
+        {
+        }
 
         [Button]
         private void Refresh()
@@ -114,7 +121,9 @@ namespace Game.Services.Editor.Common
         private void RestoreScrollOffset(Vector2 scrollOffset)
         {
             if (scrollOffset == Vector2.zero)
+            {
                 return;
+            }
 
             // The offset is clamped to the scrollable range, which is known only after the first layout pass.
             ScrollView scrollView = _scrollView;
@@ -133,7 +142,9 @@ namespace Game.Services.Editor.Common
         private void ApplyEntryOrder()
         {
             if (!File.Exists(EntryOrderPath))
+            {
                 return;
+            }
 
             EntryOrder order = JsonUtility.FromJson<EntryOrder>(File.ReadAllText(EntryOrderPath));
             SerializedObject serializedObject = new(this);
@@ -143,7 +154,9 @@ namespace Game.Services.Editor.Common
                 List<string> savedKeys = order.Lists.Find(list => list.PropertyName == propertyName)?.Keys;
 
                 if (savedKeys == null)
+                {
                     continue;
+                }
 
                 SerializedProperty entries = serializedObject.FindProperty(propertyName);
                 List<string> keys = GetEntryKeys(entries);
@@ -170,7 +183,9 @@ namespace Game.Services.Editor.Common
             List<string> keys = new(entries.arraySize);
 
             for (int i = 0; i < entries.arraySize; i++)
+            {
                 keys.Add(entries.GetArrayElementAtIndex(i).FindPropertyRelative(EntryKeyPropertyName).stringValue);
+            }
 
             return keys;
         }
@@ -185,7 +200,9 @@ namespace Game.Services.Editor.Common
                 SerializedProperty entries = serializedObject.FindProperty(propertyName);
 
                 for (int i = 0; i < entries.arraySize; i++)
+                {
                     entries.GetArrayElementAtIndex(i).isExpanded = true;
+                }
             }
         }
 
@@ -205,7 +222,9 @@ namespace Game.Services.Editor.Common
                     bindItem(element, index);
 
                     foreach (VisualElement content in element.Children())
+                    {
                         content.style.paddingTop = EntrySpacing;
+                    }
                 };
             }
         }

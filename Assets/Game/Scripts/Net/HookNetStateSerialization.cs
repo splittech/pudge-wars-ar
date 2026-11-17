@@ -50,7 +50,9 @@ namespace Game.Net
                 && SessionSerialization.Finite(value.HalfBounds) && value.HalfBounds.x >= 0 && value.HalfBounds.y >= 0
                 && float.IsFinite(value.TurnLength) && value.TurnLength >= 0);
             if (value.Phase != HookPhase.Idle)
+            {
                 SessionSerialization.Require(UnityEngine.Mathf.Abs(value.Dir.sqrMagnitude - 1) < 0.001f);
+            }
         }
     }
 }

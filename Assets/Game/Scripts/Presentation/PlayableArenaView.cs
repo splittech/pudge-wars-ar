@@ -32,10 +32,18 @@ namespace Game.Presentation
         private void LateUpdate()
         {
             var hero = Game.Net.HeroNet.Local;
-            if (ReferenceEquals(hero, null)) return;
+            if (ReferenceEquals(hero, null))
+            {
+                return;
+            }
+
             bool visible = hero.CanAct && hero.Alive;
             _aim.gameObject.SetActive(visible);
-            if (!visible) return;
+            if (!visible)
+            {
+                return;
+            }
+
             var aim = _router.Aim.CurrentValue;
             _aim.enabled = aim.IsActive;
             float range = hero.CurrentStatus.Range > 0 ? hero.CurrentStatus.Range : _range;
@@ -78,7 +86,10 @@ namespace Game.Presentation
             HookState previousHook, float alpha)
         {
             if (_camera.aspect != _aspect)
+            {
                 FitCamera();
+            }
+
             var hero = simulation.GetHero(0);
             var dummy = simulation.GetHero(1);
             float2 heroPosition = math.lerp(previousHero.Pos, hero.Pos, alpha);

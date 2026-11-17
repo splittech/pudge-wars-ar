@@ -45,7 +45,10 @@ namespace Game.Tests.EditMode
         {
             var list = new LanServerList();
             for (int i = 0; i <= LanServerList.Capacity; i++)
+            {
                 list.Observe(i, "127.0.0.1", 0);
+            }
+
             Assert.That(list.Servers.Count, Is.EqualTo(LanServerList.Capacity));
             list.Observe(0, "127.0.0.2", 5);
             list.RemoveExpired(10);

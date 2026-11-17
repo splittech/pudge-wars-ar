@@ -40,10 +40,14 @@ namespace Game.Services.AudioService
         public SoundInstance PlaySound(SoundMetaAsset soundAsset, bool autoStart)
         {
             if (!SetupSound(soundAsset, out var sound))
+            {
                 return null;
+            }
 
             if (autoStart)
+            {
                 sound.Play();
+            }
 
             return sound;
         }
@@ -51,12 +55,16 @@ namespace Game.Services.AudioService
         public SoundInstance PlaySpatialSound(SoundMetaAsset soundAsset, Vector3 position, bool autoStart)
         {
             if (!SetupSound(soundAsset, out var sound))
+            {
                 return null;
+            }
 
             sound.SetSpatial(true);
             sound.SetPosition(position);
             if (autoStart)
+            {
                 sound.Play();
+            }
 
             return sound;
         }

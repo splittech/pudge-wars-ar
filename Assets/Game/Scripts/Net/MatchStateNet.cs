@@ -20,7 +20,10 @@ namespace Game.Net
         private readonly PlacementReadiness _placement = new();
         private readonly System.Collections.Generic.List<uint> _placementIds = new();
         private float _placementTimeout;
-        public static MatchStateNet Active { get; private set; }
+        public static MatchStateNet Active
+        {
+            get; private set;
+        }
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetActive() => Active = null;
         public MatchSummary Summary => _summary;
@@ -37,8 +40,19 @@ namespace Game.Net
                 int a = 0, b = 0;
                 foreach (var player in Players)
                 {
-                    if (!player.Connected || !player.Ready) return false;
-                    if (player.Team == Team.A) a++; else b++;
+                    if (!player.Connected || !player.Ready)
+                    {
+                        return false;
+                    }
+
+                    if (player.Team == Team.A)
+                    {
+                        a++;
+                    }
+                    else
+                    {
+                        b++;
+                    }
                 }
                 return _summary.Phase == MatchPhase.Lobby && a > 0 && b > 0;
             }
@@ -46,7 +60,9 @@ namespace Game.Net
 
         internal void BindRuntime(MatchSimulation simulation, PudgeNetworkManager manager, ServerPlayerCommands commands)
         {
-            _simulation = simulation; _manager = manager; _commands = commands;
+            _simulation = simulation;
+            _manager = manager;
+            _commands = commands;
             Active = this;
             Publish();
         }
@@ -54,57 +70,133 @@ namespace Game.Net
         internal void Publish()
         {
             var rules = _simulation?.Rules;
-            if (rules == null) return;
-            _summary = new MatchSummary { Phase = rules.Phase, CountdownEnd = rules.CountdownEnd,
-                MatchEnd = rules.MatchEnd, ScoreA = rules.ScoreA, ScoreB = rules.ScoreB, Winner = rules.Winner };
+            if (rules == null)
+            {
+                return;
+            }
+
+            _summary = new MatchSummary
+            {
+                Phase = rules.Phase,
+                CountdownEnd = rules.CountdownEnd,
+                MatchEnd = rules.MatchEnd,
+                ScoreA = rules.ScoreA,
+                ScoreB = rules.ScoreB,
+                Winner = rules.Winner
+            };
             _state.Value = _summary;
             for (int i = 0; i < _simulation.HeroCount; i++)
             {
                 var hero = _simulation.GetHero(i);
-                var stats = new PlayerMatchStats { PlayerId = hero.Id, Team = hero.Team,
-                    Kills = hero.Kills, Deaths = hero.Deaths, Assists = hero.Assists, HookHits = hero.HookHits };
-                foreach (var info in Players) if (info.SessionPlayerId == hero.Id) stats.Nickname = info.Nickname;
+                var stats = new PlayerMatchStats
+                {
+                    PlayerId = hero.Id,
+                    Team = hero.Team,
+                    Kills = hero.Kills,
+                    Deaths = hero.Deaths,
+                    Assists = hero.Assists,
+                    HookHits = hero.HookHits
+                };
+                foreach (var info in Players)
+                {
+                    if (info.SessionPlayerId == hero.Id)
+                    {
+                        stats.Nickname = info.Nickname;
+                    }
+                }
+
                 int index = -1;
-                for (int j = 0; j < Statistics.Count; j++) if (Statistics[j].PlayerId == hero.Id) { index = j; break; }
-                if (index < 0) Statistics.Add(stats);
-                else if (!Statistics[index].Equals(stats)) Statistics[index] = stats;
+                for (int j = 0; j < Statistics.Count; j++)
+                {
+                    if (Statistics[j].PlayerId == hero.Id)
+                    {
+                        index = j;
+                        break;
+                    }
+                }
+
+                if (index < 0)
+                {
+                    Statistics.Add(stats);
+                }
+                else if (!Statistics[index].Equals(stats))
+                {
+                    Statistics[index] = stats;
+                }
             }
         }
 
         private void Update()
         {
-            if (isServer) { AdvancePlacement(NetworkTime.time); Publish(); }
+            if (isServer)
+            {
+                AdvancePlacement(NetworkTime.time);
+                Publish();
+            }
         }
 
         private void AdvancePlacement(double now)
         {
-            if (_simulation?.Rules.Phase != MatchPhase.Placement) return;
+            if (_simulation?.Rules.Phase != MatchPhase.Placement)
+            {
+                return;
+            }
+
             _placementIds.Clear();
             foreach (uint id in _placement.Pending)
             {
                 bool exists = false;
-                foreach (var player in Players) if (player.SessionPlayerId == id) { exists = true; break; }
-                if (!exists || now >= _placement.Deadline) _placementIds.Add(id);
+                foreach (var player in Players)
+                {
+                    if (player.SessionPlayerId == id)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (!exists || now >= _placement.Deadline)
+                {
+                    _placementIds.Add(id);
+                }
             }
             foreach (uint id in _placementIds)
             {
                 _placement.Remove(id);
-                if (now >= _placement.Deadline) _manager.ExpirePlacementPlayer(id);
-                if (!NetworkServer.active) return;
+                if (now >= _placement.Deadline)
+                {
+                    _manager.ExpirePlacementPlayer(id);
+                }
+
+                if (!NetworkServer.active)
+                {
+                    return;
+                }
             }
-            if (_placement.Complete) _simulation.Rules.ArenaPlaced(now);
+            if (_placement.Complete)
+            {
+                _simulation.Rules.ArenaPlaced(now);
+            }
         }
 
         [Server]
         internal bool LobbyAction(uint id, byte action, Team team, bool value, bool host)
         {
             var rules = _simulation?.Rules;
-            if (rules == null) return false;
+            if (rules == null)
+            {
+                return false;
+            }
+
             bool accepted = false;
             if (action == 0 && rules.Phase == MatchPhase.Lobby)
+            {
                 accepted = _manager.Roster.SetTeam(id, team) && _simulation.SetTeam(id, team);
+            }
             else if (action == 1 && rules.Phase == MatchPhase.Lobby)
+            {
                 accepted = _manager.Roster.SetReady(id, value);
+            }
             else if (action == 2)
             {
                 accepted = rules.Begin(NetworkTime.time, host, CanStart,
@@ -112,32 +204,50 @@ namespace Game.Net
                 if (accepted)
                 {
                     _placementIds.Clear();
-                    foreach (var player in Players) _placementIds.Add(player.SessionPlayerId);
+                    foreach (var player in Players)
+                    {
+                        _placementIds.Add(player.SessionPlayerId);
+                    }
+
                     _placement.Begin(_placementIds, NetworkTime.time, _placementTimeout);
                 }
             }
             else if (action == 3 && rules.Phase == MatchPhase.Placement)
             {
                 accepted = _placement.Confirm(id, NetworkTime.time);
-                if (accepted) AdvancePlacement(NetworkTime.time);
+                if (accepted)
+                {
+                    AdvancePlacement(NetworkTime.time);
+                }
             }
             else if (action == 4)
+            {
                 accepted = rules.Rematch(NetworkTime.time, host,
                     _simulation.CountTeam(Team.A), _simulation.CountTeam(Team.B));
+            }
             else if (action == 5)
+            {
                 accepted = rules.ReturnToLobby(host);
-            if (!accepted) return false;
+            }
+
+            if (!accepted)
+            {
+                return false;
+            }
+
             if (action == 2 || action == 4 || action == 5)
             {
                 _simulation.ResetRound();
                 Statistics.Clear();
                 _manager.Roster.ClearReady();
                 foreach (var identity in NetworkServer.spawned.Values)
+                {
                     if (identity.TryGetComponent<HeroNet>(out var hero))
                     {
                         _commands.Remove(hero.SessionPlayerId);
                         hero.ResetRoundEpoch(_manager.Roster.AdvanceEpoch(hero.SessionPlayerId));
                     }
+                }
             }
             Publish();
             return true;
@@ -156,19 +266,34 @@ namespace Game.Net
 
         private void OnDestroy()
         {
-            if (Active == this) Active = null;
+            if (Active == this)
+            {
+                Active = null;
+            }
+
             Players.OnChange -= OnPlayersChanged;
             Statistics.OnChange -= OnStatisticsChanged;
-            _state.Dispose(); _contentRevision.Dispose(); Events.Dispose();
+            _state.Dispose();
+            _contentRevision.Dispose();
+            Events.Dispose();
         }
-        public bool HasDependencies { get; private set; }
-        public bool ClientStartedAfterInjection { get; private set; }
+        public bool HasDependencies
+        {
+            get; private set;
+        }
+        public bool ClientStartedAfterInjection
+        {
+            get; private set;
+        }
 
         [Inject]
         public void Construct(MatchConfig config)
         {
             if (config == null)
+            {
                 throw new ArgumentNullException(nameof(config));
+            }
+
             HasDependencies = true;
             _placementTimeout = config.ToData().PlacementTimeout;
         }
@@ -188,7 +313,9 @@ namespace Game.Net
         private void RequireDependencies()
         {
             if (!HasDependencies)
+            {
                 throw new InvalidOperationException("MatchStateNet must be created through NetworkPrefabFactory before network callbacks.");
+            }
         }
     }
 }

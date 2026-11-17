@@ -15,7 +15,10 @@ namespace Game.Tests.EditMode
         public void TearDown()
         {
             foreach (ScriptableObject config in _configs)
+            {
                 Object.DestroyImmediate(config);
+            }
+
             _configs.Clear();
         }
 

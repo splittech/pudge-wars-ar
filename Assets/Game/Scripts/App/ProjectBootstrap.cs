@@ -14,7 +14,10 @@ namespace Game.App
         private IGameLoadingScreen _loadingScreen;
         private ISceneService _sceneService;
 
-        public bool IsInitialized { get; private set; }
+        public bool IsInitialized
+        {
+            get; private set;
+        }
 
         [Inject]
         public void Construct(IGameLoadingScreen loadingScreen, ISceneService sceneService)

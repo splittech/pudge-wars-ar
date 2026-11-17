@@ -24,9 +24,13 @@ namespace Game.Services.RaycastService
             _camera = camera;
 
             if (_config.PointAction != null)
+            {
                 _config.PointAction.action.Enable();
+            }
             else
+            {
                 Debug.LogError($"[{nameof(RaycastService)}] Point Action is not assigned in {_config.name}", _config);
+            }
         }
 
         public void SwitchCamera(Camera camera, RectTransform view = null)
@@ -46,14 +50,18 @@ namespace Game.Services.RaycastService
             ray = default;
 
             if (_config == null || _config.PointAction == null || _camera == null || !Application.isFocused)
+            {
                 return false;
+            }
 
             Vector2 screenPos = _config.PointAction.action.ReadValue<Vector2>();
 
             if (_view != null)
             {
                 if (!TryGetViewPoint(screenPos, out Vector2 viewportPoint))
+                {
                     return false;
+                }
 
                 ray = _camera.ViewportPointToRay(viewportPoint);
                 return true;
@@ -61,7 +69,9 @@ namespace Game.Services.RaycastService
 
             // Курсор вне области, которую рисует камера (или вне окна игры)
             if (!_camera.pixelRect.Contains(screenPos))
+            {
                 return false;
+            }
 
             ray = _camera.ScreenPointToRay(screenPos);
             return true;
@@ -79,12 +89,16 @@ namespace Game.Services.RaycastService
 
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_view, screenPos, uiCamera,
                     out Vector2 localPoint))
+            {
                 return false;
+            }
 
             Rect rect = _view.rect;
 
             if (!rect.Contains(localPoint))
+            {
                 return false;
+            }
 
             viewportPoint = Rect.PointToNormalized(rect, localPoint);
             return true;
@@ -95,11 +109,15 @@ namespace Game.Services.RaycastService
             component = null;
 
             if (!TryGetPointerRay(out Ray ray))
+            {
                 return false;
+            }
 
             if (!Physics.Raycast(ray, out RaycastHit hit, _config.MaxRaycastDistance,
                     layerMask, QueryTriggerInteraction.Ignore))
+            {
                 return false;
+            }
 
             component = hit.collider.GetComponentInParent<T>();
             return component != null;
@@ -113,7 +131,9 @@ namespace Game.Services.RaycastService
             _debugHit = false;
 
             if (_config == null || !_config.ShowDebugRay || !TryGetPointerRay(out Ray ray))
+            {
                 return;
+            }
 
             _hasDebugRay = true;
             _debugRay = ray;
@@ -125,13 +145,17 @@ namespace Game.Services.RaycastService
         private void OnDestroy()
         {
             if (_config != null && _config.PointAction != null)
+            {
                 _config.PointAction.action.Disable();
+            }
         }
 
         private void OnDrawGizmos()
         {
             if (_config == null || !_config.ShowDebugRay || !_hasDebugRay)
+            {
                 return;
+            }
 
             Gizmos.color = _config.DebugRayColor;
 

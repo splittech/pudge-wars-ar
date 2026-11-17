@@ -31,7 +31,10 @@ namespace Game.Presentation
             _healthSubscription = _hero.Health.Subscribe(hp =>
             {
                 if (_lastHp >= 0 && hp < _lastHp)
+                {
                     _flashUntil = Time.unscaledTime + 0.15f;
+                }
+
                 _lastHp = hp;
             });
         }
@@ -46,8 +49,16 @@ namespace Game.Presentation
         {
             _body.enabled = _hero.Alive;
             Vector3 delta = _hero.DisplayPosition - transform.localPosition;
-            if (_body.transform != transform) _body.transform.localPosition = _bodyOrigin + delta;
-            if (_localRing.transform != transform) _localRing.transform.localPosition = _ringOrigin + delta;
+            if (_body.transform != transform)
+            {
+                _body.transform.localPosition = _bodyOrigin + delta;
+            }
+
+            if (_localRing.transform != transform)
+            {
+                _localRing.transform.localPosition = _ringOrigin + delta;
+            }
+
             _hero.PresentedMovementReporter.Invoke(_hero.DisplayPosition);
             bool flash = Time.unscaledTime < _flashUntil;
             if (_shownTeam != _hero.Team || _shownFlash != flash)
@@ -62,7 +73,9 @@ namespace Game.Presentation
             }
             bool showRing = _hero.IsLocalHero && _hero.Alive;
             if (_localRing.activeSelf != showRing)
+            {
                 _localRing.SetActive(showRing);
+            }
         }
     }
 }

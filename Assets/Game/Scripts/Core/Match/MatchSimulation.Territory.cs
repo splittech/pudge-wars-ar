@@ -22,13 +22,21 @@ namespace Game.Core.Match
                     hero.EnemyTerritoryExposed = true;
                     hero.EnemyTerritoryDamageAt = Time + _heroConfig.EnemyTerritoryGracePeriod;
                 }
-                if (Time < hero.EnemyTerritoryDamageAt) continue;
+                if (Time < hero.EnemyTerritoryDamageAt)
+                {
+                    continue;
+                }
+
                 double count = System.Math.Floor((Time - hero.EnemyTerritoryDamageAt) / _heroConfig.EnemyTerritoryDamageInterval) + 1;
                 int damage = (int)System.Math.Min(hero.Hp, count * _heroConfig.EnemyTerritoryDamage);
                 hero.EnemyTerritoryDamageAt += count * _heroConfig.EnemyTerritoryDamageInterval;
                 hero.Hp -= damage;
                 _damage.Add(new HeroDamaged(hero.Id, 0, damage, hero.Hp, Time));
-                if (hero.Hp > 0) continue;
+                if (hero.Hp > 0)
+                {
+                    continue;
+                }
+
                 hero.Alive = false;
                 hero.EnemyTerritoryExposed = false;
                 hero.EnemyTerritoryDamageAt = 0;

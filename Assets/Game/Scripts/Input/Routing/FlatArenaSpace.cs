@@ -14,12 +14,19 @@ namespace Game.Input.Routing
         public bool TryScreenToArena(Vector2 screenPoint, out float2 arenaPoint)
         {
             arenaPoint = default;
-            if (!InputEnabled || _camera == null || !_arenaRoot.gameObject.activeInHierarchy) return false;
+            if (!InputEnabled || _camera == null || !_arenaRoot.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
             var plane = new Plane(_arenaRoot.up, _arenaRoot.position);
             Ray ray = _camera.ScreenPointToRay(screenPoint);
             arenaPoint = default;
             if (!plane.Raycast(ray, out float distance))
+            {
                 return false;
+            }
+
             Vector3 point = _arenaRoot.InverseTransformPoint(ray.GetPoint(distance));
             arenaPoint = new float2(point.x, point.z);
             return true;

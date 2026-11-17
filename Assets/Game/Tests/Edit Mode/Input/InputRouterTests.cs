@@ -35,7 +35,9 @@ namespace Game.Tests.EditMode.Input
             _onTap?.Dispose();
             _onDrag?.Dispose();
             if (_config != null)
+            {
                 Object.DestroyImmediate(_config);
+            }
         }
 
         [Test]

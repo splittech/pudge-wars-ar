@@ -61,14 +61,18 @@ namespace Game.Tests.EditMode
             _manager.OnStopClient();
             Assert.That(_manager.IsChangingScene, Is.True);
             for (int i = 0; i < 30 && _requests.Count == 0; i++)
+            {
                 yield return null;
+            }
 
             Assert.That(_requests, Is.EqualTo(new[] { _loader.OfflineScenePath }));
             Assert.That(_manager.IsChangingScene, Is.True);
             _manager.OnStopClient();
             _completion.TrySetResult();
             for (int i = 0; i < 30 && _manager.IsChangingScene; i++)
+            {
                 yield return null;
+            }
 
             // Assert.
             Assert.That(_manager.IsChangingScene, Is.False);
@@ -84,13 +88,17 @@ namespace Game.Tests.EditMode
             NetworkClient.isLoadingScene = true;
             _manager.OnStopClient();
             for (int i = 0; i < 30 && _requests.Count == 0; i++)
+            {
                 yield return null;
+            }
 
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("InvalidOperationException: Test load failure"));
             // Act.
             _completion.TrySetException(new InvalidOperationException("Test load failure"));
             for (int i = 0; i < 30 && _manager.IsChangingScene; i++)
+            {
                 yield return null;
+            }
 
             // Assert.
             Assert.That(_manager.IsChangingScene, Is.False);

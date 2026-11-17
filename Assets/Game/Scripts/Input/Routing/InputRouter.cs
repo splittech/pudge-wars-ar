@@ -58,7 +58,9 @@ namespace Game.Input.Routing
         private void OnTap(Vector2 screenPoint)
         {
             if (_arenaSpace.TryScreenToArena(screenPoint, out float2 arenaPoint))
+            {
                 _commands.MoveTo(arenaPoint);
+            }
         }
 
         private void OnDrag(DragGesture drag)
@@ -67,17 +69,26 @@ namespace Game.Input.Routing
             {
                 case DragPhase.Began:
                     if (CanStartAim(drag.StartPosition))
+                    {
                         UpdateAim(drag.Position);
+                    }
+
                     break;
 
                 case DragPhase.Moved:
                     if (_aim.Value.IsActive)
+                    {
                         UpdateAim(drag.Position);
+                    }
+
                     break;
 
                 case DragPhase.Ended:
                     if (_aim.Value.IsActive)
+                    {
                         ReleaseAim(drag.Position);
+                    }
+
                     break;
 
                 case DragPhase.Cancelled:
@@ -101,7 +112,9 @@ namespace Game.Input.Routing
             _aim.Value = AimState.Inactive;
 
             if (aim.IsActive && !aim.IsInCancelZone)
+            {
                 _commands.ThrowHook(aim.Direction);
+            }
         }
 
         private void UpdateAim(Vector2 screenPoint)
@@ -115,7 +128,9 @@ namespace Game.Input.Routing
 
             // Keep the last valid direction if the finger leaves the arena plane.
             if (!_arenaSpace.TryScreenToArena(screenPoint, out float2 arenaPoint))
+            {
                 return;
+            }
 
             float2 offset = arenaPoint - heroPosition;
             bool isInCancelZone = math.lengthsq(offset) <= _heroGrabRadius * _heroGrabRadius;

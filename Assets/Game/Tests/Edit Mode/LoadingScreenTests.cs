@@ -14,7 +14,9 @@ namespace Game.Tests.EditMode
         public void TearDown()
         {
             if (_root != null)
+            {
                 UnityEngine.Object.DestroyImmediate(_root);
+            }
         }
 
         [Test]

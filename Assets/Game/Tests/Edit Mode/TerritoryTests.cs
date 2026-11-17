@@ -112,8 +112,14 @@ namespace Game.Tests.EditMode
         {
             var predictor = new MovementPredictor();
             predictor.Reset(1, ArenaBounds.ForTeam(Setup.Arena(), Team.B, 0.5f));
-            predictor.Receive(new MovementSnapshot { SessionEpoch = 1, Alive = true, Pos = new Vector2(-3, 0),
-                MoveTarget = new Vector2(-3, 0), MoveSpeed = 3.2f });
+            predictor.Receive(new MovementSnapshot
+            {
+                SessionEpoch = 1,
+                Alive = true,
+                Pos = new Vector2(-3, 0),
+                MoveTarget = new Vector2(-3, 0),
+                MoveSpeed = 3.2f
+            });
             Assert.That(predictor.Move(new Vector2(-7, 2)), Is.True);
             Assert.That(predictor.Target, Is.EqualTo(new Vector2(-7, 2)));
             predictor.Step(out _);

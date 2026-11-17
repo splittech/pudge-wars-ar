@@ -15,7 +15,8 @@ namespace Game.Tests.EditMode
             roster.TryJoin(Request("Alpha"), out var first);
             roster.TryJoin(Request("Bravo"), out var second);
             roster.TryJoin(Request("Charlie"), out var third);
-            roster.MarkSpawned(first); roster.Disconnect(first, true);
+            roster.MarkSpawned(first);
+            roster.Disconnect(first, true);
             // Act.
             bool accepted = roster.SetTeam(second.Info.SessionPlayerId, Game.Core.Match.Team.A);
             // Assert.
@@ -28,7 +29,8 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var roster = new SessionRoster();
-            roster.TryJoin(Request("Alpha"), out var player); roster.MarkSpawned(player);
+            roster.TryJoin(Request("Alpha"), out var player);
+            roster.MarkSpawned(player);
             roster.SetReady(player.Info.SessionPlayerId, true);
             // Act.
             bool accepted = roster.SetTeam(player.Info.SessionPlayerId, Game.Core.Match.Team.B);
@@ -43,8 +45,10 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var roster = new SessionRoster();
-            roster.TryJoin(Request("Alpha"), out var player); roster.MarkSpawned(player);
-            roster.SetReady(player.Info.SessionPlayerId, true); roster.Disconnect(player, true);
+            roster.TryJoin(Request("Alpha"), out var player);
+            roster.MarkSpawned(player);
+            roster.SetReady(player.Info.SessionPlayerId, true);
+            roster.Disconnect(player, true);
             // Act.
             bool accepted = roster.SetReady(player.Info.SessionPlayerId, true);
             // Assert.
@@ -67,7 +71,8 @@ namespace Game.Tests.EditMode
 
         private static AuthRequest Request(string name) => new()
         {
-            ProtocolVersion = NetworkProtocol.ProtocolVersion, Nickname = name
+            ProtocolVersion = NetworkProtocol.ProtocolVersion,
+            Nickname = name
         };
 
         [TestCase(" Ab ", "Ab")]

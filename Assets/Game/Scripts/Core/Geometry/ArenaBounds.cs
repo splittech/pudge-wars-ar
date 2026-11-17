@@ -13,13 +13,24 @@ namespace Game.Core.Geometry
         public static Rect2 ForTeam(ArenaConfigData arena, Team team, float heroRadius)
         {
             if (!math.all(math.isfinite(arena.Size)) || math.any(arena.Size <= 0f))
+            {
                 throw new ArgumentException("Arena size must be finite and positive.", nameof(arena));
+            }
+
             if (!math.isfinite(arena.RiverWidth) || arena.RiverWidth < 0f || arena.RiverWidth >= arena.Size.x)
+            {
                 throw new ArgumentException("River must fit inside the arena.", nameof(arena));
+            }
+
             if (!math.isfinite(heroRadius) || heroRadius < 0f)
+            {
                 throw new ArgumentOutOfRangeException(nameof(heroRadius));
+            }
+
             if (team != Team.A && team != Team.B)
+            {
                 throw new ArgumentOutOfRangeException(nameof(team));
+            }
 
             float2 halfSize = arena.Size * 0.5f;
             float riverEdge = arena.RiverWidth * 0.5f;

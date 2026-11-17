@@ -38,11 +38,17 @@ namespace Game.Net
             }
             if (double.IsNaN(frameDelta) || double.IsInfinity(frameDelta) || frameDelta < 0 ||
                 double.IsNaN(now) || double.IsInfinity(now))
+            {
                 throw new ArgumentOutOfRangeException(nameof(frameDelta));
+            }
+
             _accumulator += frameDelta;
             int steps = (int)Math.Min(Math.Floor(_accumulator / StepDelta), MaxStepsPerFrame);
             if (steps == 0)
+            {
                 return 0;
+            }
+
             _factory.ExpireDisconnectedPlayers(now);
             for (int i = 0; i < steps; i++)
             {

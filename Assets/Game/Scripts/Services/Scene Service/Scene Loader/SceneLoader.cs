@@ -22,7 +22,9 @@ namespace Game.Services.SceneService
                 sceneAsset.SceneReference.Name, LoadSceneMode.Additive);
 
             if (operation == null)
+            {
                 throw new InvalidOperationException($"Failed to start loading scene '{sceneAsset.SceneReference.Name}'.");
+            }
 
             operation.allowSceneActivation = false;
 
@@ -34,7 +36,9 @@ namespace Game.Services.SceneService
                         Mathf.Clamp01(operation.progress / UnitySceneReadyProgress));
 
                     if (operation.progress >= UnitySceneReadyProgress)
+                    {
                         operation.allowSceneActivation = true;
+                    }
 
                     // Unity cannot cancel an operation after it has started.
                     await UniTask.Yield(PlayerLoopTiming.Update);

@@ -70,7 +70,9 @@ namespace Game.Services.Common
             _subProgressValues[subIndex] = subValue;
 
             if (!_updateEnabled)
+            {
                 return;
+            }
 
             _handler(_subWeightsSum > 0 ? _subValuesSum / _subWeightsSum : 0f);
         }

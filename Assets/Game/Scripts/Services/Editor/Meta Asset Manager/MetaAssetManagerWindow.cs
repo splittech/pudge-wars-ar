@@ -49,7 +49,9 @@ namespace Game.Services.Editor.MetaAssetManager
                 Type type = entry.ResolveType();
 
                 if (type != null)
+                {
                     settings.SetFolder(type, entry.Folder);
+                }
             }
 
             settings.Save();

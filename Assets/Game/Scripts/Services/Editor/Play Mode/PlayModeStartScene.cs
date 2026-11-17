@@ -47,7 +47,9 @@ namespace Game.Services.Editor.PlayMode
         {
             // Re-resolve right before entering Play Mode so config edits are picked up.
             if (state == PlayModeStateChange.ExitingEditMode)
+            {
                 Apply();
+            }
         }
 
         private static void Apply()

@@ -22,13 +22,22 @@ namespace Game.Core.Match
             {
                 bool changed = false;
                 for (int i = 0; i < _heroes.Length; i++)
+                {
                     for (int j = i + 1; j < _heroes.Length; j++)
                     {
-                        if (!_heroes[i].Alive || !_heroes[j].Alive) continue;
+                        if (!_heroes[i].Alive || !_heroes[j].Alive)
+                        {
+                            continue;
+                        }
+
                         float2 delta = _heroes[j].Pos - _heroes[i].Pos;
                         float distance = math.length(delta);
                         float overlap = _heroes[i].Radius + _heroes[j].Radius - distance;
-                        if (overlap <= 1e-5f) continue;
+                        if (overlap <= 1e-5f)
+                        {
+                            continue;
+                        }
+
                         float2 normal = math.normalizesafe(delta,
                             new float2(_heroes[i].Id < _heroes[j].Id ? 1 : -1, 0));
                         float2 first = _heroes[i].Pos, second = _heroes[j].Pos;
@@ -36,13 +45,27 @@ namespace Game.Core.Match
                         bool secondIdle = math.all(_heroes[j].MoveTarget == second);
                         _heroes[i].Pos = ClampCollisionPosition(i, first - normal * (overlap * 0.5f + 1e-5f));
                         _heroes[j].Pos = ClampCollisionPosition(j, second + normal * (overlap * 0.5f + 1e-5f));
-                        if (firstIdle) _heroes[i].MoveTarget = _heroes[i].Pos;
-                        if (secondIdle) _heroes[j].MoveTarget = _heroes[j].Pos;
+                        if (firstIdle)
+                        {
+                            _heroes[i].MoveTarget = _heroes[i].Pos;
+                        }
+
+                        if (secondIdle)
+                        {
+                            _heroes[j].MoveTarget = _heroes[j].Pos;
+                        }
+
                         changed |= math.any(first != _heroes[i].Pos) || math.any(second != _heroes[j].Pos);
                     }
-                if (!changed) break;
+                }
+
+                if (!changed)
+                {
+                    break;
+                }
             }
             for (int i = 0; i < _hooks.Length; i++)
+            {
                 if (_hooks[i].Phase == HookPhase.Pulling)
                 {
                     int target = Find(_hooks[i].TargetId);
@@ -56,6 +79,7 @@ namespace Game.Core.Match
                         _hooks[i].StartTime = Time;
                     }
                 }
+            }
         }
     }
 }

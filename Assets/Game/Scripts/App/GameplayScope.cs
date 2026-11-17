@@ -45,9 +45,14 @@ namespace Game.App
             builder.RegisterEntryPoint<EnhancedTouchGestures>();
             builder.RegisterEntryPoint<TouchGesturesDebugLogger>();
             if (NetworkServer.active || NetworkClient.active)
+            {
                 builder.RegisterComponent(_offlineDriver).AsSelf();
+            }
             else
+            {
                 builder.RegisterComponent(_offlineDriver).AsSelf().AsImplementedInterfaces();
+            }
+
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);
@@ -63,7 +68,11 @@ namespace Game.App
         private string TrainingStatus()
         {
             var simulation = _offlineDriver.Simulation;
-            if (simulation == null) return string.Empty;
+            if (simulation == null)
+            {
+                return string.Empty;
+            }
+
             var hero = simulation.GetHero(0);
             var dummy = simulation.GetHero(1);
             var hook = simulation.GetHook(0);

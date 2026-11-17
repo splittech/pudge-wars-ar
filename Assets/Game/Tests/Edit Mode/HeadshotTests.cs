@@ -28,7 +28,11 @@ namespace Game.Tests.EditMode
             for (int tick = 0; tick < 20; tick++)
             {
                 simulation.Step(Setup.TickDeltaTime);
-                if (simulation.Deaths.Count == 0) continue;
+                if (simulation.Deaths.Count == 0)
+                {
+                    continue;
+                }
+
                 Assert.That(simulation.Deaths.Count, Is.EqualTo(1));
                 Assert.That(simulation.Deaths[0].KillerId, Is.EqualTo(3));
                 Assert.That(simulation.Damage[0].Damage, Is.EqualTo(825));
@@ -61,7 +65,10 @@ namespace Game.Tests.EditMode
             simulation.AddHero(Setup.Hero(3, Team.A, -4, 3));
             simulation.Enqueue(new ThrowHookIntent(3, new float2(3.5f, -3), simulation.Time));
             for (int tick = 0; tick < 20 && simulation.GetHero(1).Alive; tick++)
+            {
                 simulation.Step(Setup.TickDeltaTime);
+            }
+
             Assert.That(simulation.GetHero(1).Hp, Is.Zero);
             Assert.That(simulation.GetHero(1).IsPulled, Is.False);
             Assert.That(simulation.GetHook(1).Phase, Is.EqualTo(HookPhase.Idle));
@@ -80,7 +87,11 @@ namespace Game.Tests.EditMode
             for (int tick = 0; tick < 20; tick++)
             {
                 simulation.Step(Setup.TickDeltaTime);
-                if (simulation.GetHook(2).Phase != HookPhase.Pulling) continue;
+                if (simulation.GetHook(2).Phase != HookPhase.Pulling)
+                {
+                    continue;
+                }
+
                 Assert.That(simulation.GetHook(2).TargetId, Is.EqualTo(2));
                 Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(HookPhase.Retracting));
                 Assert.That(simulation.GetHook(0).TargetId, Is.Zero);

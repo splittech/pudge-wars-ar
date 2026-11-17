@@ -29,16 +29,24 @@ namespace Game.Net
         public void Observe(long id, string address, double now)
         {
             if (!Ipv4Endpoint.TryValidate(address, out string validAddress) || !double.IsFinite(now))
+            {
                 return;
+            }
+
             for (int i = 0; i < _servers.Count; i++)
             {
                 if (_servers[i].Id != id)
+                {
                     continue;
+                }
+
                 _servers[i] = new LanServer(id, validAddress, now);
                 return;
             }
             if (_servers.Count < Capacity)
+            {
                 _servers.Add(new LanServer(id, validAddress, now));
+            }
         }
 
         public void RemoveExpired(double now) =>

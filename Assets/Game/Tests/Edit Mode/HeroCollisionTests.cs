@@ -61,7 +61,9 @@ namespace Game.Tests.EditMode
                 Assert.That(hero.Pos.x, Is.LessThanOrEqualTo(-2.25f));
                 Assert.That(hero.MoveTarget, Is.EqualTo(hero.Pos));
                 for (int j = i + 1; j < simulation.HeroCount; j++)
+                {
                     Assert.That(math.distance(hero.Pos, simulation.GetHero(j).Pos), Is.GreaterThanOrEqualTo(0.9999));
+                }
             }
         }
 
@@ -100,13 +102,32 @@ namespace Game.Tests.EditMode
             predictor.Reset(1, new Game.Core.Geometry.Rect2(new float2(-12, -7), new float2(-2.25f, 7)));
             var obstacles = new[] { Setup.Hero(2, x: -4) };
             predictor.SetCollisionContext(1, 0.5f, obstacles);
-            predictor.Receive(new MovementSnapshot { SessionEpoch = 1, ServerTick = 0, Pos = new Vector2(-8, 0),
-                MoveTarget = new Vector2(-2.25f, 0), MoveSpeed = 3.2f, Alive = true });
-            for (int i = 0; i < 60; i++) predictor.Step(out _);
+            predictor.Receive(new MovementSnapshot
+            {
+                SessionEpoch = 1,
+                ServerTick = 0,
+                Pos = new Vector2(-8, 0),
+                MoveTarget = new Vector2(-2.25f, 0),
+                MoveSpeed = 3.2f,
+                Alive = true
+            });
+            for (int i = 0; i < 60; i++)
+            {
+                predictor.Step(out _);
+            }
+
             Vector2 before = predictor.Position;
             obstacles[0].Pos = new float2(-10, 0);
-            predictor.Receive(new MovementSnapshot { SessionEpoch = 1, ServerTick = 1, AckSequence = 1,
-                Pos = new Vector2(-8 + 3.2f / 30, 0), MoveTarget = new Vector2(-2.25f, 0), MoveSpeed = 3.2f, Alive = true });
+            predictor.Receive(new MovementSnapshot
+            {
+                SessionEpoch = 1,
+                ServerTick = 1,
+                AckSequence = 1,
+                Pos = new Vector2(-8 + 3.2f / 30, 0),
+                MoveTarget = new Vector2(-2.25f, 0),
+                MoveSpeed = 3.2f,
+                Alive = true
+            });
             Assert.That(before.x, Is.EqualTo(-5).Within(0.0001));
             Assert.That(Vector2.Distance(before, predictor.Position), Is.LessThan(0.0001));
         }

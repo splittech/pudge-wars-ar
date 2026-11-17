@@ -14,7 +14,9 @@ namespace Game.Net
         public void Reserve(uint playerId, double now)
         {
             if (playerId == 0 || double.IsNaN(now) || double.IsInfinity(now))
+            {
                 throw new ArgumentOutOfRangeException(nameof(playerId));
+            }
             // Duplicate disconnect callbacks must not extend the reservation.
             _deadlines.TryAdd(playerId, now + GracePeriod);
         }
@@ -26,8 +28,13 @@ namespace Game.Net
         {
             _expired.Clear();
             foreach (var entry in _deadlines)
+            {
                 if (now >= entry.Value)
+                {
                     _expired.Add(entry.Key);
+                }
+            }
+
             foreach (uint id in _expired)
             {
                 _deadlines.Remove(id);

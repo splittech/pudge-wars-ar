@@ -41,7 +41,10 @@ namespace Game.Net
         public double ServerTime => _simulation.Time;
         public void ResyncMovementClock(uint id)
         {
-            if (_pending.TryGetValue(id, out var pending)) pending.LastClientTick = 0;
+            if (_pending.TryGetValue(id, out var pending))
+            {
+                pending.LastClientTick = 0;
+            }
         }
         public uint MovementAck(uint id) => _pending.TryGetValue(id, out var pending) ? pending.Ack : 0;
 
@@ -50,21 +53,42 @@ namespace Game.Net
             reason = string.Empty;
             if (!owner || epoch == 0 || frame.SessionEpoch != epoch || frame.Sequence == 0
                 || !math.isfinite(now) || (frame.HasMoveTarget && !SessionSerialization.Finite(frame.Target)))
+            {
                 return Reject("Invalid movement identity or coordinates", out reason);
-            if (!_simulation.CanPlay) return Reject("Match is not playing", out reason);
-            if (!_simulation.TryGetHero(id, out var hero)) return Reject("Unknown hero", out reason);
+            }
+
+            if (!_simulation.CanPlay)
+            {
+                return Reject("Match is not playing", out reason);
+            }
+
+            if (!_simulation.TryGetHero(id, out var hero))
+            {
+                return Reject("Unknown hero", out reason);
+            }
+
             if (Math.Abs((long)frame.ClientTick - _simulation.TickCount) > MovementPredictor.Capacity)
+            {
                 return Reject("Movement tick outside history window", out reason);
+            }
+
             var pending = GetPending(id, now);
             if (pending.MovementEpoch != epoch)
             {
-                pending.MovementEpoch = epoch; pending.LastSequence = 0; pending.LastClientTick = 0;
-                pending.Ack = 0; pending.PendingAck = 0;
+                pending.MovementEpoch = epoch;
+                pending.LastSequence = 0;
+                pending.LastClientTick = 0;
+                pending.Ack = 0;
+                pending.PendingAck = 0;
             }
             if (++pending.MovementFrames > 60 || frame.Sequence <= pending.LastSequence
                 || (pending.LastSequence != 0 && frame.ClientTick <= pending.LastClientTick))
+            {
                 return Reject("Repeated movement or rate limit", out reason);
-            pending.LastSequence = frame.Sequence; pending.LastClientTick = frame.ClientTick;
+            }
+
+            pending.LastSequence = frame.Sequence;
+            pending.LastClientTick = frame.ClientTick;
             pending.PendingAck = frame.Sequence;
             if (frame.HasMoveTarget && hero.Alive && !hero.IsPulled)
             {
@@ -87,10 +111,16 @@ namespace Game.Net
         public bool TryMove(uint id, float2 point, double now, bool ownsHero, out string reason)
         {
             if (!Validate(id, point, now, ownsHero, out HeroState hero, out reason))
+            {
                 return false;
+            }
+
             Pending pending = GetPending(id, now);
             if (++pending.Moves > 30)
+            {
                 return Reject("Move rate exceeded", out reason);
+            }
+
             pending.Move = Geo2D.ClampToRect(point, ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius));
             pending.HasMove = true;
             return true;
@@ -103,20 +133,40 @@ namespace Game.Net
             uint requestId, uint epoch, out string reason)
         {
             if (!Validate(id, direction, now, ownsHero, out HeroState hero, out reason))
+            {
                 return false;
+            }
+
             float lengthSquared = math.lengthsq(direction);
             if (!math.isfinite(lengthSquared) || lengthSquared < 1e-12f)
+            {
                 return Reject("Invalid direction", out reason);
+            }
+
             Pending pending = GetPending(id, now);
             if (++pending.Throws > 10)
+            {
                 return Reject("Throw rate exceeded", out reason);
+            }
+
             if (pending.HasThrow || pending.Submitted)
+            {
                 return Reject("Throw already pending", out reason);
+            }
+
             for (int i = 0; i < _simulation.HeroCount; i++)
+            {
                 if (_simulation.GetHero(i).Id == id && _simulation.GetHook(i).Phase != HookPhase.Idle)
+                {
                     return Reject("Hook is busy", out reason);
+                }
+            }
+
             if (now < hero.HookCooldownEnd)
+            {
                 return Reject("Hook cooldown", out reason);
+            }
+
             pending.Direction = math.normalize(direction);
             pending.HasThrow = true;
             pending.RequestId = requestId;
@@ -131,7 +181,10 @@ namespace Game.Net
                 Pending pending = entry.Value;
                 pending.Ack = pending.PendingAck;
                 if (pending.HasMove)
+                {
                     _simulation.Enqueue(new MoveIntent(entry.Key, pending.Move));
+                }
+
                 if (pending.HasThrow)
                 {
                     _simulation.Enqueue(new ThrowHookIntent(entry.Key, pending.Direction, now));
@@ -148,12 +201,20 @@ namespace Game.Net
             {
                 Pending pending = entry.Value;
                 if (!pending.Submitted)
+                {
                     continue;
+                }
+
                 pending.Submitted = false;
                 bool accepted = false;
                 foreach (var thrown in _simulation.Throws)
+                {
                     if (thrown.OwnerId == entry.Key)
+                    {
                         accepted = true;
+                    }
+                }
+
                 ThrowCompleted?.Invoke(entry.Key, pending.RequestId, pending.SessionEpoch, accepted,
                     accepted ? string.Empty : "Hero state changed before simulation step");
             }
@@ -167,15 +228,30 @@ namespace Game.Net
             hero = default;
             reason = string.Empty;
             if (!ownsHero)
+            {
                 return Reject("Sender does not own hero", out reason);
+            }
+
             if (!_simulation.CanPlay)
+            {
                 return Reject("Match is not playing", out reason);
+            }
+
             if (!math.isfinite(now) || !math.all(math.isfinite(value)))
+            {
                 return Reject("Non-finite input", out reason);
+            }
+
             if (!_simulation.TryGetHero(id, out hero))
+            {
                 return Reject("Hero is not registered", out reason);
+            }
+
             if (!hero.Alive || hero.IsPulled)
+            {
                 return Reject("Hero cannot act", out reason);
+            }
+
             return true;
         }
 

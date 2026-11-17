@@ -14,7 +14,10 @@ namespace Game.Services.AudioService
         private readonly Dictionary<AudioSource, SoundInstance> _sounds = new();
         private readonly LinkedList<SoundInstance> _soundQueue = new();
 
-        public AudioMixerGroup AudioMixerGroup { set => _audioMixerGroup = value; }
+        public AudioMixerGroup AudioMixerGroup
+        {
+            set => _audioMixerGroup = value;
+        }
 
         private void Update()
         {
@@ -23,11 +26,15 @@ namespace Game.Services.AudioService
                 SoundInstance sound = _sounds[source];
 
                 if (sound == null)
+                {
                     continue;
+                }
 
                 // Sound was stopped or finished playing.
                 if (sound.State == SoundState.Stopped || sound.State == SoundState.Playing && !source.isPlaying)
+                {
                     sound.Release();
+                }
             }
         }
 
@@ -49,7 +56,9 @@ namespace Game.Services.AudioService
             ValidatePoolSize();
 
             foreach (var source in _audioSources)
+            {
                 _sounds[source] = null;
+            }
         }
 
         public SoundInstance Get(SoundMetaAsset soundMetaAsset)
@@ -62,12 +71,16 @@ namespace Game.Services.AudioService
                     .FirstOrDefault(source => _sounds[source] == null);
 
                 if (freeAudioSource != null)
+                {
                     return CreateSound(freeAudioSource);
+                }
 
                 soundToSteal = FindSoundToSteal(soundMetaAsset);
 
                 if (soundToSteal == null)
+                {
                     return null;
+                }
             }
 
             AudioSource stolenAudioSource = soundToSteal.AudioSource;
@@ -87,25 +100,35 @@ namespace Game.Services.AudioService
         public void ValidatePoolSize()
         {
             if (_audioSources == null)
+            {
                 throw new InvalidOperationException($"SoundPool '{name}': Audio Sources list is null.");
+            }
 
             if (_audioSources.Count == 0)
+            {
                 throw new InvalidOperationException($"SoundPool '{name}': Audio Sources list is empty.");
+            }
 
             foreach (var audioSource in _audioSources)
             {
                 if (audioSource == null)
+                {
                     throw new InvalidOperationException($"SoundPool '{name}': Audio Sources list contains null reference.");
+                }
             }
 
             if (_audioSources.Distinct().Count() != _audioSources.Count)
+            {
                 throw new InvalidOperationException($"SoundPool '{name}': Audio Sources list contains duplicates.");
+            }
         }
 
         private SoundInstance FindOldestInstanceOverLimit(SoundMetaAsset soundMetaAsset)
         {
             if (soundMetaAsset.MaxInstances <= 0)
+            {
                 return null;
+            }
 
             SoundInstance oldestInstance = null;
             int instanceCount = 0;
@@ -113,7 +136,9 @@ namespace Game.Services.AudioService
             foreach (var sound in _soundQueue)
             {
                 if (sound.SoundMetaAsset != soundMetaAsset)
+                {
                     continue;
+                }
 
                 oldestInstance ??= sound;
                 instanceCount++;
@@ -130,10 +155,14 @@ namespace Game.Services.AudioService
             foreach (var sound in _soundQueue)
             {
                 if (sound.SoundMetaAsset.IsLooping || sound.SoundMetaAsset.Priority > soundMetaAsset.Priority)
+                {
                     continue;
+                }
 
                 if (soundToSteal == null || sound.SoundMetaAsset.Priority < soundToSteal.SoundMetaAsset.Priority)
+                {
                     soundToSteal = sound;
+                }
             }
 
             return soundToSteal;

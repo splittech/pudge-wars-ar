@@ -27,12 +27,48 @@ namespace Game.Net
         public float ArenaScale => UnityEngine.Mathf.Abs(transform.parent.lossyScale.x);
         public bool IsArenaVisible { get; set; } = true;
         public bool IsViewAvailable => this != null && isClient && IsArenaVisible && gameObject.activeInHierarchy;
-        public void SelectTeam(Team team) { if (isLocalPlayer) CmdSelectTeam(team); }
-        public void SetReady(bool ready) { if (isLocalPlayer) CmdSetReady(ready); }
-        public void StartMatch() { if (isLocalPlayer) CmdStartMatch(); }
-        public void ArenaPlaced() { if (isLocalPlayer) CmdArenaPlaced(); }
-        public void Rematch() { if (isLocalPlayer) CmdRematch(); }
-        public void ReturnToLobby() { if (isLocalPlayer) CmdReturnToLobby(); }
+        public void SelectTeam(Team team)
+        {
+            if (isLocalPlayer)
+            {
+                CmdSelectTeam(team);
+            }
+        }
+        public void SetReady(bool ready)
+        {
+            if (isLocalPlayer)
+            {
+                CmdSetReady(ready);
+            }
+        }
+        public void StartMatch()
+        {
+            if (isLocalPlayer)
+            {
+                CmdStartMatch();
+            }
+        }
+        public void ArenaPlaced()
+        {
+            if (isLocalPlayer)
+            {
+                CmdArenaPlaced();
+            }
+        }
+        public void Rematch()
+        {
+            if (isLocalPlayer)
+            {
+                CmdRematch();
+            }
+        }
+        public void ReturnToLobby()
+        {
+            if (isLocalPlayer)
+            {
+                CmdReturnToLobby();
+            }
+        }
 
         [Command] private void CmdSelectTeam(Team team) => ApplyLobby(0, team);
         [Command] private void CmdSetReady(bool ready) => ApplyLobby(1, value: ready);
@@ -43,15 +79,25 @@ namespace Game.Net
 
         private void ApplyLobby(byte action, Team team = Team.A, bool value = false)
         {
-            if (!OwnsHero(connectionToClient)) return;
+            if (!OwnsHero(connectionToClient))
+            {
+                return;
+            }
+
             bool host = connectionToClient == NetworkServer.localConnection;
             if (MatchStateNet.Active == null || !MatchStateNet.Active.LobbyAction(_sessionPlayerId, action, team, value, host))
+            {
                 LogRejected("Lobby", "Action is not allowed in the current state");
+            }
         }
 
         internal void ResetRoundEpoch(uint epoch)
         {
-            if (epoch == 0) return;
+            if (epoch == 0)
+            {
+                return;
+            }
+
             RestoreSession(epoch);
         }
 

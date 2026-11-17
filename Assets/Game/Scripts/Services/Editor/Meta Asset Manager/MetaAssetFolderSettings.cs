@@ -29,7 +29,9 @@ namespace Game.Services.Editor.MetaAssetManager
             MetaAssetFolderSettings settings = new();
 
             if (File.Exists(FilePath))
+            {
                 JsonUtility.FromJsonOverwrite(File.ReadAllText(FilePath), settings);
+            }
 
             return settings;
         }
@@ -50,7 +52,9 @@ namespace Game.Services.Editor.MetaAssetManager
             _folders.RemoveAll(entry => entry.TypeName == type.FullName);
 
             if (!string.IsNullOrWhiteSpace(folder) && folder != GetDefaultFolder(type))
+            {
                 _folders.Add(new MetaAssetFolder { TypeName = type.FullName, Folder = folder });
+            }
         }
 
         [Serializable]

@@ -28,7 +28,10 @@ namespace Game.Services.Editor.ConfigManager
         [ListViewSettings(ShowAddRemoveFooter = false, Reorderable = true, ShowBoundCollectionSize = false, ShowFoldoutHeader = false)]
         private List<ConfigEntry> _serviceConfigs = new();
 
-        protected override IReadOnlyCollection<string> EntriesPropertyNames { get; } =
+        protected override IReadOnlyCollection<string> EntriesPropertyNames
+        {
+            get;
+        } =
             new[] { nameof(_gameConfigs), nameof(_serviceConfigs) };
 
         [MenuItem("Game/Config Manager")]
