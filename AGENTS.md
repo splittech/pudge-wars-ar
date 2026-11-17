@@ -55,3 +55,16 @@ Boundary rules the compiler does not enforce:
 - All game files live in `Assets/Game/`; everything else is third-party or Unity-generated.
 - Folder names may contain spaces (`Scene Service/`, `Edit Mode/`), namespaces do not (`Game.Services.SceneService`); this is intentional (`.editorconfig` disables IDE0130).
 - C# style: block-scoped namespaces; `private readonly` fields named `_camelCase`; classes are `sealed` by default.
+
+### C# code style
+
+- Read `Docs/csharp_code_style.md` before creating or modifying C# code. Its rules and example are the accepted project style and are mandatory for new and modified code.
+- Use four spaces for indentation and Allman braces.
+- Always use braces for `if`, `else`, loops and `using` blocks, including single-statement bodies.
+- Write one statement per line and declare each field separately. Do not compress assignments or control flow onto one line.
+- Use expression-bodied members only for trivial properties and simple calculations. Methods with validation or state changes use block bodies.
+- Avoid nested ternary expressions. Use descriptive names and separate logical steps with blank lines.
+- Use `var` when the type is obvious from the right-hand side; otherwise prefer an explicit type.
+- Follow the naming, member ordering and argument wrapping rules in the style document. Existing compact code is not a style precedent when it conflicts with these rules.
+- Before finishing, review all added or modified C# code against the style document and fix violations.
+- Do not reformat unrelated code or third-party files. A project-wide style migration requires a separate task.
