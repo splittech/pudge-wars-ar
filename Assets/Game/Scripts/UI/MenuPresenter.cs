@@ -11,11 +11,15 @@ namespace Game.UI
         private readonly ReactiveDocument _view;
         private readonly UiState _model;
         private readonly Action _training;
+        private readonly Action _toggleArenaMode;
+        private readonly Func<bool> _useAR;
         private string[] _addresses = Array.Empty<string>();
 
-        public MenuPresenter(NetworkSessionController controller, ReactiveDocument view, Action training)
+        public MenuPresenter(NetworkSessionController controller, ReactiveDocument view, Action training,
+            Action toggleArenaMode = null, Func<bool> useAR = null)
         {
             _controller = controller; _view = view; _model = view.Model; _training = training;
+            _toggleArenaMode = toggleArenaMode; _useAR = useAR;
             _model.Text("nickname", controller.Nickname);
             _model.Text("address", controller.LastAddress);
             _view.ActionRequested += Handle;
@@ -25,6 +29,8 @@ namespace Game.UI
         public void Tick()
         {
             bool canStart = _controller.CanStart;
+            _model.Text("arenaMode", (_useAR?.Invoke() ?? false) ? "Режим: AR" : "Режим: плоский");
+            _model.Enabled("arenaMode", canStart);
             foreach (string key in StartKeys)
                 _model.Enabled(key, canStart);
             _model.Text("nickname", _controller.Nickname);
@@ -48,6 +54,7 @@ namespace Game.UI
         {
             switch (action)
             {
+                case "arenaMode": if (_controller.CanStart) _toggleArenaMode?.Invoke(); break;
                 case "nickname": _controller.SetNickname(value); break;
                 case "address": _model.Text("address", value); break;
                 case "addressSubmit":

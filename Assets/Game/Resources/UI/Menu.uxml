@@ -6,6 +6,7 @@
       <ui:Label text="Дуэль на крюках • локальная сеть" class="subtitle" />
       <ui:TextField name="nickname" label="Ник" max-length="16" />
       <ui:TextField name="address" label="IP" />
+      <ui:Button name="arenaMode" text="Режим: плоский" />
       <ui:Button name="create" text="Создать игру" />
       <ui:Button name="join" text="Подключиться" />
       <ui:Button name="search" text="Найти игры в сети" />

@@ -224,7 +224,7 @@ namespace Game.Net
             RemovePlayer(id);
         });
 
-        private void RemovePlayer(uint id)
+        internal void RemovePlayer(uint id)
         {
             _reconnect.Remove(id);
             _manager.Roster.Remove(id);

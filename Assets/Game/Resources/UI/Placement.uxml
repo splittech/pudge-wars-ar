@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Interface.uss" />
+  <ui:VisualElement class="screen" picking-mode="Ignore">
+    <ui:VisualElement name="placementPanel" class="panel placement-panel hidden" picking-mode="Ignore">
+      <ui:Label name="placementMessage" text="Подготовка арены…" picking-mode="Ignore" />
+      <ui:Button name="confirmPlacement" text="Готово" />
+      <ui:Button name="useFlat" text="Перейти в плоский режим" />
+    </ui:VisualElement>
+    <ui:VisualElement name="trackingLost" class="tracking-lost hidden">
+      <ui:Label text="Трекинг потерян. Медленно наведите камеру на поверхность стола. Матч продолжается." />
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

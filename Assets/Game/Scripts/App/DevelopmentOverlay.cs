@@ -32,12 +32,14 @@ namespace Game.App
             {
                 _document = ToolkitRuntime.Create(gameObject, "Overlay", "OverlayState", 100);
                 _runtimeModel = _document.Model;
+                _document.ActionRequested += OnAction;
             }
             _runtimeModel.Text("diagnostics", $"v{Application.version}");
         }
 
         private void Update()
         {
+            _runtimeModel.Text("arenaMode", Game.Input.Routing.ArenaMode.UseAR ? "AR → Flat" : "Flat → AR");
             _elapsed += Time.unscaledDeltaTime;
             _frames++;
             if (_elapsed < _refreshInterval)
@@ -66,5 +68,11 @@ namespace Game.App
             _elapsed = 0;
             _frames = 0;
         }
+
+        private void OnAction(string action, string value)
+        {
+            if (action == "arenaMode") Game.Input.Routing.ArenaMode.UseAR = !Game.Input.Routing.ArenaMode.UseAR;
+        }
+        private void OnDestroy() { if (_document != null) _document.ActionRequested -= OnAction; }
     }
 }

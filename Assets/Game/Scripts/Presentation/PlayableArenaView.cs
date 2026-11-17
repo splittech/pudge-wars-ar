@@ -25,7 +25,6 @@ namespace Game.Presentation
         private float _range;
         private Vector2 _size;
         private float _aspect;
-        private Camera _previousCamera;
 
 
 
@@ -44,19 +43,6 @@ namespace Game.Presentation
             _aim.startColor = _aim.endColor = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
             _aim.SetPosition(0, new Vector3(position.x, 0.55f, position.z));
             _aim.SetPosition(1, new Vector3(position.x + aim.Direction.x * range, 0.55f, position.z + aim.Direction.y * range));
-        }
-
-        private void OnEnable()
-        {
-            _previousCamera = Camera.main;
-            if (_previousCamera != null && _previousCamera != _camera)
-                _previousCamera.enabled = false;
-        }
-
-        private void OnDisable()
-        {
-            if (_previousCamera != null && _previousCamera != _camera)
-                _previousCamera.enabled = true;
         }
 
         [Inject]

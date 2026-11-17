@@ -26,6 +26,7 @@ namespace Game.Input.Routing
         private IDisposable _subscriptions;
 
         public ReadOnlyReactiveProperty<AimState> Aim => _aim;
+        public void CancelAim() => _aim.Value = AimState.Inactive;
 
         public InputRouter(
             ITouchGestures gestures,

@@ -38,6 +38,7 @@ namespace Game.Tests.EditMode
         [TestCase("Match", "MatchState")]
         [TestCase("Loading", "LoadingState")]
         [TestCase("Overlay", "OverlayState")]
+        [TestCase("Placement", "PlacementState")]
         public void RuntimeDocument_LoadsLayoutAndUsesIndependentModel(string layout, string template)
         {
             _root = new GameObject("UI Test");

@@ -17,6 +17,9 @@ namespace Game.Net
         private MatchSimulation _simulation;
         private PudgeNetworkManager _manager;
         private ServerPlayerCommands _commands;
+        private readonly PlacementReadiness _placement = new();
+        private readonly System.Collections.Generic.List<uint> _placementIds = new();
+        private float _placementTimeout;
         public static MatchStateNet Active { get; private set; }
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetActive() => Active = null;
@@ -70,7 +73,26 @@ namespace Game.Net
 
         private void Update()
         {
-            if (isServer) Publish();
+            if (isServer) { AdvancePlacement(NetworkTime.time); Publish(); }
+        }
+
+        private void AdvancePlacement(double now)
+        {
+            if (_simulation?.Rules.Phase != MatchPhase.Placement) return;
+            _placementIds.Clear();
+            foreach (uint id in _placement.Pending)
+            {
+                bool exists = false;
+                foreach (var player in Players) if (player.SessionPlayerId == id) { exists = true; break; }
+                if (!exists || now >= _placement.Deadline) _placementIds.Add(id);
+            }
+            foreach (uint id in _placementIds)
+            {
+                _placement.Remove(id);
+                if (now >= _placement.Deadline) _manager.ExpirePlacementPlayer(id);
+                if (!NetworkServer.active) return;
+            }
+            if (_placement.Complete) _simulation.Rules.ArenaPlaced(now);
         }
 
         [Server]
@@ -87,10 +109,18 @@ namespace Game.Net
             {
                 accepted = rules.Begin(NetworkTime.time, host, CanStart,
                     _simulation.CountTeam(Team.A), _simulation.CountTeam(Team.B));
-                if (accepted) rules.ArenaPlaced(NetworkTime.time);
+                if (accepted)
+                {
+                    _placementIds.Clear();
+                    foreach (var player in Players) _placementIds.Add(player.SessionPlayerId);
+                    _placement.Begin(_placementIds, NetworkTime.time, _placementTimeout);
+                }
             }
             else if (action == 3 && rules.Phase == MatchPhase.Placement)
-                accepted = rules.ArenaPlaced(NetworkTime.time);
+            {
+                accepted = _placement.Confirm(id, NetworkTime.time);
+                if (accepted) AdvancePlacement(NetworkTime.time);
+            }
             else if (action == 4)
                 accepted = rules.Rematch(NetworkTime.time, host,
                     _simulation.CountTeam(Team.A), _simulation.CountTeam(Team.B));
@@ -140,6 +170,7 @@ namespace Game.Net
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
             HasDependencies = true;
+            _placementTimeout = config.ToData().PlacementTimeout;
         }
 
         public override void OnStartServer() => RequireDependencies();

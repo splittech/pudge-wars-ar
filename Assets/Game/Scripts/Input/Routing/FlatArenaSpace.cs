@@ -7,9 +7,14 @@ namespace Game.Input.Routing
     {
         [SerializeField] private Transform _arenaRoot;
         [SerializeField] private Camera _camera;
+        public Camera ActiveCamera => _camera;
+        public bool InputEnabled { get; set; } = true;
+        public void SetCamera(Camera camera) => _camera = camera;
 
         public bool TryScreenToArena(Vector2 screenPoint, out float2 arenaPoint)
         {
+            arenaPoint = default;
+            if (!InputEnabled || _camera == null || !_arenaRoot.gameObject.activeInHierarchy) return false;
             var plane = new Plane(_arenaRoot.up, _arenaRoot.position);
             Ray ray = _camera.ScreenPointToRay(screenPoint);
             arenaPoint = default;

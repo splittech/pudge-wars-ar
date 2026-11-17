@@ -18,6 +18,7 @@ namespace Game.App
         [SerializeField] private FlatArenaSpace _arenaSpace;
         [SerializeField] private PlayableArenaView _arenaView;
         [SerializeField] private Transform _arenaRoot;
+        [SerializeField] private ArenaPlacementFlow _placementFlow;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -50,6 +51,9 @@ namespace Game.App
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);
+            builder.RegisterBuildCallback(resolver => _placementFlow.Initialize(_arenaRoot, _arenaSpace,
+                resolver.Resolve<ITouchGestures>(), resolver.Resolve<InputRouter>(), resolver.Resolve<InputConfig>(),
+                resolver.Resolve<ArenaConfig>()));
             builder.RegisterBuildCallback(resolver => Game.UI.MatchInterface.Create(
                 gameObject, resolver.Resolve<HeroConfig>(), resolver.Resolve<HookConfig>(), resolver.Resolve<EconomyConfig>(),
                 () => SceneUiNavigation.Navigate(this), () => _offlineDriver.ResetSandbox(),

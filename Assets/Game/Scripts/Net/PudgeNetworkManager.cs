@@ -243,6 +243,22 @@ namespace Game.Net
             }
         }
 
+        internal void ExpirePlacementPlayer(uint id)
+        {
+            NetworkConnectionToClient connection = null;
+            foreach (var candidate in NetworkServer.connections.Values)
+                if (candidate.authenticationData is SessionPlayer player && player.Info.SessionPlayerId == id)
+                { connection = candidate; break; }
+            if (connection != null && connection == NetworkServer.localConnection)
+            {
+                StopSession();
+                return;
+            }
+            if (connection != null) _matchFactory?.DisconnectPlayer(connection, false);
+            else _matchFactory?.RemovePlayer(id);
+            connection?.Disconnect();
+        }
+
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
             _matchFactory?.DisconnectPlayer(connection, !_stoppingServer && !_quitting);

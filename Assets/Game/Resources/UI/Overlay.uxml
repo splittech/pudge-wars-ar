@@ -2,5 +2,6 @@
   <ui:Style src="Interface.uss" />
   <ui:VisualElement class="world-layer" picking-mode="Ignore">
     <ui:Label name="diagnostics" class="overlay" picking-mode="Ignore" />
+    <ui:Button name="arenaMode" class="mode-switch" text="Flat → AR" />
   </ui:VisualElement>
 </ui:UXML>

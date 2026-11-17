@@ -40,6 +40,9 @@ ProgressBar .unity-progress-bar__title { color: white; font-size: 22px; }
 .server-list { max-height: 280px; }
 
 .transparent { opacity: 0; }
+.placement-panel { position: absolute; left: 32px; right: 32px; bottom: 40px; }
+.tracking-lost { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); justify-content: center; padding: 60px; }
+.mode-switch { position: absolute; right: 14px; top: 110px; font-size: 20px; min-height: 40px; }
 
 #trainingPanel { position: absolute; left: 32px; bottom: 32px; width: 540px; padding: 16px; }
 #leave { position: absolute; right: 32px; top: 32px; width: 190px; }

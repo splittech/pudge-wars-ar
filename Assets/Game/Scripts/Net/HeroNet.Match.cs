@@ -25,7 +25,8 @@ namespace Game.Net
         public override void OnStopClient() => ClientHeroes.Remove(this);
         public UnityEngine.Vector3 WorldViewPosition => transform.parent.TransformPoint(DisplayPosition);
         public float ArenaScale => UnityEngine.Mathf.Abs(transform.parent.lossyScale.x);
-        public bool IsViewAvailable => this != null && isClient;
+        public bool IsArenaVisible { get; set; } = true;
+        public bool IsViewAvailable => this != null && isClient && IsArenaVisible && gameObject.activeInHierarchy;
         public void SelectTeam(Team team) { if (isLocalPlayer) CmdSelectTeam(team); }
         public void SetReady(bool ready) { if (isLocalPlayer) CmdSetReady(ready); }
         public void StartMatch() { if (isLocalPlayer) CmdStartMatch(); }
