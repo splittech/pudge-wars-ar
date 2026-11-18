@@ -275,12 +275,38 @@ namespace Game.Core.Match
 
             int pulled = hook.Phase == HookPhase.Pulling ? Find(hook.TargetId) : -1;
             var config = new HookConfigData(hook.Range, hook.Speed, hook.Radius, hook.Damage, _hookConfig.Cooldown, 0, 0, 0, 0, 4);
+            int previousReturnIndex = hook.ReturnIndex;
             bool finished = HookSimulation.Return(ref hook, _heroes[index], config, dt);
+            hook.SampleTime = Time;
             if (pulled >= 0)
             {
                 float2 desired = hook.Tip;
-                float2 position = HeroCollision.Move(_heroes[pulled], desired, _heroes);
-                bool blocked = math.distancesq(position, desired) > 1e-10f;
+                float2 position = _heroes[pulled].Pos;
+                bool blocked = false;
+                for (int waypoint = previousReturnIndex; waypoint > hook.ReturnIndex; waypoint--)
+                {
+                    if (waypoint < 0 || waypoint >= hook.Path.Count)
+                    {
+                        continue;
+                    }
+
+                    float2 corner = hook.Path.Get(waypoint);
+                    position = HeroCollision.Move(_heroes[pulled], corner, _heroes);
+                    _heroes[pulled].Pos = position;
+                    if (math.distancesq(position, corner) > 1e-10f)
+                    {
+                        blocked = true;
+                        hook.ReturnIndex = waypoint;
+                        break;
+                    }
+                }
+
+                if (!blocked)
+                {
+                    position = HeroCollision.Move(_heroes[pulled], desired, _heroes);
+                    blocked = math.distancesq(position, desired) > 1e-10f;
+                }
+
                 _heroes[pulled].Pos = position;
                 hook.Tip = position;
                 if (blocked || finished)

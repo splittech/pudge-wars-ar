@@ -73,7 +73,7 @@ namespace Game.Tests.EditMode
         [TestCase(0, 46)]
         [TestCase(1, 21)]
         [TestCase(2, 14)]
-        [TestCase(3, 61)]
+        [TestCase(3, 62)]
         [TestCase(4, 21)]
         [TestCase(5, 42)]
         public void Serialize_ValidPayload_HasDocumentedSizeAndConsumesEntirePacket(int kind, int expectedBytes)

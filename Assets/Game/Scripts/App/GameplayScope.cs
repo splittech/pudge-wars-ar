@@ -2,6 +2,7 @@ using Game.Input.Gestures;
 using Game.Input.Routing;
 using Game.Presentation;
 using Game.Net;
+using Game.UI;
 using Game.Core.Configs;
 using Game.Core.Hero;
 using Game.Core.Match;
@@ -19,6 +20,8 @@ namespace Game.App
         [SerializeField] private PlayableArenaView _arenaView;
         [SerializeField] private Transform _arenaRoot;
         [SerializeField] private ArenaPlacementFlow _placementFlow;
+        [SerializeField] private PlacementDocument _placementDocument;
+        [SerializeField] private MatchDocument _matchDocument;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -56,13 +59,24 @@ namespace Game.App
             builder.RegisterComponent(_arenaSpace).As<IArenaSpace>();
             builder.RegisterEntryPoint<InputRouter>().AsSelf();
             builder.RegisterComponent(_arenaView);
-            builder.RegisterBuildCallback(resolver => _placementFlow.Initialize(_arenaRoot, _arenaSpace,
-                resolver.Resolve<ITouchGestures>(), resolver.Resolve<InputRouter>(), resolver.Resolve<InputConfig>(),
-                resolver.Resolve<ArenaConfig>()));
-            builder.RegisterBuildCallback(resolver => Game.UI.MatchInterface.Create(
-                gameObject, resolver.Resolve<HeroConfig>(), resolver.Resolve<HookConfig>(), resolver.Resolve<EconomyConfig>(),
-                () => SceneUiNavigation.Navigate(this), () => _offlineDriver.ResetSandbox(),
-                () => TrainingStatus()));
+            builder.RegisterBuildCallback(resolver =>
+            {
+                _placementFlow.Initialize(
+                    _arenaRoot,
+                    _arenaSpace,
+                    resolver.Resolve<ITouchGestures>(),
+                    resolver.Resolve<InputRouter>(),
+                    resolver.Resolve<InputConfig>(),
+                    resolver.Resolve<ArenaConfig>());
+                _placementDocument.ViewModel.Initialize(_placementFlow);
+                _matchDocument.ViewModel.Initialize(
+                    resolver.Resolve<HeroConfig>().ToData(),
+                    resolver.Resolve<HookConfig>().ToData(),
+                    resolver.Resolve<EconomyConfig>().ToData(),
+                    () => SceneUiNavigation.Navigate(this),
+                    () => _offlineDriver.ResetSandbox(),
+                    TrainingStatus);
+            });
         }
 
         private string TrainingStatus()

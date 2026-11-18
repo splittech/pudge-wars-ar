@@ -19,6 +19,12 @@ namespace Game.Net
             writer.WriteUInt(value.SessionEpoch);
             writer.WriteFloat(value.SegmentRange);
             writer.WriteVector2(value.HalfBounds);
+            writer.WriteByte((byte)value.Path.Count);
+            for (int i = 0; i < value.Path.Count; i++)
+            {
+                var point = value.Path.Get(i);
+                writer.WriteVector2(new UnityEngine.Vector2(point.x, point.y));
+            }
         }
 
         public static HookNetState ReadHookNetState(this NetworkReader reader)
@@ -37,6 +43,14 @@ namespace Game.Net
                 SegmentRange = reader.ReadFloat(),
                 HalfBounds = reader.ReadVector2()
             };
+            byte count = reader.ReadByte();
+            SessionSerialization.Require(count <= HookPath.Capacity && reader.Remaining >= count * 8);
+            for (int i = 0; i < count; i++)
+            {
+                UnityEngine.Vector2 point = reader.ReadVector2();
+                SessionSerialization.Require(value.Path.TryAdd(new Unity.Mathematics.float2(point.x, point.y)));
+            }
+
             Validate(value);
             return value;
         }

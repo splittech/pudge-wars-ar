@@ -235,7 +235,13 @@ namespace Game.Net
             _manager.ClientConnected -= OnConnected;
             _manager.SessionEnded -= OnEnded;
             _manager.ClientConnectionError -= OnError;
-            _manager.Discovery?.StopSearch();
+            // Unity objects can retain a managed wrapper after scene destruction.
+            LanDiscovery discovery = _manager.Discovery;
+            if (discovery != null)
+            {
+                discovery.StopSearch();
+            }
+
             CancelTimeout();
         }
     }

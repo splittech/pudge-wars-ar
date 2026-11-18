@@ -1,5 +1,6 @@
 using Game.Core.Configs;
 using Game.Net;
+using Game.UI;
 using Game.Services.LoggingService;
 using Game.Services.LoadingScreen;
 using Game.Services.SceneService;
@@ -17,6 +18,9 @@ namespace Game.App
         [SerializeField] private PudgeNetworkManager _networkManager;
         [SerializeField] private NetworkSceneLoader _networkSceneLoader;
         [SerializeField] private NetworkPrefabList _networkPrefabs;
+        [SerializeField] private LoadingDocument _loadingDocument;
+        [SerializeField] private OverlayDocument _overlayDocument;
+        [SerializeField] private DevelopmentOverlay _diagnostics;
 
         [Header("Configs")]
         [SerializeField] private SceneServiceConfig _sceneServiceConfig;
@@ -58,6 +62,11 @@ namespace Game.App
             builder.RegisterInstance(_economyConfig);
             builder.RegisterInstance(_arenaConfig);
             builder.RegisterInstance(_matchConfig);
+            builder.RegisterBuildCallback(_ =>
+            {
+                _loadingDocument.ViewModel.Initialize((ILoadingStateSource)_loadingScreen);
+                _overlayDocument.ViewModel.Initialize(_diagnostics);
+            });
         }
     }
 }

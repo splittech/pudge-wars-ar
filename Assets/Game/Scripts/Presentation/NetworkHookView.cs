@@ -20,7 +20,15 @@ namespace Game.Presentation
         private MaterialPropertyBlock _properties;
 
         [Inject]
-        public void Construct(HookConfig config) => _config = config.ToData();
+        public void Construct(HookConfig config)
+        {
+            _config = config.ToData();
+        }
+
+        private void Awake()
+        {
+            ArenaLineRenderer.Initialize(_line);
+        }
 
         private void OnEnable()
         {
@@ -62,15 +70,37 @@ namespace Game.Presentation
 
             Transform arena = transform.parent;
             Vector3 position = _hero.DisplayPosition;
-            Vector2 tip = state.EvaluateTip(_hero.SynchronizedTime,
-                new Vector2(position.x, position.z),
-                Mathf.Max(0, _hero.HookViewSpeed),
+            var owner = new Vector2(position.x, position.z);
+            double now = _hero.SynchronizedTime;
+            float speed = Mathf.Max(0, _hero.HookViewSpeed);
+            Vector2 tip = state.EvaluateTip(
+                now,
+                owner,
+                speed,
                 _hero.HookViewRange > 0 ? _hero.HookViewRange : _config.Range);
-            _line.SetPosition(0, arena.TransformPoint(new Vector3(position.x, _height, position.z)));
-            _line.SetPosition(1, arena.TransformPoint(new Vector3(tip.x, _height, tip.y)));
-            _line.widthMultiplier = _width * Mathf.Abs(arena.lossyScale.x);
-            Color color = Time.unscaledTime < _flashUntil ? Color.white
-                : predicted ? new Color(0.2f, 0.9f, 1f) : new Color(1, 0.8f, 0.15f);
+            ArenaLineRenderer.Draw(
+                _line,
+                arena,
+                owner,
+                state.Path,
+                state.RemainingPathCount(now, owner, speed),
+                tip,
+                _height,
+                _width);
+            Color color;
+            if (Time.unscaledTime < _flashUntil)
+            {
+                color = Color.white;
+            }
+            else if (predicted)
+            {
+                color = new Color(0.2f, 0.9f, 1f);
+            }
+            else
+            {
+                color = new Color(1, 0.8f, 0.15f);
+            }
+
             _line.startColor = color;
             _line.endColor = color;
             _properties ??= new MaterialPropertyBlock();

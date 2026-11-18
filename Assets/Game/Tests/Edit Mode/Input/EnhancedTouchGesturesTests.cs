@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using System.Reflection;
 using Game.Core.Configs;
 using Game.Input.Gestures;
 using NUnit.Framework;
 using R3;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Game.Tests.EditMode.Input
 {
@@ -20,6 +23,8 @@ namespace Game.Tests.EditMode.Input
         private InputConfig _config;
         private EnhancedTouchGestures _gestures;
         private CompositeDisposable _subscriptions;
+        private GameObject _uiRoot;
+        private EventSystem _previousEventSystem;
 
         private readonly List<Vector2> _taps = new();
         private readonly List<DragPhase> _dragPhases = new();
@@ -28,6 +33,7 @@ namespace Game.Tests.EditMode.Input
         public override void Setup()
         {
             base.Setup();
+            _previousEventSystem = EventSystem.current;
 
             _touchscreen = InputSystem.AddDevice<Touchscreen>();
             _config = ScriptableObject.CreateInstance<InputConfig>();
@@ -47,6 +53,16 @@ namespace Game.Tests.EditMode.Input
         {
             _subscriptions.Dispose();
             _gestures.Dispose();
+            if (_uiRoot != null)
+            {
+                SetUiLifecycle("OnDisable");
+                Object.DestroyImmediate(_uiRoot);
+            }
+
+            if (_previousEventSystem != null)
+            {
+                EventSystem.current = _previousEventSystem;
+            }
             Object.DestroyImmediate(_config);
 
             base.TearDown();
@@ -165,6 +181,138 @@ namespace Game.Tests.EditMode.Input
             Assert.That(_pinchTwists[0].AngleDelta, Is.EqualTo(90f).Within(1e-3f));
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        public void Tick_EitherFingerStartsOverUi_PinchRemainsBlockedAfterLeavingUi(int blockedFinger)
+        {
+            CreateUi();
+            Vector2 first = blockedFinger == 1 ? new Vector2(20f, 100f) : new Vector2(100f, 100f);
+            Vector2 second = blockedFinger == 2 ? new Vector2(20f, 100f) : new Vector2(200f, 100f);
+
+            Begin(1, first, StartTime);
+            Begin(2, second, StartTime + 0.05);
+            Move(1, new Vector2(100f, 100f), StartTime + 0.1);
+            Move(2, new Vector2(300f, 100f), StartTime + 0.15);
+            Assert.That(_pinchTwists, Is.Empty);
+
+            End(1, new Vector2(100f, 100f), StartTime + 0.2);
+            End(2, new Vector2(300f, 100f), StartTime + 0.25);
+            Begin(1, new Vector2(100f, 100f), StartTime + 0.3);
+            Begin(2, new Vector2(200f, 100f), StartTime + 0.35);
+            Move(2, new Vector2(300f, 100f), StartTime + 0.4);
+            Assert.That(_pinchTwists.Count, Is.EqualTo(1));
+            Assert.That(_pinchTwists[0].ScaleFactor, Is.EqualTo(2f).Within(1e-4f));
+        }
+
+        [Test]
+        public void Tick_PairStartsOutsideUi_CrossingUiDoesNotInterruptPinch()
+        {
+            CreateUi();
+            Begin(1, new Vector2(100f, 100f), StartTime);
+            Begin(2, new Vector2(200f, 100f), StartTime + 0.05);
+            Move(1, new Vector2(20f, 100f), StartTime + 0.1);
+
+            Assert.That(_pinchTwists.Count, Is.EqualTo(1));
+            Assert.That(_pinchTwists[0].ScaleFactor, Is.EqualTo(1.8f).Within(1e-4f));
+        }
+
+        [Test]
+        public void Tick_MouseLeftClick_PublishesTapWithoutDisablingMouse()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Set(mouse.position, new Vector2(100f, 100f), time: StartTime);
+            Press(mouse.leftButton, time: StartTime + 0.01);
+            _gestures.Tick();
+            Release(mouse.leftButton, time: StartTime + 0.1);
+            _gestures.Tick();
+
+            Assert.That(mouse.enabled, Is.True);
+            Assert.That(_taps, Is.EqualTo(new[] { new Vector2(100f, 100f) }));
+            Assert.That(_dragPhases, Is.Empty);
+        }
+
+        [Test]
+        public void Tick_MouseLeftDrag_PublishesDragPhases()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Set(mouse.position, new Vector2(100f, 100f), time: StartTime);
+            Press(mouse.leftButton, time: StartTime + 0.01);
+            _gestures.Tick();
+            Set(mouse.position, new Vector2(200f, 100f), time: StartTime + 0.05);
+            _gestures.Tick();
+            Set(mouse.position, new Vector2(300f, 100f), time: StartTime + 0.1);
+            _gestures.Tick();
+            Release(mouse.leftButton, time: StartTime + 0.15);
+            _gestures.Tick();
+
+            Assert.That(_dragPhases, Is.EqualTo(new[] { DragPhase.Began, DragPhase.Moved, DragPhase.Ended }));
+            Assert.That(_taps, Is.Empty);
+        }
+
+        [Test]
+        public void Tick_MouseRightButton_RemainsAvailableForXrUnlockAndDoesNotPublishGestures()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            using (var unlock = new InputAction(type: InputActionType.Button, binding: "<Mouse>/rightButton"))
+            {
+                unlock.Enable();
+                Press(mouse.rightButton, time: StartTime);
+                _gestures.Tick();
+                Set(mouse.position, new Vector2(300f, 300f), time: StartTime + 0.1);
+                _gestures.Tick();
+
+                Assert.That(mouse.enabled, Is.True);
+                Assert.That(unlock.IsPressed(), Is.True);
+                Assert.That(_taps, Is.Empty);
+                Assert.That(_dragPhases, Is.Empty);
+                Assert.That(_pinchTwists, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void Tick_MouseStartsOverUi_DragAndTapAreBlocked()
+        {
+            CreateUi();
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Set(mouse.position, new Vector2(20f, 100f), time: StartTime);
+            Press(mouse.leftButton, time: StartTime + 0.01);
+            _gestures.Tick();
+            Set(mouse.position, new Vector2(200f, 100f), time: StartTime + 0.05);
+            _gestures.Tick();
+            Release(mouse.leftButton, time: StartTime + 0.1);
+            _gestures.Tick();
+
+            Assert.That(_taps, Is.Empty);
+            Assert.That(_dragPhases, Is.Empty);
+        }
+
+        [Test]
+        public void Tick_MouseHeldBeyondTapDuration_DoesNotPublishTap()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Press(mouse.leftButton, time: StartTime);
+            _gestures.Tick();
+            Release(mouse.leftButton, time: StartTime + 1.0);
+            _gestures.Tick();
+
+            Assert.That(_taps, Is.Empty);
+        }
+
+        private void CreateUi()
+        {
+            _uiRoot = new GameObject("Gesture UI", typeof(EventSystem), typeof(GestureTestRaycaster));
+            // UIBehaviour lifecycle callbacks do not run automatically in EditMode.
+            SetUiLifecycle("OnEnable");
+            EventSystem.current = _uiRoot.GetComponent<EventSystem>();
+        }
+
+        private void SetUiLifecycle(string method)
+        {
+            const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(EventSystem).GetMethod(method, Flags).Invoke(_uiRoot.GetComponent<EventSystem>(), null);
+            typeof(BaseRaycaster).GetMethod(method, Flags).Invoke(_uiRoot.GetComponent<GestureTestRaycaster>(), null);
+        }
+
         private void Begin(int touchId, Vector2 position, double time)
         {
             BeginTouch(touchId, position, screen: _touchscreen, time: time);
@@ -181,6 +329,24 @@ namespace Game.Tests.EditMode.Input
         {
             EndTouch(touchId, position, screen: _touchscreen, time: time);
             _gestures.Tick();
+        }
+    }
+
+    public sealed class GestureTestRaycaster : GraphicRaycaster
+    {
+        public override Camera eventCamera => null;
+
+        public override void Raycast(PointerEventData eventData, List<RaycastResult> resultAppendList)
+        {
+            if (eventData.position.x < 50f)
+            {
+                resultAppendList.Add(new RaycastResult
+                {
+                    gameObject = gameObject,
+                    module = this,
+                    screenPosition = eventData.position
+                });
+            }
         }
     }
 }

@@ -1,7 +1,11 @@
 using System;
+using Game.AR;
+using Game.Services.LoadingScreen;
+using Game.UI;
 using Game.UI.Foundation;
 using NUnit.Framework;
 using R3;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -10,7 +14,7 @@ namespace Game.Tests.EditMode
     public sealed class ReactiveUiTests
     {
         private GameObject _root;
-        private UiState _state;
+        private UiViewModel _model;
 
         [TearDown]
         public void Cleanup()
@@ -20,99 +24,210 @@ namespace Game.Tests.EditMode
                 UnityEngine.Object.DestroyImmediate(_root);
             }
 
-            if (_state != null)
+            if (_model != null)
             {
-                UnityEngine.Object.DestroyImmediate(_state);
+                UnityEngine.Object.DestroyImmediate(_model);
             }
         }
 
-        [Test]
-        public void Model_PublishesOnlyChangedParametersAndOwnsRowCopies()
+        [TestCase("Menu", typeof(MenuDocument), typeof(MenuViewModel), 0)]
+        [TestCase("Match", typeof(MatchDocument), typeof(MatchViewModel), 0)]
+        [TestCase("Placement", typeof(PlacementDocument), typeof(PlacementViewModel), 50)]
+        [TestCase("Overlay", typeof(OverlayDocument), typeof(OverlayViewModel), 100)]
+        [TestCase("Loading", typeof(LoadingDocument), typeof(LoadingViewModel), 1000)]
+        public void Prefab_HasConfiguredDocumentAndIndependentRuntimeModel(
+            string name,
+            Type viewType,
+            Type modelType,
+            int sortingOrder)
         {
-            _state = ScriptableObject.CreateInstance<UiState>();
-            int changes = 0;
-            using var subscription = _state.Changed.Subscribe(_ => changes++);
-            _state.Text("health", "100");
-            _state.Text("health", "100");
-            Assert.That(changes, Is.EqualTo(1));
-            string[] rows = { "127.0.0.1" };
-            _state.Rows("servers", rows);
-            rows[0] = "mutated";
-            Assert.That(_state.Read("servers").Rows[0], Is.EqualTo("127.0.0.1"));
-        }
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Game/Prefabs/UI/" + name + " Document.prefab");
+            Assert.That(prefab, Is.Not.Null);
+            var savedView = (DocumentView)prefab.GetComponent(viewType);
+            var serialized = new SerializedObject(savedView);
+            Assert.That(serialized.FindProperty("_runtimeModel").objectReferenceValue, Is.Null);
 
-        [TestCase("Menu", "MenuState")]
-        [TestCase("Match", "MatchState")]
-        [TestCase("Loading", "LoadingState")]
-        [TestCase("Overlay", "OverlayState")]
-        [TestCase("Placement", "PlacementState")]
-        public void RuntimeDocument_LoadsLayoutAndUsesIndependentModel(string layout, string template)
-        {
-            _root = new GameObject("UI Test");
-            var original = Resources.Load<UiState>("UI/" + template);
-            var view = ToolkitRuntime.Create(_root, layout, template);
-            Assert.That(view.Root, Is.Not.Null);
-            Assert.That(view.Model, Is.Not.SameAs(original));
-            view.Model.Text("testKey", "runtime only");
-            Assert.That(original.Read("testKey").Text, Is.Null);
-        }
-
-        [Test]
-        public void View_ReactivelyUpdatesTextProgressVisibilityAndEnabledWithoutEchoingInput()
-        {
-            _root = new GameObject("UI Test");
-            var view = ToolkitRuntime.Create(_root, "Menu", "MenuState");
-            int actions = 0;
-            view.ActionRequested += (_, _) => actions++;
-            view.Model.Text("nickname", "Tester");
-            view.Model.Text("message", "Ready");
-            view.Model.Enabled("create", false);
-            view.Model.Visible("cancel", true);
-            Assert.That(view.Root.Q<TextField>("nickname").value, Is.EqualTo("Tester"));
-            Assert.That(view.Root.Q<Label>("message").text, Is.EqualTo("Ready"));
-            Assert.That(view.Root.Q<Button>("create").enabledSelf, Is.False);
-            Assert.That(view.Root.Q<Button>("create").text, Is.Not.Empty);
-            Assert.That(view.Root.Q("cancel").ClassListContains("hidden"), Is.False);
-            Assert.That(actions, Is.Zero);
-        }
-
-        [Test]
-        public void View_RecreatedDocumentBindsCurrentModelAgain()
-        {
-            _root = new GameObject("UI Test");
-            var view = ToolkitRuntime.Create(_root, "Loading", "LoadingState");
+            _root = UnityEngine.Object.Instantiate(prefab);
+            var view = (DocumentView)_root.GetComponent(viewType);
+            view.RefreshBindings();
             var document = view.GetComponent<UIDocument>();
-            document.enabled = false;
-            document.enabled = true;
-            typeof(ReactiveDocument).GetMethod("Update", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(view, null);
-            view.Model.Text("description", "Recreated");
-            view.Model.Number("progress", 0.5f);
-            Assert.That(document.rootVisualElement.Q<Label>("description").text, Is.EqualTo("Recreated"));
-            Assert.That(document.rootVisualElement.Q<ProgressBar>("progress").value, Is.EqualTo(0.5f));
-            Assert.That(document.rootVisualElement.Q<ProgressBar>("progress").Q(className: "unity-progress-bar__progress"), Is.Not.Null);
+            Assert.That(document.visualTreeAsset, Is.Not.Null);
+            Assert.That(document.panelSettings, Is.Not.Null);
+            Assert.That(document.sortingOrder, Is.EqualTo(sortingOrder));
+            Assert.That(view.Model, Is.TypeOf(modelType));
+            Assert.That(view.Model, Is.Not.SameAs(view.Template));
+            Assert.That(view.Root, Is.Not.Null);
         }
 
         [Test]
-        public void View_RebindUnsubscribesPreviousModelAndReenableDisplaysLatestState()
+        public void ViewModels_AreIndependentAndSuppressDuplicatePropertyNotifications()
         {
-            _root = new GameObject("UI Test");
-            var view = ToolkitRuntime.Create(_root, "Menu", "MenuState");
-            _state = ScriptableObject.CreateInstance<UiState>();
-            var previous = ScriptableObject.CreateInstance<UiState>();
+            _model = ScriptableObject.CreateInstance<LoadingViewModel>();
+            var first = (LoadingViewModel)_model;
+            var second = UnityEngine.Object.Instantiate(first);
+
             try
             {
-                view.Bind(previous);
-                view.Bind(_state);
-                _state.Text("message", "new");
-                previous.Text("message", "old");
-                Assert.That(view.Root.Q<Label>("message").text, Is.EqualTo("new"));
-                view.enabled = false;
-                _state.Text("message", "while disabled");
-                view.enabled = true;
-                Assert.That(view.Root.Q<Label>("message").text, Is.EqualTo("while disabled"));
+                int changes = 0;
+                using IDisposable subscription = first.Description.Skip(1).Subscribe(_ => changes++);
+                first.Description.Value = "Loading";
+                first.Description.Value = "Loading";
+                Assert.That(changes, Is.EqualTo(1));
+                Assert.That(second.Description.Value, Is.Empty);
             }
-            finally { UnityEngine.Object.DestroyImmediate(previous); }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(second);
+            }
+        }
+
+        [Test]
+        public void Menu_BindsBothDirectionsWithoutEchoingProgrammaticFieldChanges()
+        {
+            MenuDocument view = CreateView<MenuDocument>("Menu");
+            int fieldChanges = 0;
+            TextField address = view.Root.Q<TextField>("address");
+            address.RegisterValueChangedCallback(_ => fieldChanges++);
+            view.ViewModel.Address.Value = "192.168.1.10";
+            Assert.That(address.value, Is.EqualTo("192.168.1.10"));
+            Assert.That(fieldChanges, Is.Zero);
+            address.value = "192.168.1.20";
+            Assert.That(view.ViewModel.Address.Value, Is.EqualTo("192.168.1.20"));
+            view.ViewModel.CanStart.Value = false;
+            Assert.That(view.Root.Q<Button>("create").enabledSelf, Is.False);
+        }
+
+        [Test]
+        public void Placement_MapsServiceStateAndSendsTypedCommands()
+        {
+            _model = ScriptableObject.CreateInstance<PlacementViewModel>();
+            var model = (PlacementViewModel)_model;
+            var source = new PlacementSource();
+            model.Initialize(source);
+            model.Confirm();
+            Assert.That(source.ConfirmCount, Is.Zero);
+            source.Publish(true);
+            Assert.That(model.Message.Value, Is.EqualTo("Ready"));
+            Assert.That(model.CanConfirm.Value, Is.True);
+            model.Confirm();
+            model.UseFlat();
+            Assert.That(source.ConfirmCount, Is.EqualTo(1));
+            Assert.That(source.FlatCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Placement_ReinitializeAndDestroyReleaseSourceSubscriptions()
+        {
+            _model = ScriptableObject.CreateInstance<PlacementViewModel>();
+            var model = (PlacementViewModel)_model;
+            var first = new PlacementSource();
+            var second = new PlacementSource();
+            model.Initialize(first);
+            model.Initialize(second);
+            Assert.That(first.SubscriberCount, Is.Zero);
+            Assert.That(second.SubscriberCount, Is.EqualTo(1));
+            first.Publish(true);
+            Assert.That(model.CanConfirm.Value, Is.False);
+            UnityEngine.Object.DestroyImmediate(_model);
+            _model = null;
+            Assert.That(second.SubscriberCount, Is.Zero);
+        }
+
+        [Test]
+        public void DisabledView_RebindsLatestStateAndRecreatedVisualTree()
+        {
+            LoadingDocument view = CreateView<LoadingDocument>("Loading");
+            var document = view.GetComponent<UIDocument>();
+            view.enabled = false;
+            view.ViewModel.Description.Value = "While disabled";
+            view.enabled = true;
+            view.RefreshBindings();
+            Assert.That(view.Root.Q<Label>("description").text, Is.EqualTo("While disabled"));
+            document.enabled = false;
+            document.enabled = true;
+            view.RefreshBindings();
+            view.ViewModel.Progress.Value = 0.5f;
+            Assert.That(view.Root.Q<ProgressBar>("progress").value, Is.EqualTo(0.5f));
+            Assert.That(view.Root.Q<Label>("description").text, Is.EqualTo("While disabled"));
+        }
+
+        [Test]
+        public void Loading_ReceivesCurrentSnapshotAndUnsubscribesOnDisconnect()
+        {
+            _model = ScriptableObject.CreateInstance<LoadingViewModel>();
+            var model = (LoadingViewModel)_model;
+            var source = new LoadingSource();
+            model.Initialize(source);
+            Assert.That(model.Description.Value, Is.EqualTo("Initial"));
+            Assert.That(model.Progress.Value, Is.EqualTo(0.25f));
+            source.Publish(new LoadingSnapshot("Next", 0.75f, true, false));
+            Assert.That(model.ProgressText.Value, Is.EqualTo("75%"));
+            Assert.That(model.Visible.Value, Is.True);
+            Assert.That(model.Transparent.Value, Is.False);
+            model.Disconnect();
+            source.Publish(new LoadingSnapshot("Detached", 0, false, true));
+            Assert.That(model.Description.Value, Is.EqualTo("Next"));
+        }
+
+        private T CreateView<T>(string name) where T : DocumentView
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Game/Prefabs/UI/" + name + " Document.prefab");
+            _root = UnityEngine.Object.Instantiate(prefab);
+            T view = _root.GetComponent<T>();
+            view.RefreshBindings();
+            return view;
+        }
+
+        private sealed class PlacementSource : IArenaPlacementService
+        {
+            private Action<ArenaPlacementStatus> _changed;
+
+            public ArenaPlacementStatus Status { get; private set; }
+            public int ConfirmCount { get; private set; }
+            public int FlatCount { get; private set; }
+            public int SubscriberCount => _changed?.GetInvocationList().Length ?? 0;
+
+            public event Action<ArenaPlacementStatus> StatusChanged
+            {
+                add
+                {
+                    _changed += value;
+                }
+                remove
+                {
+                    _changed -= value;
+                }
+            }
+
+            public void Confirm()
+            {
+                ConfirmCount++;
+            }
+
+            public void UseFlat()
+            {
+                FlatCount++;
+            }
+
+            public void Publish(bool canConfirm)
+            {
+                Status = new ArenaPlacementStatus("Ready", true, true, canConfirm, true, false);
+                _changed?.Invoke(Status);
+            }
+        }
+
+        private sealed class LoadingSource : ILoadingStateSource
+        {
+            public LoadingSnapshot Snapshot { get; private set; } = new("Initial", 0.25f, true, false);
+            public event Action<LoadingSnapshot> Changed;
+
+            public void Publish(LoadingSnapshot snapshot)
+            {
+                Snapshot = snapshot;
+                Changed?.Invoke(snapshot);
+            }
         }
     }
 }

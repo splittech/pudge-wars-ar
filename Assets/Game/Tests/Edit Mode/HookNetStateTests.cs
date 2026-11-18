@@ -123,7 +123,7 @@ namespace Game.Tests.EditMode
             Assert.That(actual.SessionEpoch, Is.EqualTo(expected.SessionEpoch));
             Assert.That(actual.SegmentRange, Is.EqualTo(expected.SegmentRange));
             Assert.That(actual.HalfBounds, Is.EqualTo(expected.HalfBounds));
-            Assert.That(writer.Position, Is.EqualTo(61));
+            Assert.That(writer.Position, Is.EqualTo(62));
             Assert.That(reader.Remaining, Is.Zero);
         }
     }

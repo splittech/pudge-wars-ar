@@ -18,6 +18,8 @@ namespace Game.Presentation
         [SerializeField] private Transform _river;
         [SerializeField] private LineRenderer _hook;
         [SerializeField] private LineRenderer _aim;
+        [SerializeField] private float _hookWidth = 0.12f;
+        [SerializeField] private float _aimWidth = 0.045f;
 
         [SerializeField] private Camera _camera;
 
@@ -25,9 +27,11 @@ namespace Game.Presentation
         private float _range;
         private Vector2 _size;
         private float _aspect;
-
-
-
+        private void Awake()
+        {
+            ArenaLineRenderer.Initialize(_hook);
+            ArenaLineRenderer.Initialize(_aim);
+        }
 
         private void LateUpdate()
         {
@@ -48,13 +52,17 @@ namespace Game.Presentation
             _aim.enabled = aim.IsActive;
             float range = hero.CurrentStatus.Range > 0 ? hero.CurrentStatus.Range : _range;
             Vector3 position = hero.DisplayPosition;
-            _aim.startColor = _aim.endColor = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
-            _aim.SetPosition(0, new Vector3(position.x, 0.55f, position.z));
-            _aim.SetPosition(1, new Vector3(position.x + aim.Direction.x * range, 0.55f, position.z + aim.Direction.y * range));
+            Color color = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
+            _aim.startColor = color;
+            _aim.endColor = color;
+            DrawAim(new float2(position.x, position.z), aim, range);
         }
 
         [Inject]
-        public void Construct(InputRouter router) => _router = router;
+        public void Construct(InputRouter router)
+        {
+            _router = router;
+        }
 
         public void Configure(ArenaConfigData arena, float range)
         {
@@ -71,8 +79,6 @@ namespace Game.Presentation
             _dummy.gameObject.SetActive(visible);
             _hook.gameObject.SetActive(visible);
             _aim.gameObject.SetActive(visible);
-
-
         }
 
         private void FitCamera()
@@ -82,8 +88,12 @@ namespace Game.Presentation
                 _size.x / (2f * _aspect)) * 1.2f;
         }
 
-        public void Render(MatchSimulation simulation, HeroState previousHero, HeroState previousDummy,
-            HookState previousHook, float alpha)
+        public void Render(
+            MatchSimulation simulation,
+            HeroState previousHero,
+            HeroState previousDummy,
+            HookState previousHook,
+            float alpha)
         {
             if (_camera.aspect != _aspect)
             {
@@ -99,15 +109,48 @@ namespace Game.Presentation
             _dummy.localScale = dummy.Alive ? new Vector3(1, 0.75f, 1) : new Vector3(1, 0.3f, 1);
             HookState hook = simulation.GetHook(0);
             _hook.enabled = hook.Phase != HookPhase.Idle;
-            float2 tip = hook.Phase == previousHook.Phase ? math.lerp(previousHook.Tip, hook.Tip, alpha) : hook.Tip;
-            _hook.SetPosition(0, Point(heroPosition.x, heroPosition.y, 0.5f));
-            _hook.SetPosition(1, Point(tip.x, tip.y, 0.5f));
+            float2 tip = hook.Tip;
+            bool sameSegment = hook.Phase == previousHook.Phase && math.all(hook.Origin == previousHook.Origin)
+                && hook.ReturnIndex == previousHook.ReturnIndex;
+            if (sameSegment)
+            {
+                tip = math.lerp(previousHook.Tip, hook.Tip, alpha);
+            }
+
+            int count = hook.Path.Count;
+            if (hook.Phase != HookPhase.Extending)
+            {
+                count = math.clamp(hook.ReturnIndex + 1, 0, count);
+            }
+
+            ArenaLineRenderer.Draw(
+                _hook,
+                transform,
+                new Vector2(heroPosition.x, heroPosition.y),
+                hook.Path,
+                count,
+                new Vector2(tip.x, tip.y),
+                0.5f,
+                _hookWidth);
             AimState aim = _router.Aim.CurrentValue;
             _aim.enabled = aim.IsActive;
-            _aim.startColor = _aim.endColor = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
-            _aim.SetPosition(0, Point(hero.Pos.x, hero.Pos.y, 0.55f));
-            _aim.SetPosition(1, Point(hero.Pos.x + aim.Direction.x * _range,
-                hero.Pos.y + aim.Direction.y * _range, 0.55f));
+            Color color = aim.IsInCancelZone ? Color.red : new Color(0.5f, 1, 0.7f);
+            _aim.startColor = color;
+            _aim.endColor = color;
+            DrawAim(hero.Pos, aim, _range);
+        }
+
+        private void DrawAim(float2 position, AimState aim, float range)
+        {
+            ArenaLineRenderer.Draw(
+                _aim,
+                transform,
+                new Vector2(position.x, position.y),
+                default,
+                0,
+                new Vector2(position.x + aim.Direction.x * range, position.y + aim.Direction.y * range),
+                0.55f,
+                _aimWidth);
         }
 
         private static Vector3 Point(float x, float y, float height) => new(x, height, y);

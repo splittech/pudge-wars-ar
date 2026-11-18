@@ -8,15 +8,15 @@ using Game.Core.Match;
 using Game.Input.Gestures;
 using Game.Input.Routing;
 using Game.Net;
-using Game.UI.Foundation;
 using UnityEngine;
 
 namespace Game.App
 {
-    public sealed class ArenaPlacementFlow : MonoBehaviour
+    public sealed class ArenaPlacementFlow : MonoBehaviour, IArenaPlacementService
     {
         [SerializeField] private ARArenaRig _rig;
-        private Transform _root, _originalParent;
+        private Transform _root;
+        private Transform _originalParent;
         private Pose _flatPose;
         private Vector3 _flatScale;
         private FlatArenaSpace _space;
@@ -27,16 +27,23 @@ namespace Game.App
         private Vector2 _size;
         private IArenaAnchorProvider _provider;
         private CancellationTokenSource _cancellation;
-        private ReactiveDocument _ui;
-        private bool _mode, _placed, _running, _sent;
+        private bool _mode;
+        private bool _placed;
+        private bool _running;
+        private bool _sent;
         private MatchPhase _previousPhase;
         private HeroNet _previousHero;
-        private Camera[] _otherCameras;
+        private ArenaCameraSwitcher _cameras;
         private string _failure;
         private readonly List<Renderer> _renderers = new();
 
-        public void Initialize(Transform root, FlatArenaSpace space, ITouchGestures gestures, InputRouter router,
-            InputConfig input, ArenaConfig arena)
+        public void Initialize(
+            Transform root,
+            FlatArenaSpace space,
+            ITouchGestures gestures,
+            InputRouter router,
+            InputConfig input,
+            ArenaConfig arena)
         {
             _root = root;
             _originalParent = root.parent;
@@ -46,17 +53,15 @@ namespace Game.App
             _flatCamera = space.ActiveCamera;
             _gestures = gestures;
             _router = router;
-            _otherCameras = Array.FindAll(Camera.allCameras, camera => camera != _flatCamera && camera != _rig.Camera);
-            foreach (var camera in _otherCameras)
-            {
-                camera.enabled = false;
-            }
+            // XR Simulation owns additional cameras outside the application's asset scenes.
+            Camera[] backgroundCameras = Array.FindAll(
+                Camera.allCameras,
+                camera => camera.gameObject.scene.path.StartsWith("Assets/Game/", StringComparison.Ordinal));
+            _cameras = new ArenaCameraSwitcher(_flatCamera, _rig.Camera, backgroundCameras);
 
             _input = input.ToData();
             var size = arena.ToData().Size;
             _size = new Vector2(size.x, size.y);
-            _ui = ToolkitRuntime.Create(gameObject, "Placement", "PlacementState", 50);
-            _ui.ActionRequested += OnAction;
             _mode = ArenaMode.UseAR;
             _space.InputEnabled = false;
             UpdateVisibility();
@@ -65,7 +70,7 @@ namespace Game.App
 
         private void Update()
         {
-            if (_ui == null)
+            if (_root == null)
             {
                 return;
             }
@@ -118,24 +123,32 @@ namespace Game.App
 
             _space.InputEnabled = canInput;
             bool lost = _placed && _mode && !tracking;
-            _ui.Model.Visible("trackingLost", lost);
-            _ui.Model.Visible("placementPanel", _running || (_placed && phase == MatchPhase.Placement));
             var provider = _provider as ARArenaAnchorProvider;
-            string placementMessage;
+            string message;
 
             if (_placed)
             {
-                placementMessage = "Арена установлена. Ждём остальных игроков…";
+                message = "Арена установлена. Ждём остальных игроков…";
             }
             else
             {
-                placementMessage = _failure ?? provider?.Message ?? "Подготовка арены…";
+                message = _failure ?? provider?.Message ?? "Подготовка арены…";
             }
 
-            _ui.Model.Text("placementMessage", placementMessage);
-            _ui.Model.Visible("confirmPlacement", _running && provider != null && !provider.Unavailable);
-            _ui.Model.Enabled("confirmPlacement", provider?.CanConfirm ?? false);
-            _ui.Model.Visible("useFlat", _running && _mode);
+            var status = new ArenaPlacementStatus(
+                message,
+                _running || (_placed && phase == MatchPhase.Placement),
+                _running && provider != null && !provider.Unavailable,
+                provider?.CanConfirm ?? false,
+                _running && _mode,
+                lost);
+
+            if (!Status.Equals(status))
+            {
+                Status = status;
+                StatusChanged?.Invoke(status);
+            }
+
             if (_placed && !_sent && phase == MatchPhase.Placement && HeroNet.Local != null)
             {
                 HeroNet.Local.ArenaPlaced();
@@ -156,16 +169,12 @@ namespace Game.App
             _root.SetPositionAndRotation(_flatPose.position, _flatPose.rotation);
             _root.localScale = _flatScale;
             _rig.SetActive(_mode);
-            _flatCamera.enabled = !_mode;
-            var listener = _flatCamera.GetComponent<AudioListener>();
-            if (listener != null)
-            {
-                listener.enabled = !_mode;
-            }
+            _cameras.SetMode(_mode);
 
             _space.SetCamera(_mode ? _rig.Camera : _flatCamera);
             _cancellation = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
-            var cancellation = _cancellation;
+            CancellationTokenSource cancellation = _cancellation;
+            CancellationToken cancellationToken = cancellation.Token;
             if (_mode)
             {
                 _provider = _rig.CreateProvider(_root, _gestures, _input, _size);
@@ -176,18 +185,26 @@ namespace Game.App
             }
             try
             {
-                Pose pose = await _provider.AcquireArenaPoseAsync(cancellation.Token);
-                cancellation.Token.ThrowIfCancellationRequested();
+                Pose pose = await _provider.AcquireArenaPoseAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 _root.SetPositionAndRotation(pose.position, pose.rotation);
                 _placed = true;
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                // Changing mode or destroying the scene cancels placement.
+            }
             catch (Exception exception)
             {
+                if (cancellationToken.IsCancellationRequested || _cancellation != cancellation)
+                {
+                    return;
+                }
+
                 Debug.LogException(exception);
                 _failure = "Не удалось запустить AR. Выберите плоский режим.";
                 // Keep the fallback available without restarting the failing operation every frame.
-                await UniTask.WaitUntil(() => cancellation.IsCancellationRequested);
+                await UniTask.WaitUntil(() => cancellationToken.IsCancellationRequested);
             }
             finally
             {
@@ -198,17 +215,21 @@ namespace Game.App
             }
         }
 
-        private void OnAction(string action, string value)
-        {
-            if (action == "confirmPlacement" && _provider is ARArenaAnchorProvider ar)
-            {
-                ar.Confirm();
-            }
+        public ArenaPlacementStatus Status { get; private set; }
 
-            if (action == "useFlat")
+        public event Action<ArenaPlacementStatus> StatusChanged;
+
+        public void Confirm()
+        {
+            if (_provider is ARArenaAnchorProvider provider)
             {
-                ArenaMode.UseAR = false;
+                provider.Confirm();
             }
+        }
+
+        public void UseFlat()
+        {
+            ArenaMode.UseAR = false;
         }
 
         private void StopProvider()
@@ -225,7 +246,10 @@ namespace Game.App
             }
         }
 
-        private void LateUpdate() => UpdateVisibility();
+        private void LateUpdate()
+        {
+            UpdateVisibility();
+        }
 
         private void UpdateVisibility()
         {
@@ -251,22 +275,15 @@ namespace Game.App
 
         private void OnDestroy()
         {
-            if (_ui != null)
+            StatusChanged = null;
+            StopProvider();
+
+            if (_rig != null)
             {
-                _ui.ActionRequested -= OnAction;
+                _rig.SetActive(false);
             }
 
-            StopProvider();
-            if (_otherCameras != null)
-            {
-                foreach (var camera in _otherCameras)
-                {
-                    if (camera != null)
-                    {
-                        camera.enabled = true;
-                    }
-                }
-            }
+            _cameras?.Dispose();
         }
     }
 }

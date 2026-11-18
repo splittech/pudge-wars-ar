@@ -1,77 +1,109 @@
-# Реактивный интерфейс UI Toolkit
+# UI Toolkit: MVVM
 
-ТДД v1.37. Все runtime-экраны используют UI Toolkit; игровая симуляция и протокол не менялись.
+ТДД v1.39. Все пять runtime-интерфейсов используют заранее настроенные UIDocument и типизированные ScriptableObject ViewModel.
 
-## Поток данных
+## Зависимости и поток данных
 
 ```text
-Core / Net / Services
-        ↓
-Презентер → runtime UiState (ScriptableObject) → Changed (R3) → ReactiveDocument → UXML
-        ↑                                                       ↓
-        └──────────────────── ActionRequested ───────────────────┘
+View → ViewModel → Model
+
+пользователь → View → метод ViewModel → метод сервиса
+событие / состояние сервиса → ViewModel → R3-свойство → View
 ```
 
-`Game.UI.Foundation` — общая инфраструктура. `UiState` не содержит сетевых объектов или правил. `ReactiveDocument` не знает о HeroNet, MatchStateNet, золоте, командах или сценах. Оно связывает параметры модели с одноимёнными элементами UXML и сообщает о действиях.
+Model — не UI-asset: это игровая симуляция, сетевые адаптеры и сервисы приложения. Model не зависит от ViewModel или документа. Например, ArenaPlacementFlow реализует IArenaPlacementService и публикует ArenaPlacementStatus; ему неизвестны кнопки, UiViewModel, UIDocument и их жизненный цикл.
 
-`MenuPresenter` работает с NetworkSessionController. `MatchPresenter` подписывается на состояние матча/героя и вычисляет таймеры и проекцию HP-баров. Только презентеры форматируют игровые данные. Навигацию и тренировку передаёт Game.App через callbacks. SimpleLoadingScreen использует Foundation напрямую, сохраняя прежний контракт загрузки и отмены.
+ViewModel — единственная точка взаимодействия View с приложением. Она подписывается на Model, форматирует данные и предоставляет типизированные методы намерений. Имена элементов UXML используются только в View. Общей шины строковых UI-событий нет.
 
-## Где менять внешний вид
+View — UIDocument с UXML/USS и небольшим компонентом DocumentView. Компонент связывает элементы с типизированными R3-свойствами и вызывает методы ViewModel. Он не отправляет сетевые команды и не ищет HeroNet/MatchStateNet. Исключение по работе с Unity-миром — экранная проекция готовых мировых позиций HP-баров в MatchDocument.
 
-- `Assets/Game/Resources/UI/Menu.uxml`: подключение, создание игры, поиск, потеря хоста, тренировка.
-- `Match.uxml`: лобби, HUD, магазин, результаты, тренировка и выход.
-- `Loading.uxml`: загрузочный экран.
-- `Overlay.uxml`: диагностический текст.
-- `Interface.uss`: цвета, шрифты, отступы, размеры и состояния.
-- `Theme.tss`: тема контролов.
-- `Panel.asset`: PanelSettings, масштабирование Scale With Screen Size, reference 1920×1080, Match 0.5. Разрешение устройства не фиксируется.
+## Файлы и размещение
 
-Открывайте UXML в UI Builder. Имена `name` — контракт с моделью и обработчиками действий: при переименовании обновляйте соответствующие ключи презентера. USS-классы и компоновку можно менять независимо от игровой логики. Текущая разметка — функциональная основа для последующей работы над дизайном.
+| Экран | View | ViewModel | Источник Model |
+|---|---|---|---|
+| Главное меню | MenuDocument | MenuViewModel | NetworkSessionController |
+| Лобби / HUD / результаты / тренировка | MatchDocument | MatchViewModel | HeroNet, MatchStateNet, callbacks тренировки и навигации |
+| Установка арены / потеря трекинга | PlacementDocument | PlacementViewModel | IArenaPlacementService |
+| Диагностика | OverlayDocument | OverlayViewModel | IDiagnosticsSource |
+| Загрузка | LoadingDocument | LoadingViewModel | ILoadingStateSource |
 
-Старые Canvas/TMP/uGUI-компоненты удалены из Boot, Main Menu, Gameplay и двух UI-префабов через Unity Editor. Сохранены трансформы и компоненты с настройками переходов. `SwitchSceneButton` теперь служит адаптером навигации без зависимости от Button. NetworkMenuView и MatchInterface — точки сборки и жизненного цикла презентеров, не сами представления.
+- Компоненты View и конкретные ViewModel: `Assets/Game/Scripts/UI/`.
+- Общая инфраструктура: `Assets/Game/Scripts/UI/Foundation/`.
+- Настроенные префабы: `Assets/Game/Prefabs/UI/<Screen> Document.prefab`.
+- Шаблоны ViewModel: `Assets/Game/UI/ViewModels/<Screen> ViewModel.asset`.
+- Разметка, стили и PanelSettings: `Assets/Game/Resources/UI/`.
 
-## Параметры ScriptableObject
+Папка Resources сохранена для существующих визуальных assets, но runtime-экраны больше не используют Resources.Load. Ссылки назначены заранее.
 
-В Resources/UI находятся шаблоны `MenuState`, `MatchState`, `LoadingState`, `OverlayState`. При создании экрана шаблон клонируется, поэтому сессии MPPM и повторные матчи не разделяют состояние. Runtime-клон доступен в Inspector поля Runtime Model компонента экрана и Model компонента ReactiveDocument. Изменения не записываются в проектный asset.
+В Main Menu Scene находится MenuDocument из Network Menu.prefab. В Gameplay Scene документы Match и Placement являются дочерними объектами GameplayScope, вне ArenaRoot. В Boot Scene Loading находится под сервисом загрузки, Overlay — под DevelopmentOverlay. Boot сохраняет их между переходами.
 
-У каждого параметра:
-
-| Поле | Назначение |
+| Документ | sortingOrder |
 |---|---|
-| Name | Имя элемента UXML; для HP-баров `world_<SessionPlayerId>` |
-| Text | Готовый текст Label/Button/TextField или заголовок ProgressBar |
-| Number | Значение ProgressBar; прогресс и HP — от 0 до 1 |
-| Enabled | Доступность элемента |
-| Visible | Видимость через USS-класс `hidden` |
-| StyleClass | Дополнительный USS-класс состояния, например `transparent` для загрузки |
-| Position | Экранная позиция динамического HP-бара в координатах панели |
-| Rows | Строки списка кнопок ScrollView, например адреса найденных серверов |
+| Menu / Match | 0 |
+| Placement | 50 |
+| Overlay | 100 |
+| Loading | 1000 |
 
-Меняйте данные через методы модели, чтобы получить уведомление:
+Все используют общий PanelSettings с масштабированием Scale With Screen Size, reference resolution 1920×1080, Match 0.5. Каждый UIDocument имеет собственный sortingOrder; настройки панели не клонируются.
 
-```csharp
-model.Text("health", "HP 750/1000");
-model.Number("cooldown", 0.5f);
-model.Enabled("buyDamage", false);
-model.Visible("results", true);
-```
+## Ответственность ViewModel
 
-Set-методы уведомляют только при реальном изменении значения. OnValidate обновляет представление после изменения Inspector. Переключение документа и повторное связывание восстанавливают актуальное состояние и снимают старые подписки. Внутреннее содержимое параметров не следует менять напрямую; для списков используйте Rows/Set.
+**MenuViewModel** хранит Nickname, Address, Message, список серверов, доступность запуска и признаки отмены/обрыва. Методы CreateGame, Join, Search, Cancel, JoinServer и другие вызывают NetworkSessionController. Навигация и переключение AR/Flat передаются App через callbacks.
 
-Runtime-модель — проекция для отображения. Редактирование Gold/HP в ней не меняет симуляцию и не позволяет обойти серверную валидацию. Активный презентер может снова записать авторитетное значение; для изолированного предпросмотра используйте UIDocument и ReactiveDocument с моделью без презентера.
+**MatchViewModel** хранит признаки видимости лобби/HUD/результатов/тренировки, счёт, таймер, здоровье, золото, перезарядку, kill feed, команды, статистику, подписи/доступность четырёх улучшений. Подписывается на HeroNet и MatchStateNet через R3; при замене локального героя/матча снимает предыдущие подписки. Методы выбора команды, готовности, старта, покупки и реванша вызывают существующие MatchActions. Проверки на сервере сохранены.
 
-## Действия
+**PlacementViewModel** адаптирует ArenaPlacementStatus в Message, PanelVisible, ConfirmVisible, CanConfirm, FallbackVisible и TrackingLost. Confirm вызывает сервис только при CanConfirm; UseFlat вызывает его метод смены режима. Потеря трекинга и блокировка игрового ввода остаются обязанностью ArenaPlacementFlow.
 
-Button публикует `ActionRequested(name, null)`. TextField публикует новое значение под своим именем; Enter публикует `<name>Submit`. Кнопка динамического списка публикует имя списка и индекс строки. Представление не отправляет сетевые команды напрямую.
+**OverlayViewModel** получает DiagnosticsSnapshot: текст FPS/RTT/prediction и текущий режим. ToggleArenaMode обращается к источнику диагностики. Сам сбор метрик остаётся в DevelopmentOverlay, выключаемом в обычной сборке.
 
-Примеры действий: `create`, `join`, `training`; `selectA`, `ready`, `start`; `buyRange`, `buySpeed`, `buyRadius`, `buyDamage`; `rematch`, `returnToLobby`, `leave`. Презентер проверяет контекст, затем вызывает прежний IMatchActions/NetworkSessionController. Сервер остаётся источником истины.
+**LoadingViewModel** получает LoadingSnapshot: описание, прогресс, видимость и прозрачность. SimpleLoadingScreen публикует эти данные, сохраняя отмену, минимальное время показа, сглаживание прогресса и переключения GameLoadingScreen. LoadingDocument управляет USS-классом transparent; визуальное затухание остаётся в USS.
+
+## Жизненный цикл и DI
+
+1. В префабе DocumentView хранится ссылка Template на asset конкретной ViewModel. Поле Runtime Model в сохранённом префабе пустое.
+2. При первом обращении DocumentView создаёт независимый Instantiate-клон шаблона. Assets и несколько экземпляров экранов не разделяют изменяемое состояние.
+3. MainMenuScope, GameplayScope и ProjectScope получают документы через сериализованные ссылки и вызывают Initialize у их ViewModel.
+4. View подписывается на свойства R3. Они немедленно передают текущее значение. SetValueWithoutNotify предотвращает обратное срабатывание TextField при программном заполнении.
+5. При отключении View снимаются биндинги и обработчики кнопок/полей; модель сохраняет состояние и подписку на сервис. При включении всё связывается заново.
+6. Если UIDocument пересоздаёт rootVisualElement, DocumentView обнаруживает это и восстанавливает привязки.
+7. При уничтожении View уничтожается runtime-клон. ViewModel.Disconnect снимает подписки на Model; базовая ViewModel освобождает созданные реактивные свойства.
+
+Runtime-зависимости, подписки и реактивные объекты не сериализуются в assets. ScriptableObject здесь задаёт тип и принадлежность модели экрану, а не служит глобальным каналом событий.
+
+Menu и Match пока используют Tick для источников без единого события изменения, обнаружения смены HeroNet/MatchStateNet и таймеров. R3-подписки используются там, где Model уже публикует состояние. Placement, Loading и Overlay получают данные через события сервисов. Односторонняя зависимость не требует превращать все обновления в общую шину событий.
+
+## Как изменить интерфейс
+
+**Внешний вид:** открыть UXML в UI Builder, изменить компоновку и Interface.uss. Изменение name требует обновить только соответствующий Document-класс.
+
+**Новое значение:** добавить типизированное реактивное свойство в ViewModel; заполнить его из Model; привязать к элементу в BindElements.
+
+**Новая кнопка:** добавить Button в UXML, метод намерения в ViewModel и привязку Button в Document. Игровой сервис предоставляет собственный метод, не принимающий ViewModel.
+
+**Новый экран:** создать ViewModel и Document-класс, затем в редакторе сохранить GameObject с UIDocument, назначенными UXML/PanelSettings, sortingOrder и шаблоном ViewModel. Сохранить префаб, разместить в нужной сцене, передать зависимости из Scope. Фабрика документов в runtime не нужна.
+
+**Предпросмотр:** существующие UXML/USS открываются в UI Builder. Для программного предпросмотра можно использовать prefab документа и менять свойства его runtime ViewModel без подключения сетевых сервисов. Обычный Inspector не сериализует текущие значения R3-свойств.
 
 ## Ввод и HP-бары
 
-Пустые контейнеры HUD, диагностика и HP-бары имеют PickingMode.Ignore. Панели, поля и кнопки блокируют начало игровых жестов через PanelRaycaster. HP-бары проецируются активной игровой камерой в экранную панель; наличие тега MainCamera не обязательно. Во время смерти, скрытой арены или ухода героя бар скрывается. Динамическая позиция — единственное исключение из оформления через USS: координаты задаются runtime-параметром Position.
+Пустые слои HUD и HP-бары используют PickingMode.Ignore. Интерактивные панели блокируют начало игровых жестов через EventSystem/PanelRaycaster (FR-IN-06).
+
+MatchViewModel выдаёт список WorldHealthBar с ID игрока, мировым положением и долей здоровья. MatchDocument выбирает активную камеру и проецирует позиции в пространство панели. Бары создаются внутри существующего worldBars; неактивные/погибшие/скрытые герои не отображаются. AR-координаты не передаются по сети.
+
+## Что удалено
+
+UiState/UiParameter, ReactiveDocument, ToolkitRuntime, RuntimePanelOwner, MenuPresenter, MatchPresenter, NetworkMenuView и MatchInterface. Удалены старые State.asset. Общий ActionRequested со строковыми ключами больше не используется.
+
+Сохранённая Editor-команда Game/UI/Configure MVVM documents создаёт/обновляет настроенные префабы, ссылки сцен и шаблоны через Unity Editor API. Она предназначена для миграции структуры, а не для runtime. Перед выполнением сохраняет открытые сцены и восстанавливает набор сцен после работы.
 
 ## Проверка
 
-EditMode проверяет независимость моделей, отсутствие повторных уведомлений, защиту строк списка от изменения исходного массива, импорт всех четырёх UXML, реактивное обновление текста/кнопок, отсутствие обратных событий при заполнении полей и восстановление связей документа. Полная ручная приёмка на отдельных MPPM-клиентах и Android остаётся необходимой после миграции.
+ReactiveUiTests проверяет назначенные assets, порядок документов, типы и независимость runtime-моделей, отсутствие сохранённой runtime-модели в префабах, подавление повторных R3-уведомлений, двустороннюю привязку полей без обратного события, команды установки, отписки при смене источника/уничтожении и восстановление документа.
 
-Проверка 16.11.2026: 388/388 EditMode Passed через unity test --mode EditMode, результат test-results.xml, ошибок компиляции нет. Play Mode: меню → тренировка → меню; хост с тремя серверными заглушками прошёл Lobby → Countdown → Playing → Results → Rematch → Results → Lobby. Проверены реактивная запись в модель, экранный HP-бар, отключение готовности, отсутствие Canvas и FR-IN-06 (один UI-hit над кнопкой, ноль над пустой ареной). Скриншоты проверки оставлены в Temp/ui-toolkit-*.png; отдельные клиенты и телефоны этим прогоном не проверялись.
+Проверено 17.11.2026: финальный полный `unity test --mode EditMode` — 397/397 Passed, 0 Failed, 0 Skipped; компиляция без ошибок. Результат — `test-results.xml`.
+
+Play Mode в Unity 6000.6.5f1: Boot → Menu → Training → Menu; создание локального хоста через MenuViewModel, один тестовый серверный участник, готовность/запуск через MatchViewModel, ожидание Placement и подтверждение заглушки, Playing с таймером/HP/золотом/магазином и двумя HP-барами, Results со статистикой, Rematch → Playing → Results → Lobby. Матч завершался ускоренным Advance только в runtime-проверке. После RefreshBindings осталось ровно два HP-бара. Счётчик кадров изменялся; это была работающая игровая петля. Новых ошибок приложения за этот сценарий нет.
+
+В консоли проверочного Editor остались сообщения инструментария: CLI beta.17 запрашивал отсутствующую в Pipeline 0.8 команду editor status; повторная миграция превысила стандартный timeout 5 с, хотя сохранение завершилось. Консоль не очищалась. Эти сообщения не считаются ошибками игровой логики или подтверждением полностью чистой консоли окружения.
+
+Проверка отдельных MPPM-клиентов, мобильной клавиатуры, реальных Android-жестов, двух телефонов, FPS и нагрева остаётся отдельной приёмкой. Android APK после этой MVVM-миграции не пересобирался.

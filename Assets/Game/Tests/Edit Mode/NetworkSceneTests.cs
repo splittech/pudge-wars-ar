@@ -44,6 +44,20 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
+        public void Dispose_DiscoveryAlreadyDestroyed_DoesNotAccessNativeObject()
+        {
+            var discovery = _root.AddComponent<LanDiscovery>();
+            typeof(PudgeNetworkManager).GetProperty(nameof(PudgeNetworkManager.Discovery)).SetValue(_manager, discovery);
+            var controller = new NetworkSessionController(_manager);
+            controller.Initialize();
+            UnityEngine.Object.DestroyImmediate(discovery);
+
+            Assert.That(() => controller.Dispose(), Throws.Nothing);
+            Assert.That(() => controller.Dispose(), Throws.Nothing);
+            Assert.That(() => discovery.StopSearch(), Throws.Nothing);
+        }
+
+        [Test]
         public void ServerChangeScene_NoServer_IsRejectedBeforeLoading()
         {
             // Act and Assert.

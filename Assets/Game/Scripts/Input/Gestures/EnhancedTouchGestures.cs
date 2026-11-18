@@ -14,7 +14,7 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 namespace Game.Input.Gestures
 {
     /// <summary>
-    /// Gesture recognizer over EnhancedTouch. In the editor the mouse is simulated as a touch (FR-IN-07).
+    /// Gesture recognizer over EnhancedTouch. In the editor LMB follows the same tap/drag rules (FR-IN-07).
     /// Tap and drag follow the first finger; a second finger cancels the drag and drives pinch/twist.
     /// Touches that start over UI are ignored (FR-IN-06).
     /// </summary>
@@ -22,6 +22,9 @@ namespace Game.Input.Gestures
     {
         private const float ReferenceDpi = 160f;
         private const int NoTouch = -1;
+#if UNITY_EDITOR
+        private const int EditorMouseId = int.MinValue;
+#endif
 
         private readonly float _tapMaxTime;
         private readonly float _dragThresholdPixels;
@@ -31,6 +34,7 @@ namespace Game.Input.Gestures
         private readonly Subject<PinchTwistGesture> _pinchTwist = new();
 
         private readonly List<RaycastResult> _uiRaycastResults = new();
+        private readonly HashSet<int> _uiTouchIds = new();
 
         private int _primaryTouchId = NoTouch;
         private bool _isPrimaryIgnored;
@@ -40,6 +44,11 @@ namespace Game.Input.Gestures
         private int _pinchSecondTouchId = NoTouch;
         private float _pinchDistance;
         private float _pinchAngle;
+#if UNITY_EDITOR
+        private Vector2 _mouseStartPosition;
+        private Vector2 _mousePreviousPosition;
+        private double _mouseStartTime;
+#endif
 
         public Observable<Vector2> Tap => _tap;
         public Observable<DragGesture> Drag => _drag;
@@ -56,14 +65,6 @@ namespace Game.Input.Gestures
             _dragThresholdPixels = data.DragThreshold * dpi / ReferenceDpi;
 
             EnhancedTouchSupport.Enable();
-#if UNITY_EDITOR
-            // TouchSimulation is a hidden MonoBehaviour: created outside Play Mode (e.g. by EditMode tests)
-            // it never receives OnEnable and stays broken in later Play Mode sessions.
-            if (Application.isPlaying)
-            {
-                TouchSimulation.Enable();
-            }
-#endif
         }
 
         public void Tick()
@@ -77,16 +78,22 @@ namespace Game.Input.Gestures
             }
 
             ProcessPinchTwist(touches);
+
+            foreach (Touch touch in touches)
+            {
+                if (!IsActive(touch))
+                {
+                    _uiTouchIds.Remove(touch.touchId);
+                }
+            }
+
+#if UNITY_EDITOR
+            ProcessEditorMouse();
+#endif
         }
 
         public void Dispose()
         {
-#if UNITY_EDITOR
-            if (Application.isPlaying)
-            {
-                TouchSimulation.Disable();
-            }
-#endif
             EnhancedTouchSupport.Disable();
 
             _tap.Dispose();
@@ -98,13 +105,18 @@ namespace Game.Input.Gestures
         {
             if (touch.phase == TouchPhase.Began)
             {
+                if (IsOverUi(touch.screenPosition))
+                {
+                    _uiTouchIds.Add(touch.touchId);
+                }
+
                 if (_primaryTouchId == NoTouch)
                 {
-                    BeginPrimary(touch);
+                    BeginPrimary(touch.touchId, _uiTouchIds.Contains(touch.touchId));
                 }
                 else
                 {
-                    IgnorePrimary(touch);
+                    IgnorePrimary(touch.startScreenPosition, touch.screenPosition);
                 }
 
                 return;
@@ -119,28 +131,28 @@ namespace Game.Input.Gestures
             {
                 case TouchPhase.Moved:
                 case TouchPhase.Stationary:
-                    UpdatePrimary(touch);
+                    UpdatePrimary(touch.startScreenPosition, touch.screenPosition, touch.phase == TouchPhase.Moved);
                     break;
 
                 case TouchPhase.Ended:
-                    EndPrimary(touch);
+                    EndPrimary(touch.startScreenPosition, touch.screenPosition, touch.time - touch.startTime);
                     break;
 
                 case TouchPhase.Canceled:
-                    IgnorePrimary(touch);
+                    IgnorePrimary(touch.startScreenPosition, touch.screenPosition);
                     _primaryTouchId = NoTouch;
                     break;
             }
         }
 
-        private void BeginPrimary(Touch touch)
+        private void BeginPrimary(int touchId, bool ignored)
         {
-            _primaryTouchId = touch.touchId;
-            _isPrimaryIgnored = IsOverUi(touch.screenPosition);
+            _primaryTouchId = touchId;
+            _isPrimaryIgnored = ignored;
             _isDragging = false;
         }
 
-        private void UpdatePrimary(Touch touch)
+        private void UpdatePrimary(Vector2 startPosition, Vector2 position, bool moved)
         {
             if (_isPrimaryIgnored)
             {
@@ -149,32 +161,32 @@ namespace Game.Input.Gestures
 
             if (_isDragging)
             {
-                if (touch.phase == TouchPhase.Moved)
+                if (moved)
                 {
-                    _drag.OnNext(new DragGesture(DragPhase.Moved, touch.startScreenPosition, touch.screenPosition));
+                    _drag.OnNext(new DragGesture(DragPhase.Moved, startPosition, position));
                 }
 
                 return;
             }
 
-            if (HasMovedBeyondThreshold(touch))
+            if (HasMovedBeyondThreshold(startPosition, position))
             {
                 _isDragging = true;
-                _drag.OnNext(new DragGesture(DragPhase.Began, touch.startScreenPosition, touch.screenPosition));
+                _drag.OnNext(new DragGesture(DragPhase.Began, startPosition, position));
             }
         }
 
-        private void EndPrimary(Touch touch)
+        private void EndPrimary(Vector2 startPosition, Vector2 position, double duration)
         {
             if (!_isPrimaryIgnored)
             {
                 if (_isDragging)
                 {
-                    _drag.OnNext(new DragGesture(DragPhase.Ended, touch.startScreenPosition, touch.screenPosition));
+                    _drag.OnNext(new DragGesture(DragPhase.Ended, startPosition, position));
                 }
-                else if (touch.time - touch.startTime <= _tapMaxTime && !HasMovedBeyondThreshold(touch))
+                else if (duration <= _tapMaxTime && !HasMovedBeyondThreshold(startPosition, position))
                 {
-                    _tap.OnNext(touch.screenPosition);
+                    _tap.OnNext(position);
                 }
             }
 
@@ -184,16 +196,60 @@ namespace Game.Input.Gestures
         /// <summary>
         /// Stops gesture recognition for the current primary touch; a running drag is cancelled.
         /// </summary>
-        private void IgnorePrimary(Touch touch)
+        private void IgnorePrimary(Vector2 startPosition, Vector2 position)
         {
             if (_isDragging && !_isPrimaryIgnored)
             {
-                _drag.OnNext(new DragGesture(DragPhase.Cancelled, touch.startScreenPosition, touch.screenPosition));
+                _drag.OnNext(new DragGesture(DragPhase.Cancelled, startPosition, position));
             }
 
             _isPrimaryIgnored = true;
             _isDragging = false;
         }
+
+#if UNITY_EDITOR
+        private void ProcessEditorMouse()
+        {
+            // TouchSimulation disables Mouse, which also disables XR Simulation's RMB unlock action.
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse == null)
+            {
+                if (_primaryTouchId == EditorMouseId)
+                {
+                    IgnorePrimary(_mouseStartPosition, _mousePreviousPosition);
+                    _primaryTouchId = NoTouch;
+                }
+
+                return;
+            }
+
+            Vector2 position = mouse.position.ReadValue();
+            if (_primaryTouchId == NoTouch && mouse.leftButton.isPressed && mouse.leftButton.wasPressedThisFrame)
+            {
+                _mouseStartPosition = position;
+                _mousePreviousPosition = position;
+                _mouseStartTime = mouse.lastUpdateTime;
+                BeginPrimary(EditorMouseId, IsOverUi(position));
+                return;
+            }
+
+            if (_primaryTouchId != EditorMouseId)
+            {
+                return;
+            }
+
+            if (mouse.leftButton.isPressed)
+            {
+                UpdatePrimary(_mouseStartPosition, position, position != _mousePreviousPosition);
+            }
+            else
+            {
+                EndPrimary(_mouseStartPosition, position, mouse.lastUpdateTime - _mouseStartTime);
+            }
+
+            _mousePreviousPosition = position;
+        }
+#endif
 
         private void ProcessPinchTwist(ReadOnlyArray<Touch> touches)
         {
@@ -206,6 +262,13 @@ namespace Game.Input.Gestures
 
             Touch first = touches[0];
             Touch second = touches[1];
+
+            if (_uiTouchIds.Contains(first.touchId) || _uiTouchIds.Contains(second.touchId))
+            {
+                _pinchFirstTouchId = NoTouch;
+                _pinchSecondTouchId = NoTouch;
+                return;
+            }
 
             Vector2 offset = second.screenPosition - first.screenPosition;
             float distance = offset.magnitude;
@@ -231,9 +294,9 @@ namespace Game.Input.Gestures
             _pinchAngle = angle;
         }
 
-        private bool HasMovedBeyondThreshold(Touch touch)
+        private bool HasMovedBeyondThreshold(Vector2 startPosition, Vector2 position)
         {
-            return (touch.screenPosition - touch.startScreenPosition).sqrMagnitude
+            return (position - startPosition).sqrMagnitude
                 > _dragThresholdPixels * _dragThresholdPixels;
         }
 

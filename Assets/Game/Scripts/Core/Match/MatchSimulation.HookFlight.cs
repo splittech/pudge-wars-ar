@@ -10,6 +10,12 @@ namespace Game.Core.Match
         private void RebaseHook(int index, float2 velocity, double time)
         {
             ref HookState hook = ref _hooks[index];
+            if (!hook.Path.TryAdd(hook.Tip))
+            {
+                HookSimulation.Turn(ref hook, HookPhase.Retracting, time);
+                return;
+            }
+
             hook.Origin = hook.Tip;
             hook.Length = 0;
             hook.StartTime = time;

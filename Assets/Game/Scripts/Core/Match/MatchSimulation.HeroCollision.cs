@@ -77,6 +77,7 @@ namespace Game.Core.Match
                         _hooks[i].TurnLength = 0;
                         _hooks[i].TurnTime = Time;
                         _hooks[i].StartTime = Time;
+                        _hooks[i].SampleTime = Time;
                     }
                 }
             }

@@ -1,14 +1,12 @@
-using Game.UI.Foundation;
+using System;
 using Mirror;
 using Game.Net;
 using UnityEngine;
 
 namespace Game.App
 {
-    public sealed class DevelopmentOverlay : MonoBehaviour
+    public sealed class DevelopmentOverlay : MonoBehaviour, IDiagnosticsSource
     {
-        [SerializeField] private UiState _runtimeModel;
-        private ReactiveDocument _document;
         private string _text;
         [SerializeField, Min(0.1f)] private float _refreshInterval = 0.5f;
 
@@ -30,18 +28,31 @@ namespace Game.App
         {
             _elapsed = 0f;
             _frames = 0;
-            if (_document == null)
-            {
-                _document = ToolkitRuntime.Create(gameObject, "Overlay", "OverlayState", 100);
-                _runtimeModel = _document.Model;
-                _document.ActionRequested += OnAction;
-            }
-            _runtimeModel.Text("diagnostics", $"v{Application.version}");
+            Publish($"v{Application.version}");
+        }
+
+        public DiagnosticsSnapshot Snapshot { get; private set; }
+
+        public event Action<DiagnosticsSnapshot> Changed;
+
+        public void ToggleArenaMode()
+        {
+            Game.Input.Routing.ArenaMode.UseAR = !Game.Input.Routing.ArenaMode.UseAR;
+            Publish(_text ?? $"v{Application.version}");
+        }
+
+        private void Publish(string text)
+        {
+            Snapshot = new DiagnosticsSnapshot(text, Game.Input.Routing.ArenaMode.UseAR);
+            Changed?.Invoke(Snapshot);
         }
 
         private void Update()
         {
-            _runtimeModel.Text("arenaMode", Game.Input.Routing.ArenaMode.UseAR ? "AR → Flat" : "Flat → AR");
+            if (Snapshot.UseAR != Game.Input.Routing.ArenaMode.UseAR)
+            {
+                Publish(_text ?? $"v{Application.version}");
+            }
             _elapsed += Time.unscaledDeltaTime;
             _frames++;
             if (_elapsed < _refreshInterval)
@@ -49,8 +60,16 @@ namespace Game.App
                 return;
             }
 
-            string role = NetworkServer.active ? (NetworkClient.active ? "host" : "server")
-                : NetworkClient.isConnected ? "client" : "offline";
+            string role = "offline";
+
+            if (NetworkServer.active)
+            {
+                role = NetworkClient.active ? "host" : "server";
+            }
+            else if (NetworkClient.isConnected)
+            {
+                role = "client";
+            }
             string rtt = NetworkClient.isConnected ? $"{NetworkTime.rtt * 1000:0} ms" : "-";
             _text = $"FPS: {_frames / _elapsed:0} | v{Application.version} | {role} | RTT: {rtt}";
             if (MatchStateNet.Active != null)
@@ -66,31 +85,28 @@ namespace Game.App
                 float corrections = Mathf.Max(0, movement.Corrections - _lastCorrections) / _elapsed;
                 float sent = Mathf.Max(0, hero.MovementPackets - _lastPackets) / _elapsed;
                 float received = Mathf.Max(0, hero.MovementSnapshots - _lastSnapshots) / _elapsed;
-                _text += $"\nPred {(NetworkServer.active ? "HOST" : hero.PredictionEnabled ? "ON" : "OFF")} <color={color}>err {movement.Error:0.000}</color>"
+                string prediction = hero.PredictionEnabled ? "ON" : "OFF";
+
+                if (NetworkServer.active)
+                {
+                    prediction = "HOST";
+                }
+
+                _text += $"\nPred {prediction} <color={color}>err {movement.Error:0.000}</color>"
                     + $" c/s {corrections:0} h {movement.HistorySize} ack {movement.AckSequence}/t{movement.LastServerTick}"
                     + $" send/snap {sent:0}/{received:0}";
                 _lastCorrections = movement.Corrections;
                 _lastPackets = hero.MovementPackets;
                 _lastSnapshots = hero.MovementSnapshots;
             }
-            _runtimeModel.Text("diagnostics", _text);
+            Publish(_text);
             _elapsed = 0;
             _frames = 0;
         }
 
-        private void OnAction(string action, string value)
-        {
-            if (action == "arenaMode")
-            {
-                Game.Input.Routing.ArenaMode.UseAR = !Game.Input.Routing.ArenaMode.UseAR;
-            }
-        }
         private void OnDestroy()
         {
-            if (_document != null)
-            {
-                _document.ActionRequested -= OnAction;
-            }
+            Changed = null;
         }
     }
 }

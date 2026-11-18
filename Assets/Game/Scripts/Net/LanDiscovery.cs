@@ -50,8 +50,11 @@ namespace Game.Net
         public void StopSearch()
         {
             IsSearching = false;
-            StopDiscovery();
             _servers.Clear();
+            if (this != null)
+            {
+                StopDiscovery();
+            }
         }
 
         private void Update()

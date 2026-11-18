@@ -20,5 +20,8 @@ namespace Game.Core.Hook
         public float Range;
         public float Radius;
         public int Damage;
+        public HookPath Path;
+        public int ReturnIndex;
+        public double SampleTime;
     }
 }
