@@ -9,6 +9,10 @@ namespace Game.UI
     public sealed class PlacementViewModel : UiViewModel
     {
         private IArenaPlacementService _source;
+        private ReactiveProperty<bool> _roomControlsVisible;
+        public ReactiveProperty<bool> RoomControlsVisible => _roomControlsVisible ??= Property<bool>(false);
+        private ReactiveProperty<bool> _roomEditing;
+        public ReactiveProperty<bool> RoomEditing => _roomEditing ??= Property<bool>(false);
 
         private ReactiveProperty<string> _message;
         public ReactiveProperty<string> Message => _message ??= Property<string>("Подготовка арены…");
@@ -27,6 +31,28 @@ namespace Game.UI
 
         private ReactiveProperty<bool> _trackingLost;
         public ReactiveProperty<bool> TrackingLost => _trackingLost ??= Property<bool>(false);
+
+        public override void Tick()
+        {
+            var room = _source as IRoomPlacementControls;
+            RoomControlsVisible.Value = room?.IsRoomMode == true;
+            RoomEditing.Value = room?.CanEditRoom == true;
+        }
+
+        public void AddObstacle()
+        {
+            (_source as IRoomPlacementControls)?.AddRoomObstacle();
+        }
+
+        public void Undo()
+        {
+            (_source as IRoomPlacementControls)?.UndoRoomPoint();
+        }
+
+        public void Realign()
+        {
+            (_source as IRoomPlacementControls)?.RealignRoom();
+        }
 
         public void Initialize(IArenaPlacementService source)
         {

@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Game.AR;
 using Game.Core.Configs;
+using Game.Core.Geometry;
 using Game.Core.Match;
 using Game.Input.Gestures;
 using Game.Input.Routing;
@@ -12,7 +13,7 @@ using UnityEngine;
 
 namespace Game.App
 {
-    public sealed class ArenaPlacementFlow : MonoBehaviour, IArenaPlacementService
+    public sealed class ArenaPlacementFlow : MonoBehaviour, IArenaPlacementService, IRoomPlacementControls
     {
         [SerializeField] private ARArenaRig _rig;
         private Transform _root;
@@ -36,6 +37,32 @@ namespace Game.App
         private ArenaCameraSwitcher _cameras;
         private string _failure;
         private readonly List<Renderer> _renderers = new();
+        private bool _roomMode;
+        private RoomArenaOutline _roomOutline;
+        private readonly List<IReadOnlyList<Unity.Mathematics.float2>> _roomPolygons = new();
+
+        public bool IsRoomMode => _roomMode && _previousPhase == MatchPhase.Placement;
+        public bool CanEditRoom => _provider is RoomArenaAnchorProvider room && room.CanEdit;
+
+        public void AddRoomObstacle()
+        {
+            (_provider as RoomArenaAnchorProvider)?.BeginObstacle();
+        }
+
+        public void UndoRoomPoint()
+        {
+            (_provider as RoomArenaAnchorProvider)?.Undo();
+        }
+
+        public void RealignRoom()
+        {
+            if (IsRoomMode)
+            {
+                StopProvider();
+                _placed = false;
+                _sent = false;
+            }
+        }
 
         public void Initialize(
             Transform root,
@@ -90,6 +117,15 @@ namespace Game.App
             {
                 phase = MatchPhase.Playing;
             }
+            bool roomMode = MatchStateNet.Active?.IsRoom == true;
+            if (roomMode != _roomMode || (_roomMode && phase == MatchPhase.Lobby && phase != _previousPhase))
+            {
+                StopProvider();
+                _placed = false;
+                _sent = false;
+                _roomMode = roomMode;
+            }
+
             if (ArenaMode.UseAR != _mode)
             {
                 _mode = ArenaMode.UseAR;
@@ -114,6 +150,13 @@ namespace Game.App
                 ar.RefreshTracking();
             }
 
+            var roomProvider = _provider as RoomArenaAnchorProvider;
+            if (roomProvider != null)
+            {
+                roomProvider.ReceivedRoom = MatchStateNet.Active?.Room;
+                roomProvider.RefreshTracking();
+            }
+
             bool tracking = _provider?.IsTracking.CurrentValue ?? false;
             bool canInput = _placed && tracking && placementAllowed;
             if (!canInput)
@@ -132,14 +175,14 @@ namespace Game.App
             }
             else
             {
-                message = _failure ?? provider?.Message ?? "Подготовка арены…";
+                message = _failure ?? roomProvider?.Message ?? provider?.Message ?? "Подготовка арены…";
             }
 
             var status = new ArenaPlacementStatus(
                 message,
                 _running || (_placed && phase == MatchPhase.Placement),
-                _running && provider != null && !provider.Unavailable,
-                provider?.CanConfirm ?? false,
+                _running && ((provider != null && !provider.Unavailable) || (roomProvider != null && !roomProvider.Unavailable)),
+                roomProvider?.CanConfirm ?? provider?.CanConfirm ?? false,
                 _running && _mode,
                 lost);
 
@@ -151,8 +194,16 @@ namespace Game.App
 
             if (_placed && !_sent && phase == MatchPhase.Placement && HeroNet.Local != null)
             {
-                HeroNet.Local.ArenaPlaced();
-                _sent = true;
+                if (!_roomMode)
+                {
+                    HeroNet.Local.ArenaPlaced();
+                    _sent = true;
+                }
+                else if (MatchStateNet.Active.Room != null && MatchStateNet.Active.RoomRevision != 0)
+                {
+                    HeroNet.Local.ConfirmRoom(MatchStateNet.Active.RoomRevision);
+                    _sent = true;
+                }
             }
         }
 
@@ -175,7 +226,13 @@ namespace Game.App
             _cancellation = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
             CancellationTokenSource cancellation = _cancellation;
             CancellationToken cancellationToken = cancellation.Token;
-            if (_mode)
+            if (_roomMode)
+            {
+                bool scan = MatchStateNet.Active.IsHost && MatchStateNet.Active.Room == null;
+                _provider = _rig.CreateRoomProvider(_root, _gestures, scan, _mode, _flatCamera);
+                ((RoomArenaAnchorProvider)_provider).ReceivedRoom = MatchStateNet.Active.Room;
+            }
+            else if (_mode)
             {
                 _provider = _rig.CreateProvider(_root, _gestures, _input, _size);
             }
@@ -188,6 +245,20 @@ namespace Game.App
                 Pose pose = await _provider.AcquireArenaPoseAsync(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 _root.SetPositionAndRotation(pose.position, pose.rotation);
+                if (_roomMode && MatchStateNet.Active.IsHost && MatchStateNet.Active.Room == null)
+                {
+                    var room = (RoomArenaAnchorProvider)_provider;
+                    HeroNet.Local.SubmitRoom(room.Room);
+                    await UniTask.WaitUntil(
+                        () => MatchStateNet.Active.Room != null || !string.IsNullOrEmpty(HeroNet.Local.RoomError),
+                        cancellationToken: cancellationToken);
+                    if (MatchStateNet.Active.Room == null)
+                    {
+                        _failure = HeroNet.Local.RoomError + " Нажмите «Повторить совмещение», чтобы исправить карту.";
+                        await UniTask.WaitUntil(() => false, cancellationToken: cancellationToken);
+                    }
+                }
+
                 _placed = true;
             }
             catch (OperationCanceledException)
@@ -225,6 +296,10 @@ namespace Game.App
             {
                 provider.Confirm();
             }
+            else if (_provider is RoomArenaAnchorProvider room)
+            {
+                room.Confirm();
+            }
         }
 
         public void UseFlat()
@@ -249,6 +324,21 @@ namespace Game.App
         private void LateUpdate()
         {
             UpdateVisibility();
+            RoomArena room = MatchStateNet.Active?.Room;
+            _roomPolygons.Clear();
+            if (_roomMode && room != null && _placed)
+            {
+                _roomOutline ??= new RoomArenaOutline();
+                for (int i = 0; i < room.PolygonCount; i++)
+                {
+                    _roomPolygons.Add(room.GetPolygon(i));
+                }
+            }
+
+            if (_root != null)
+            {
+                _roomOutline?.Draw(_root, _roomPolygons, _roomMode && _placed);
+            }
         }
 
         private void UpdateVisibility()
@@ -275,6 +365,7 @@ namespace Game.App
 
         private void OnDestroy()
         {
+            _roomOutline?.Dispose();
             StatusChanged = null;
             StopProvider();
 

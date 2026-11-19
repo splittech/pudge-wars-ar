@@ -27,6 +27,12 @@ namespace Game.Net
         private bool _pendingTarget;
         private float2 _target;
         private bool _initialized;
+        private RoomArena _room;
+
+        public void SetRoom(RoomArena room)
+        {
+            _room = room;
+        }
         public uint Tick
         {
             get; private set;
@@ -81,6 +87,10 @@ namespace Game.Net
             HeroState previous = _state;
             HeroMovement.Step(ref _state, _speed, _bounds, Delta);
             _state.Pos = HeroCollision.Move(previous, _state.Pos, obstacles);
+            if (_room != null)
+            {
+                _state.Pos = _room.Move(previous.Pos, _state.Pos, _state.Radius);
+            }
         }
 
         public void Reset(uint epoch, Rect2 bounds)
@@ -252,6 +262,12 @@ namespace Game.Net
 
         private void SelectBank(float x)
         {
+            if (_room != null)
+            {
+                _bounds = new Rect2(_room.Bounds.Min + _state.Radius, _room.Bounds.Max - _state.Radius);
+                return;
+            }
+
             bool sameSide = (x <= 0) == (_homeBounds.Max.x <= 0);
             _bounds = sameSide ? _homeBounds : new Rect2(
                 new float2(-_homeBounds.Max.x, _homeBounds.Min.y),

@@ -1,4 +1,5 @@
 using Game.Core.Configs;
+using Game.Core.Geometry;
 using Game.Core.Hook;
 using Game.Core.Hero;
 using Game.Core.Match;
@@ -27,6 +28,10 @@ namespace Game.Presentation
         private float _range;
         private Vector2 _size;
         private float _aspect;
+        private RoomArena _cameraRoom;
+        private bool _cameraAR;
+        private Vector2 _defaultSize;
+        private Vector3 _cameraHome;
         private void Awake()
         {
             ArenaLineRenderer.Initialize(_hook);
@@ -35,6 +40,11 @@ namespace Game.Presentation
 
         private void LateUpdate()
         {
+            bool room = Game.Net.MatchStateNet.Active?.IsRoom == true;
+            _floor.gameObject.SetActive(!room);
+            _river.gameObject.SetActive(!room);
+            UpdateRoomCamera();
+
             var hero = Game.Net.HeroNet.Local;
             if (ReferenceEquals(hero, null))
             {
@@ -68,6 +78,8 @@ namespace Game.Presentation
         {
             _range = range;
             _size = new Vector2(arena.Size.x, arena.Size.y);
+            _defaultSize = _size;
+            _cameraHome = _camera.transform.position;
             _floor.localScale = new Vector3(arena.Size.x, 0.15f, arena.Size.y);
             _river.localScale = new Vector3(arena.RiverWidth, 0.05f, arena.Size.y);
             FitCamera();
@@ -86,6 +98,30 @@ namespace Game.Presentation
             _aspect = _camera.aspect;
             _camera.orthographicSize = Mathf.Max(_size.y / 2f / Mathf.Sin(60 * Mathf.Deg2Rad),
                 _size.x / (2f * _aspect)) * 1.2f;
+        }
+
+        private void UpdateRoomCamera()
+        {
+            RoomArena room = Game.Net.MatchStateNet.Active?.Room;
+            bool useAR = ArenaMode.UseAR;
+            if (ReferenceEquals(room, _cameraRoom) && useAR == _cameraAR && Mathf.Approximately(_aspect, _camera.aspect))
+            {
+                return;
+            }
+
+            _cameraRoom = room;
+            _cameraAR = useAR;
+            _size = _defaultSize;
+            _camera.transform.position = _cameraHome;
+            if (room != null && !useAR)
+            {
+                float2 size = room.Bounds.Max - room.Bounds.Min;
+                float2 center = (room.Bounds.Max + room.Bounds.Min) * 0.5f;
+                _size = new Vector2(size.x, size.y);
+                _camera.transform.position += transform.TransformVector(new Vector3(center.x, 0, center.y));
+            }
+
+            FitCamera();
         }
 
         public void Render(

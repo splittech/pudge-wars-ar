@@ -1,5 +1,6 @@
 using System;
 using Alchemy.Inspector;
+using Game.Core.Match;
 using Cysharp.Threading.Tasks;
 using Mirror;
 using UnityEngine;
@@ -31,9 +32,21 @@ namespace Game.Net
             get; private set;
         }
         public SessionRoster Roster { get; } = new();
+        public GameMode HostedGameMode { get; private set; }
         public event Action ClientConnected;
         public event Action<bool> SessionEnded;
         public event Action<string> ClientConnectionError;
+
+        public bool ConfigureHostedGameMode(GameMode mode)
+        {
+            if (HasActiveSession || IsChangingScene || (mode != GameMode.TeamDuel && mode != GameMode.RoomFreeForAll))
+            {
+                return false;
+            }
+
+            HostedGameMode = mode;
+            return true;
+        }
 
         public override void Awake()
         {

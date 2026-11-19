@@ -6,6 +6,11 @@ namespace Game.Core.Match
     {
         private void ApplyTerritoryDamage()
         {
+            if (IsRoom)
+            {
+                return;
+            }
+
             for (int i = 0; i < _heroes.Length; i++)
             {
                 ref var hero = ref _heroes[i];

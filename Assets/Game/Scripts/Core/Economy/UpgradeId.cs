@@ -5,9 +5,6 @@ namespace Game.Core.Economy
     /// </summary>
     public enum UpgradeId
     {
-        Range,
-        Speed,
-        Radius,
-        Damage
+        Hook
     }
 }

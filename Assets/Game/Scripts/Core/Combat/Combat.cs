@@ -5,9 +5,9 @@ namespace Game.Core.Combat
 {
     public static class Combat
     {
-        public static int ApplyHit(ref HeroState target, HeroState attacker, int damage)
+        public static int ApplyHit(ref HeroState target, HeroState attacker, int damage, bool freeForAll = false)
         {
-            if (!target.Alive || target.Team == attacker.Team)
+            if (!target.Alive || target.Id == attacker.Id || (!freeForAll && target.Team == attacker.Team))
             {
                 return 0;
             }

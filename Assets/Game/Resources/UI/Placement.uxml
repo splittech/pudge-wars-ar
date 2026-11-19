@@ -6,6 +6,13 @@
       <ui:Button name="confirmPlacement" text="Готово" />
       <ui:Button name="useFlat" text="Перейти в плоский режим" />
     </ui:VisualElement>
+    <ui:VisualElement name="roomControls" class="panel hidden" picking-mode="Ignore">
+      <ui:VisualElement name="roomEditControls" picking-mode="Ignore">
+        <ui:Button name="roomObstacle" text="Контур мебели вручную" />
+        <ui:Button name="roomUndo" text="Отменить последнюю точку / мебель" />
+      </ui:VisualElement>
+      <ui:Button name="roomRealign" text="Повторить совмещение" />
+    </ui:VisualElement>
     <ui:VisualElement name="trackingLost" class="tracking-lost hidden">
       <ui:Label text="Трекинг потерян. Медленно наведите камеру на поверхность стола. Матч продолжается." />
     </ui:VisualElement>

@@ -19,8 +19,18 @@ namespace Game.App
                     resolver.Resolve<NetworkSessionController>(),
                     () => SceneUiNavigation.Navigate(this),
                     () => ArenaMode.UseAR = !ArenaMode.UseAR,
-                    () => ArenaMode.UseAR);
+                    () => ArenaMode.UseAR,
+                    QuitApplication);
             });
+        }
+
+        private static void QuitApplication()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
     }
 }

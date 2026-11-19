@@ -99,6 +99,148 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
+        public void Match_ShopHasOneUpgradeAndBindsItsState()
+        {
+            MatchDocument view = CreateView<MatchDocument>("Match");
+            VisualElement shop = view.Root.Q("shop");
+            Assert.That(shop.Query<Button>().ToList().Count, Is.EqualTo(1));
+            Assert.That(shop.Q<Button>("buyHook"), Is.Not.Null);
+            Assert.That(shop.Q<Button>("buyRange"), Is.Null);
+            view.ViewModel.HookUpgradeText.Value = "Хук 1/4 · 200";
+            view.ViewModel.HookStatsText.Value = "Урон: 250 · Скорость: 24 · Дальность: 13.5 · Радиус: 0.43";
+            view.ViewModel.CanBuyHook.Value = false;
+            Assert.That(shop.Q<Button>("buyHook").text, Is.EqualTo("Хук 1/4 · 200"));
+            Assert.That(shop.Q<Button>("buyHook").enabledSelf, Is.False);
+            Assert.That(shop.Q<Label>("hookStats").text, Does.Contain("250"));
+            view.ViewModel.CanBuyHook.Value = true;
+            Assert.That(shop.Q<Button>("buyHook").enabledSelf, Is.True);
+        }
+
+        [Test]
+        public void Menu_HomeHasThreeActionsAndNavigationSeparatesSettings()
+        {
+            MenuDocument view = CreateView<MenuDocument>("Menu");
+            VisualElement home = view.Root.Q("homePage");
+            Assert.That(home.Query<Button>().ToList().Count, Is.EqualTo(3));
+            Assert.That(home.Q<Button>("openCreate").text, Is.EqualTo("Создать"));
+            Assert.That(home.Q<Button>("openJoin").text, Is.EqualTo("Подключиться"));
+            Assert.That(home.Q<Button>("quit").text, Is.EqualTo("Выход"));
+            Assert.That(view.Root.Q("sessionSettings").ClassListContains("hidden"), Is.True);
+
+            view.ViewModel.OpenCreate();
+            Assert.That(home.ClassListContains("hidden"), Is.True);
+            Assert.That(view.Root.Q("createPage").ClassListContains("hidden"), Is.False);
+            Assert.That(view.Root.Q("joinPage").ClassListContains("hidden"), Is.True);
+            Assert.That(view.Root.Q("createPage").Q<Button>("selectRoomAR"), Is.Not.Null);
+            Assert.That(view.Root.Q("createPage").Q<TextField>("address"), Is.Null);
+
+            view.ViewModel.Back();
+            Assert.That(home.ClassListContains("hidden"), Is.False);
+            view.ViewModel.OpenJoin();
+            Assert.That(view.Root.Q("joinPage").ClassListContains("hidden"), Is.False);
+            Assert.That(view.Root.Q("createPage").ClassListContains("hidden"), Is.True);
+            Assert.That(view.Root.Q("joinPage").Q<TextField>("address"), Is.Not.Null);
+            view.ViewModel.Address.Value = "192.168.1.15";
+            view.ViewModel.Back();
+            Assert.That(view.ViewModel.Address.Value, Is.EqualTo("192.168.1.15"));
+        }
+
+        [TestCase(0, Game.Core.Match.GameMode.TeamDuel, false)]
+        [TestCase(1, Game.Core.Match.GameMode.TeamDuel, true)]
+        [TestCase(2, Game.Core.Match.GameMode.RoomFreeForAll, true)]
+        public void Menu_SelectionConfiguresRulesAndPresentationBeforeLobby(
+            int option,
+            Game.Core.Match.GameMode expectedMode,
+            bool expectedAR)
+        {
+            MenuDocument view = CreateView<MenuDocument>("Menu");
+            var loader = Setup.NetworkSceneLoader(out _, out _);
+            var manager = Setup.NetworkManager(loader, out GameObject managerRoot);
+            var controller = new Game.Net.NetworkSessionController(manager);
+            bool useAR = !expectedAR;
+            bool quitRequested = false;
+            try
+            {
+                view.ViewModel.Initialize(
+                    controller,
+                    null,
+                    () => useAR = !useAR,
+                    () => useAR,
+                    () => quitRequested = true);
+                view.ViewModel.CanStart.Value = true;
+                view.ViewModel.OpenCreate();
+                if (option == 0)
+                {
+                    view.ViewModel.SelectFlatDuel();
+                }
+                else if (option == 1)
+                {
+                    view.ViewModel.SelectTableDuel();
+                }
+                else
+                {
+                    view.ViewModel.SelectRoom();
+                }
+
+                Assert.That(controller.SelectedGameMode, Is.EqualTo(expectedMode));
+                Assert.That(useAR, Is.EqualTo(expectedAR));
+                Assert.That(view.ViewModel.SelectedOption.Value, Is.EqualTo(option));
+                Assert.That(manager.HasActiveSession, Is.False);
+                string[] choices = { "selectFlat", "selectTableAR", "selectRoomAR" };
+                Assert.That(view.Root.Q<Button>(choices[option]).ClassListContains("selected"), Is.True);
+                view.ViewModel.Quit();
+                Assert.That(quitRequested, Is.True);
+            }
+            finally
+            {
+                view.ViewModel.Disconnect();
+                controller.Dispose();
+                UnityEngine.Object.DestroyImmediate(managerRoot);
+            }
+        }
+
+        [Test]
+        public void Menu_BusySession_CannotOpenCreationOrConnection()
+        {
+            MenuDocument view = CreateView<MenuDocument>("Menu");
+            view.ViewModel.CanStart.Value = false;
+            view.ViewModel.OpenCreate();
+            view.ViewModel.OpenJoin();
+            Assert.That(view.ViewModel.HomeVisible.Value, Is.True);
+            Assert.That(view.ViewModel.SettingsVisible.Value, Is.False);
+        }
+
+        [TestCase(0, 99, false, "100")]
+        [TestCase(0, 100, true, "100")]
+        [TestCase(1, 199, false, "200")]
+        [TestCase(1, 200, true, "200")]
+        [TestCase(4, 1000, false, "MAX")]
+        public void Match_ShopUsesCommonLevelPriceAndGold(int level, int gold, bool canBuy, string price)
+        {
+            _model = ScriptableObject.CreateInstance<MatchViewModel>();
+            var model = (MatchViewModel)_model;
+            const System.Reflection.BindingFlags Flags = System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic;
+            typeof(MatchViewModel).GetField("_hookConfig", Flags).SetValue(model, Setup.HookConfig());
+            typeof(MatchViewModel).GetField("_economy", Flags).SetValue(model,
+                new Game.Core.Configs.EconomyConfigData(150, 50, 10, 0, new[] { 100, 200, 300, 400 }));
+            typeof(MatchViewModel).GetField("_status", Flags).SetValue(model, new Game.Net.HeroStatus
+            {
+                HookLevel = level,
+                Gold = gold,
+                Damage = 175 + level * 75,
+                Speed = 20 + level * 4,
+                Range = 12 + level * 1.5f,
+                Radius = 0.35f + level * 0.08f
+            });
+            typeof(MatchViewModel).GetMethod("RenderShop", Flags).Invoke(model, null);
+            Assert.That(model.CanBuyHook.Value, Is.EqualTo(canBuy));
+            Assert.That(model.HookUpgradeText.Value, Does.Contain($"{level}/4"));
+            Assert.That(model.HookUpgradeText.Value, Does.EndWith(price));
+            Assert.That(model.HookStatsText.Value, Does.Contain((175 + level * 75).ToString()));
+        }
+
+        [Test]
         public void Placement_MapsServiceStateAndSendsTypedCommands()
         {
             _model = ScriptableObject.CreateInstance<PlacementViewModel>();

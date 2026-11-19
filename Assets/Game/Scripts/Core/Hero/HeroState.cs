@@ -22,10 +22,7 @@ namespace Game.Core.Hero
         public int Deaths;
         public int Assists;
         public int HookHits;
-        public int RangeLevel;
-        public int SpeedLevel;
-        public int RadiusLevel;
-        public int DamageLevel;
+        public int HookLevel;
         public float HookRange;
         public float HookSpeed;
         public float HookRadius;

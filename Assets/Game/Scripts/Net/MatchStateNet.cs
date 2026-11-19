@@ -7,7 +7,7 @@ using VContainer;
 
 namespace Game.Net
 {
-    public sealed class MatchStateNet : NetworkBehaviour
+    public sealed partial class MatchStateNet : NetworkBehaviour
     {
         public readonly SyncList<PlayerInfo> Players = new();
         public readonly SyncList<PlayerMatchStats> Statistics = new();
@@ -54,7 +54,8 @@ namespace Game.Net
                         b++;
                     }
                 }
-                return _summary.Phase == MatchPhase.Lobby && a > 0 && b > 0;
+                bool enough = _summary.Mode == GameMode.RoomFreeForAll ? a + b >= 2 : a > 0 && b > 0;
+                return _summary.Phase == MatchPhase.Lobby && enough;
             }
         }
 
@@ -77,6 +78,8 @@ namespace Game.Net
 
             _summary = new MatchSummary
             {
+                Mode = rules.Mode,
+                WinnerPlayerId = rules.WinnerPlayerId,
                 Phase = rules.Phase,
                 CountdownEnd = rules.CountdownEnd,
                 MatchEnd = rules.MatchEnd,
@@ -173,7 +176,7 @@ namespace Game.Net
                     return;
                 }
             }
-            if (_placement.Complete)
+            if (_placement.Complete && (!IsRoom || Room != null))
             {
                 _simulation.Rules.ArenaPlaced(now);
             }
@@ -191,7 +194,7 @@ namespace Game.Net
             bool accepted = false;
             if (action == 0 && rules.Phase == MatchPhase.Lobby)
             {
-                accepted = _manager.Roster.SetTeam(id, team) && _simulation.SetTeam(id, team);
+                accepted = !IsRoom && _manager.Roster.SetTeam(id, team) && _simulation.SetTeam(id, team);
             }
             else if (action == 1 && rules.Phase == MatchPhase.Lobby)
             {
@@ -209,12 +212,13 @@ namespace Game.Net
                         _placementIds.Add(player.SessionPlayerId);
                     }
 
-                    _placement.Begin(_placementIds, NetworkTime.time, _placementTimeout);
+                    float timeout = IsRoom ? Math.Max(300, _placementTimeout) : _placementTimeout;
+                    _placement.Begin(_placementIds, NetworkTime.time, timeout);
                 }
             }
             else if (action == 3 && rules.Phase == MatchPhase.Placement)
             {
-                accepted = _placement.Confirm(id, NetworkTime.time);
+                accepted = !IsRoom && _placement.Confirm(id, NetworkTime.time);
                 if (accepted)
                 {
                     AdvancePlacement(NetworkTime.time);
@@ -237,6 +241,11 @@ namespace Game.Net
 
             if (action == 2 || action == 4 || action == 5)
             {
+                if (action == 5)
+                {
+                    ClearRoom();
+                }
+
                 _simulation.ResetRound();
                 Statistics.Clear();
                 _manager.Roster.ClearReady();

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Core.Match;
 using Game.Net;
 using Game.UI.Foundation;
 using R3;
@@ -15,6 +16,19 @@ namespace Game.UI
         private Action _toggleArenaMode;
         private Func<bool> _useAR;
         private string[] _addresses = Array.Empty<string>();
+        private Action _quit;
+        private ReactiveProperty<bool> _homeVisible;
+        public ReactiveProperty<bool> HomeVisible => _homeVisible ??= Property<bool>(true);
+        private ReactiveProperty<bool> _createVisible;
+        public ReactiveProperty<bool> CreateVisible => _createVisible ??= Property<bool>(false);
+        private ReactiveProperty<bool> _joinVisible;
+        public ReactiveProperty<bool> JoinVisible => _joinVisible ??= Property<bool>(false);
+        private ReactiveProperty<bool> _settingsVisible;
+        public ReactiveProperty<bool> SettingsVisible => _settingsVisible ??= Property<bool>(false);
+        private ReactiveProperty<string> _selectedGameText;
+        public ReactiveProperty<string> SelectedGameText => _selectedGameText ??= Property<string>("");
+        private ReactiveProperty<int> _selectedOption;
+        public ReactiveProperty<int> SelectedOption => _selectedOption ??= Property<int>(0);
 
         private ReactiveProperty<string> _nickname;
         public ReactiveProperty<string> Nickname => _nickname ??= Property<string>("");
@@ -44,13 +58,16 @@ namespace Game.UI
             NetworkSessionController controller,
             Action training,
             Action toggleArenaMode,
-            Func<bool> useAR)
+            Func<bool> useAR,
+            Action quit = null)
         {
             Disconnect();
             _controller = controller;
             _training = training;
             _toggleArenaMode = toggleArenaMode;
             _useAR = useAR;
+            _quit = quit;
+            ShowPage(true, false, false);
             Nickname.Value = controller.Nickname;
             Address.Value = controller.LastAddress;
             Tick();
@@ -70,6 +87,21 @@ namespace Game.UI
             Nickname.Value = _controller.Nickname;
             bool useAR = _useAR?.Invoke() ?? false;
             ArenaModeText.Value = useAR ? "Режим: AR" : "Режим: плоский";
+            if (_controller.SelectedGameMode == GameMode.RoomFreeForAll)
+            {
+                SelectedOption.Value = 2;
+                SelectedGameText.Value = "Комната · каждый за себя. Сканирование пола и мебели, проверка границ перед боем.";
+            }
+            else if (useAR)
+            {
+                SelectedOption.Value = 1;
+                SelectedGameText.Value = "Командная дуэль на столе в AR. Арена разделена рекой на два берега.";
+            }
+            else
+            {
+                SelectedOption.Value = 0;
+                SelectedGameText.Value = "Командная дуэль с обычной камерой. Размещение и сканирование не нужны.";
+            }
 
             IReadOnlyList<LanServer> servers = _controller.Servers;
             int count = _controller.IsSearching ? servers.Count : 0;
@@ -106,6 +138,16 @@ namespace Game.UI
 
         public void CreateGame()
         {
+            if (!CanStart.Value)
+            {
+                return;
+            }
+
+            if (_controller?.SelectedGameMode == GameMode.RoomFreeForAll && _useAR?.Invoke() == false)
+            {
+                _toggleArenaMode?.Invoke();
+            }
+
             _controller?.CreateGame();
             Tick();
         }
@@ -131,6 +173,7 @@ namespace Game.UI
         public void AcknowledgeDisconnect()
         {
             _controller?.AcknowledgeHostDisconnected();
+            ShowPage(true, false, false);
             Tick();
         }
 
@@ -160,6 +203,80 @@ namespace Game.UI
             }
         }
 
+        public void OpenCreate()
+        {
+            if (CanStart.Value)
+            {
+                ShowPage(false, true, false);
+            }
+        }
+
+        public void OpenJoin()
+        {
+            if (CanStart.Value)
+            {
+                ShowPage(false, false, true);
+            }
+        }
+
+        public void Back()
+        {
+            _controller?.Cancel();
+            ShowPage(true, false, false);
+            Tick();
+        }
+
+        public void SelectFlatDuel()
+        {
+            SelectGame(GameMode.TeamDuel, false);
+        }
+
+        public void SelectTableDuel()
+        {
+            SelectGame(GameMode.TeamDuel, true);
+        }
+
+        public void SelectRoom()
+        {
+            SelectGame(GameMode.RoomFreeForAll, true);
+        }
+
+        public void Quit()
+        {
+            if (_quit != null)
+            {
+                _quit.Invoke();
+            }
+            else
+            {
+                Application.Quit();
+            }
+        }
+
+        private void SelectGame(GameMode mode, bool useAR)
+        {
+            if (!CanStart.Value || _controller == null)
+            {
+                return;
+            }
+
+            _controller.SetGameMode(mode);
+            if (_useAR?.Invoke() != useAR)
+            {
+                _toggleArenaMode?.Invoke();
+            }
+
+            Tick();
+        }
+
+        private void ShowPage(bool home, bool create, bool join)
+        {
+            HomeVisible.Value = home;
+            CreateVisible.Value = create;
+            JoinVisible.Value = join;
+            SettingsVisible.Value = create || join;
+        }
+
         public override void Disconnect()
         {
             if (_controller != null && _controller.IsSearching)
@@ -171,6 +288,7 @@ namespace Game.UI
             _training = null;
             _toggleArenaMode = null;
             _useAR = null;
+            _quit = null;
             _addresses = Array.Empty<string>();
             Servers.Value = Array.Empty<string>();
         }

@@ -386,6 +386,8 @@ MonoBehaviour:
   _river: {fileID: 1938127807}
   _hook: {fileID: 1475759765}
   _aim: {fileID: 864966418}
+  _hookWidth: 0.12
+  _aimWidth: 0.045
   _camera: {fileID: 1844552820}
 --- !u!4 &338586871
 Transform:
@@ -2497,7 +2499,7 @@ Camera:
   m_Depth: 10
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 3221225471
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0

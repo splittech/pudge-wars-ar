@@ -4,6 +4,8 @@ namespace Game.Net
 {
     public struct MatchSummary
     {
+        public GameMode Mode;
+        public uint WinnerPlayerId;
         public MatchPhase Phase;
         public double CountdownEnd;
         public double MatchEnd;

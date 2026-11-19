@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Game.Core.Match;
 using VContainer.Unity;
 using Mirror;
 
@@ -16,11 +17,12 @@ namespace Game.Net
         private bool _disposed;
 
         public string Message => _attempt.Message;
+        public GameMode SelectedGameMode => _manager.HostedGameMode;
         public string LastAddress { get; private set; } = string.Empty;
         public string Nickname { get; private set; } = "Player-" + Guid.NewGuid().ToString("N").Substring(0, 6);
         public bool HostDisconnected => _attempt.HostDisconnected;
         public bool IsSearching => _manager.Discovery != null && _manager.Discovery.IsSearching;
-        public IReadOnlyList<LanServer> Servers => _manager.Discovery.Results.Servers;
+        public IReadOnlyList<LanServer> Servers => _manager.Discovery?.Results.Servers ?? Array.Empty<LanServer>();
         public bool CanStart => !_disposed && !HostDisconnected && !_attempt.IsPending && _manager.CanBeginSession;
         public bool CanCancel => !_disposed && (IsSearching || _attempt.IsPending || _manager.HasActiveSession);
 
@@ -60,6 +62,14 @@ namespace Game.Net
                 UnityEngine.Debug.LogException(exception);
                 _attempt.Fail(id, "Could not create game.");
                 _manager.StopSessionAfterFailure();
+            }
+        }
+
+        public void SetGameMode(GameMode mode)
+        {
+            if (!_disposed && !HostDisconnected && !_attempt.IsPending)
+            {
+                _manager.ConfigureHostedGameMode(mode);
             }
         }
 

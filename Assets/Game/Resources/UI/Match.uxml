@@ -1,8 +1,9 @@
 ﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
   <ui:Style src="Interface.uss" />
-  <ui:VisualElement class="screen" picking-mode="Ignore">
+  <ui:VisualElement class="screen match-screen" picking-mode="Ignore">
     <ui:VisualElement name="worldBars" class="world-layer" picking-mode="Ignore" />
-    <ui:VisualElement name="lobby" class="panel hidden">
+    <ui:ScrollView name="lobby" class="panel lobby-panel hidden" horizontal-scroller-visibility="Hidden">
+      <ui:Label name="gameMode" text="Режим: командная дуэль" class="subtitle" />
       <ui:Label text="ЛОББИ" class="title" />
       <ui:VisualElement class="row">
         <ui:Label name="teamA" class="team" />
@@ -14,7 +15,8 @@
       </ui:VisualElement>
       <ui:Button name="ready" text="Готов" />
       <ui:Button name="start" text="Начать" />
-    </ui:VisualElement>
+      <ui:Button name="lobbyLeave" text="В меню" class="lobby-leave" />
+    </ui:ScrollView>
     <ui:VisualElement name="hud" class="hud hidden" picking-mode="Ignore">
       <ui:VisualElement class="panel top-bar">
         <ui:Label name="score" />
@@ -23,9 +25,9 @@
       <ui:Label name="feed" class="feed" picking-mode="Ignore" />
       <ui:VisualElement class="spacer" picking-mode="Ignore" />
       <ui:VisualElement name="shop" class="panel shop">
-        <ui:Label text="УЛУЧШЕНИЯ" class="subtitle" />
-        <ui:Button name="buyRange" /><ui:Button name="buySpeed" />
-        <ui:Button name="buyRadius" /><ui:Button name="buyDamage" />
+        <ui:Label text="ПРОКАЧКА ХУКА" class="subtitle" />
+        <ui:Label name="hookStats" />
+        <ui:Button name="buyHook" />
       </ui:VisualElement>
       <ui:VisualElement class="panel player-bar">
         <ui:Label name="health" /><ui:Label name="gold" />

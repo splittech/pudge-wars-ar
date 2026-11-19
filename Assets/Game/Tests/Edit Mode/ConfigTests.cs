@@ -95,13 +95,13 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void ProtocolVersion_HookPathProtocol_IsTwelve()
+        public void ProtocolVersion_RoomMode_IsFourteen()
         {
             // Act.
             int version = NetworkProtocol.ProtocolVersion;
 
             // Assert.
-            Assert.That(version, Is.EqualTo(12));
+            Assert.That(version, Is.EqualTo(14));
         }
 
         [Test]

@@ -1,49 +1,60 @@
 :root { --ink: #eaf4ff; --panel: rgba(12, 23, 37, 0.96); --accent: #40b8dd; }
-.screen { flex-grow: 1; color: var(--ink); font-size: 27px; padding: 32px; }
+.screen { flex-grow: 1; min-width: 0; min-height: 0; color: var(--ink); font-size: 27px; padding: 24px; }
 .centered { justify-content: center; align-items: center; }
-.panel { background-color: var(--panel); padding: 28px; border-radius: 18px; margin: 12px; }
-.menu-panel { width: 90%; max-width: 900px; }
+.panel { min-width: 0; background-color: var(--panel); padding: 20px; border-radius: 18px; margin: 8px; }
+.menu-panel { width: 90%; max-width: 900px; min-height: 0; max-height: 100%; flex-grow: 0; flex-shrink: 1; }
+.match-screen { justify-content: center; }
+.lobby-panel { flex-grow: 0; flex-shrink: 1; min-height: 0; max-height: 100%; }
 .title { font-size: 48px; -unity-font-style: bold; margin-bottom: 24px; }
 .subtitle { font-size: 26px; color: #93b3cf; margin-bottom: 20px; white-space: normal; }
 .row { flex-direction: row; }
-.column { flex-grow: 1; flex-basis: 0; }
-Button { background-color: #1a5270; color: var(--ink); padding: 18px; margin: 7px; border-width: 1px; border-color: #34758f; border-radius: 10px; font-size: 28px; min-height: 64px; }
+.column { flex-grow: 1; flex-basis: 0; min-width: 0; }
+Button { background-color: #1a5270; color: var(--ink); padding: 14px; margin: 7px; border-width: 1px; border-color: #34758f; border-radius: 10px; font-size: 28px; min-width: 0; min-height: 88px; flex-shrink: 0; white-space: normal; }
 Button:hover { background-color: #256e8b; }
 Button:active { background-color: #318daa; }
 Button:disabled { opacity: 0.4; }
-TextField { margin: 10px 7px; min-height: 64px; font-size: 28px; }
-TextField > .unity-text-field__label { min-width: 150px; }
+TextField { margin: 10px 7px; min-width: 0; min-height: 80px; flex-shrink: 0; font-size: 28px; }
+TextField > .unity-text-field__label { min-width: 80px; }
+TextField > .unity-text-field__input { min-width: 0; flex-shrink: 1; }
 TextField .unity-text-field__input { color: var(--ink); background-color: #091320; padding: 15px; border-radius: 8px; }
-Label { white-space: normal; }
-.team { min-height: 220px; padding: 16px; flex-grow: 1; }
-.top-bar { flex-direction: row; justify-content: space-between; align-items: center; margin-right: 220px; }
+Label { min-width: 0; white-space: normal; }
+.team { min-height: 0; min-width: 0; padding: 12px; flex-grow: 1; flex-basis: 0; }
+.top-bar { flex-direction: row; justify-content: space-between; align-items: flex-start; margin-top: 110px; }
+#score { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+#timer { flex-shrink: 0; margin-left: 12px; }
 .spacer { flex-grow: 1; }
-.hud { flex-grow: 1; }
-.player-bar { flex-direction: row; justify-content: space-around; }
-.shop { width: 470px; align-self: flex-end; }
-.feed { color: #b5d6ed; align-self: flex-end; max-width: 600px; margin: 16px; }
+.hud { flex-grow: 1; min-width: 0; min-height: 0; }
+.player-bar { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.player-bar > Label { flex-grow: 1; flex-shrink: 1; margin: 4px; }
+.shop { align-self: stretch; padding: 12px; }
+.shop .subtitle { margin-bottom: 8px; }
+.feed { color: #b5d6ed; align-self: stretch; min-width: 0; flex-shrink: 1; margin: 8px; font-size: 22px; }
 .countdown { position: absolute; left: 40%; top: 42%; font-size: 120px; -unity-font-style: bold; }
 ProgressBar { min-height: 28px; margin: 10px; }
 ProgressBar .unity-progress-bar__background { background-color: #08121f; border-radius: 6px; }
 ProgressBar .unity-progress-bar__progress { background-color: var(--accent); border-radius: 6px; }
 ProgressBar .unity-progress-bar__title { color: white; font-size: 22px; }
-.cooldown { width: 220px; }
+.cooldown { flex-basis: 100%; flex-grow: 1; min-width: 0; margin: 8px 0; }
 .hidden { display: none; }
-.overlay { position: absolute; left: 14px; top: 10px; color: #b5d6ed; font-size: 20px; white-space: normal; }
+.overlay { position: absolute; left: 14px; right: 220px; top: 10px; max-height: 96px; overflow: hidden; color: #b5d6ed; font-size: 18px; white-space: normal; }
 .world-layer { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .world-health { position: absolute; width: 100px; height: 16px; min-height: 0; margin: 0; }
 .world-health .unity-progress-bar__progress { background-color: #48d080; }
 .world-health .unity-progress-bar__title { display: none; }
-.loading { flex-grow: 1; justify-content: center; background-color: #07111e; padding: 80px; color: white; transition-duration: 0.2s; }
+.loading { flex-grow: 1; min-width: 0; justify-content: center; background-color: #07111e; padding: 32px; color: white; transition-duration: 0.2s; }
 .loading ProgressBar { height: 45px; }
 
 .server-list { max-height: 280px; }
+.mode-choice.selected { border-color: var(--accent); background-color: #256e8b; }
 
 .transparent { opacity: 0; }
-.placement-panel { position: absolute; left: 32px; right: 32px; bottom: 40px; }
-.tracking-lost { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); justify-content: center; padding: 60px; }
+.placement-panel { position: absolute; left: 16px; right: 16px; bottom: 24px; }
+.tracking-lost { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); justify-content: center; padding: 32px; }
 .mode-switch { position: absolute; right: 14px; top: 110px; font-size: 20px; min-height: 40px; }
 
-#trainingPanel { position: absolute; left: 32px; bottom: 32px; width: 540px; padding: 16px; }
+#trainingPanel { position: absolute; left: 24px; right: 24px; bottom: 24px; padding: 16px; }
 #leave { position: absolute; right: 32px; top: 32px; width: 190px; }
+.lobby-leave { align-self: center; width: 260px; margin-top: 20px; }
+#results { flex-grow: 0; flex-shrink: 1; min-height: 0; max-height: 100%; }
+#results > ScrollView { flex-grow: 0; flex-shrink: 1; min-height: 0; max-height: 640px; }
 

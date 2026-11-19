@@ -93,7 +93,7 @@ namespace Game.Net
             if (frame.HasMoveTarget && hero.Alive && !hero.IsPulled)
             {
                 pending.Move = Geo2D.ClampToRect(new float2(frame.Target.x, frame.Target.y),
-                    ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius));
+                    MovementBounds(hero));
                 pending.HasMove = true;
             }
             return true;
@@ -106,6 +106,17 @@ namespace Game.Net
         {
             _simulation = simulation;
             _arena = arena;
+        }
+
+        private Rect2 MovementBounds(HeroState hero)
+        {
+            RoomArena room = _simulation.Room;
+            if (_simulation.IsRoom && room != null)
+            {
+                return new Rect2(room.Bounds.Min + hero.Radius, room.Bounds.Max - hero.Radius);
+            }
+
+            return ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius);
         }
 
         public bool TryMove(uint id, float2 point, double now, bool ownsHero, out string reason)
@@ -121,7 +132,7 @@ namespace Game.Net
                 return Reject("Move rate exceeded", out reason);
             }
 
-            pending.Move = Geo2D.ClampToRect(point, ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius));
+            pending.Move = Geo2D.ClampToRect(point, MovementBounds(hero));
             pending.HasMove = true;
             return true;
         }

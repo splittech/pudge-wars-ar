@@ -14,7 +14,6 @@ namespace Game.UI
     [CreateAssetMenu(menuName = "Game/UI/Match ViewModel")]
     public sealed class MatchViewModel : UiViewModel
     {
-        private static readonly string[] UpgradeNames = { "Дальность", "Скорость", "Радиус", "Урон" };
         private HeroConfigData _heroConfig;
         private HookConfigData _hookConfig;
         private EconomyConfigData _economy;
@@ -30,6 +29,10 @@ namespace Game.UI
         private IDisposable _heroSubscriptions;
         private IDisposable _matchSubscriptions;
         private bool _initialized;
+        private ReactiveProperty<string> _modeText;
+        public ReactiveProperty<string> ModeText => _modeText ??= Property<string>("Режим: командная дуэль");
+        private ReactiveProperty<bool> _teamControlsVisible;
+        public ReactiveProperty<bool> TeamControlsVisible => _teamControlsVisible ??= Property<bool>(true);
 
         private ReactiveProperty<bool> _trainingVisible;
         public ReactiveProperty<bool> TrainingVisible => _trainingVisible ??= Property<bool>(false);
@@ -91,29 +94,14 @@ namespace Game.UI
         private ReactiveProperty<IReadOnlyList<WorldHealthBar>> _healthBars;
         public ReactiveProperty<IReadOnlyList<WorldHealthBar>> HealthBars => _healthBars ??= Property<IReadOnlyList<WorldHealthBar>>(Array.Empty<WorldHealthBar>());
 
-        private ReactiveProperty<string> _rangeUpgradeText;
-        public ReactiveProperty<string> RangeUpgradeText => _rangeUpgradeText ??= Property<string>("");
+        private ReactiveProperty<string> _hookUpgradeText;
+        public ReactiveProperty<string> HookUpgradeText => _hookUpgradeText ??= Property<string>("");
 
-        private ReactiveProperty<bool> _canBuyRange;
-        public ReactiveProperty<bool> CanBuyRange => _canBuyRange ??= Property<bool>(false);
+        private ReactiveProperty<string> _hookStatsText;
+        public ReactiveProperty<string> HookStatsText => _hookStatsText ??= Property<string>("");
 
-        private ReactiveProperty<string> _speedUpgradeText;
-        public ReactiveProperty<string> SpeedUpgradeText => _speedUpgradeText ??= Property<string>("");
-
-        private ReactiveProperty<bool> _canBuySpeed;
-        public ReactiveProperty<bool> CanBuySpeed => _canBuySpeed ??= Property<bool>(false);
-
-        private ReactiveProperty<string> _radiusUpgradeText;
-        public ReactiveProperty<string> RadiusUpgradeText => _radiusUpgradeText ??= Property<string>("");
-
-        private ReactiveProperty<bool> _canBuyRadius;
-        public ReactiveProperty<bool> CanBuyRadius => _canBuyRadius ??= Property<bool>(false);
-
-        private ReactiveProperty<string> _damageUpgradeText;
-        public ReactiveProperty<string> DamageUpgradeText => _damageUpgradeText ??= Property<string>("");
-
-        private ReactiveProperty<bool> _canBuyDamage;
-        public ReactiveProperty<bool> CanBuyDamage => _canBuyDamage ??= Property<bool>(false);
+        private ReactiveProperty<bool> _canBuyHook;
+        public ReactiveProperty<bool> CanBuyHook => _canBuyHook ??= Property<bool>(false);
 
         public void Initialize(
             HeroConfigData hero,
@@ -205,12 +193,13 @@ namespace Game.UI
                                 Feed.Value = string.Empty;
                             }
                             _summary = value;
-                            Score.Value = $"A  {value.ScoreA} : {value.ScoreB}  B";
+                            RenderScore();
                             RenderLobby();
                             RenderResults();
                         }),
                         _match.ContentRevision.Subscribe(_ =>
                         {
+                            RenderScore();
                             RenderLobby();
                             RenderResults();
                         }),
@@ -257,6 +246,20 @@ namespace Game.UI
 
             TeamA.Value = TeamText(Team.A);
             TeamB.Value = TeamText(Team.B);
+            TeamControlsVisible.Value = !_match.IsRoom;
+            ModeText.Value = _match.IsRoom ? "Режим: комната · каждый за себя" : "Режим: командная дуэль";
+            if (_match.IsRoom)
+            {
+                var players = new StringBuilder("КАЖДЫЙ ЗА СЕБЯ\n\n");
+                foreach (PlayerInfo player in _match.PlayerRows)
+                {
+                    string readiness = player.Connected ? (player.Ready ? "готов" : "…") : "обрыв";
+                    players.AppendLine($"{player.Nickname} · {readiness}");
+                }
+
+                TeamA.Value = players.ToString();
+                TeamB.Value = "Перед боем хост сканирует комнату. Все участники отмечают одинаковые две точки на полу.";
+            }
             ReadyText.Value = IsReady() ? "Не готов" : "Готов";
             StartVisible.Value = _match.IsHost;
             CanStart.Value = _match.CanStart;
@@ -305,19 +308,20 @@ namespace Game.UI
         private void RenderShop()
         {
             Gold.Value = $"Золото: {_status.Gold}";
-            int[] levels = { _status.RangeLevel, _status.SpeedLevel, _status.RadiusLevel, _status.DamageLevel };
-            ReactiveProperty<string>[] labels = { RangeUpgradeText, SpeedUpgradeText, RadiusUpgradeText, DamageUpgradeText };
-            ReactiveProperty<bool>[] enabled = { CanBuyRange, CanBuySpeed, CanBuyRadius, CanBuyDamage };
-
-            for (int i = 0; i < labels.Length; i++)
+            int level = _status.HookLevel;
+            bool max = level >= _hookConfig.MaxLevel || level >= _economy.UpgradePrices.Count;
+            int price = 0;
+            string priceText = "MAX";
+            if (!max)
             {
-                int level = levels[i];
-                bool max = level >= _hookConfig.MaxLevel || level >= _economy.UpgradePrices.Count;
-                int price = max ? 0 : _economy.UpgradePrices[level];
-                string priceText = max ? "MAX" : price.ToString();
-                labels[i].Value = $"{UpgradeNames[i]} {level}/{_hookConfig.MaxLevel} · {priceText}";
-                enabled[i].Value = !max && _status.Gold >= price;
+                price = _economy.UpgradePrices[level];
+                priceText = price.ToString();
             }
+
+            HookUpgradeText.Value = $"Повысить уровень хука · {level}/{_hookConfig.MaxLevel} · {priceText}";
+            HookStatsText.Value = $"Урон: {_status.Damage} · Скорость: {_status.Speed:0.##}\n"
+                + $"Дальность: {_status.Range:0.##} · Радиус: {_status.Radius:0.##}";
+            CanBuyHook.Value = !max && _status.Gold >= price;
         }
 
         private string PlayerName(uint id)
@@ -349,15 +353,50 @@ namespace Game.UI
             }
 
             string heading = _summary.Winner == MatchWinner.Draw ? "НИЧЬЯ" : $"ПОБЕДА КОМАНДЫ {_summary.Winner}";
+            if (_match.IsRoom)
+            {
+                heading = _summary.WinnerPlayerId == 0 ? "НИЧЬЯ" : $"ПОБЕДИЛ {PlayerName(_summary.WinnerPlayerId)}";
+            }
             var text = new StringBuilder(heading);
-            text.AppendLine($"\n{_summary.ScoreA} : {_summary.ScoreB}\n\nИгрок · Убийства / Смерти / Помощь · Попадания\n");
+            if (_match.IsRoom)
+            {
+                text.AppendLine("\n\nИгрок · Убийства / Смерти · Попадания\n");
+            }
+            else
+            {
+                text.AppendLine($"\n{_summary.ScoreA} : {_summary.ScoreB}\n\nИгрок · Убийства / Смерти / Помощь · Попадания\n");
+            }
 
             foreach (PlayerMatchStats row in _match.StatRows)
             {
-                text.AppendLine($"{row.Nickname} ({row.Team}) · {row.Kills} / {row.Deaths} / {row.Assists} · {row.HookHits}");
+                if (_match.IsRoom)
+                {
+                    text.AppendLine($"{row.Nickname} · {row.Kills} / {row.Deaths} · {row.HookHits}");
+                }
+                else
+                {
+                    text.AppendLine($"{row.Nickname} ({row.Team}) · {row.Kills} / {row.Deaths} / {row.Assists} · {row.HookHits}");
+                }
             }
 
             Statistics.Value = text.ToString();
+        }
+
+        private void RenderScore()
+        {
+            if (ReferenceEquals(_match, null) || !_match.IsRoom)
+            {
+                Score.Value = $"A  {_summary.ScoreA} : {_summary.ScoreB}  B";
+                return;
+            }
+
+            var score = new StringBuilder();
+            foreach (PlayerMatchStats row in _match.StatRows)
+            {
+                score.AppendLine($"{row.Nickname}: {row.Kills}");
+            }
+
+            Score.Value = score.ToString();
         }
 
         private void UpdateBars()
@@ -439,24 +478,9 @@ namespace Game.UI
             _hero?.MatchActions?.ReturnToLobby();
         }
 
-        public void BuyRange()
+        public void BuyHook()
         {
-            _hero?.MatchActions?.BuyUpgrade(UpgradeId.Range);
-        }
-
-        public void BuySpeed()
-        {
-            _hero?.MatchActions?.BuyUpgrade(UpgradeId.Speed);
-        }
-
-        public void BuyRadius()
-        {
-            _hero?.MatchActions?.BuyUpgrade(UpgradeId.Radius);
-        }
-
-        public void BuyDamage()
-        {
-            _hero?.MatchActions?.BuyUpgrade(UpgradeId.Damage);
+            _hero?.MatchActions?.BuyUpgrade(UpgradeId.Hook);
         }
 
         public override void Disconnect()

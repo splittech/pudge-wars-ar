@@ -30,6 +30,7 @@ namespace Game.Core.Match
             {
                 float earliest = remaining;
                 int first = -1, second = -1, kind = -1, axis = -1;
+                float2 roomNormal = float2.zero;
                 for (int i = 0; i < _hooks.Length; i++)
                 {
                     ref HookState hook = ref _hooks[i];
@@ -38,9 +39,34 @@ namespace Game.Core.Match
                         continue;
                     }
 
-                    hook.HalfBounds = math.max(0, _arena.Size * 0.5f - hook.Radius);
+                    hook.HalfBounds = IsRoom ? float2.zero : math.max(0, _arena.Size * 0.5f - hook.Radius);
                     float2 velocity = hook.Dir * hook.Speed;
-                    for (int a = 0; a < 2; a++)
+                    if (IsRoom && Room != null && !Room.Contains(hook.Tip, hook.Radius))
+                    {
+                        earliest = 0;
+                        first = i;
+                        kind = 3;
+                        continue;
+                    }
+
+                    if (IsRoom && Room != null)
+                    {
+                        float fraction = Room.Sweep(
+                            hook.Tip,
+                            hook.Tip + velocity * remaining,
+                            hook.Radius,
+                            out float2 normal);
+                        float contact = fraction * remaining;
+                        if (math.lengthsq(normal) > 0 && contact <= earliest)
+                        {
+                            earliest = contact;
+                            first = i;
+                            kind = 4;
+                            roomNormal = normal;
+                        }
+                    }
+
+                    for (int a = 0; !IsRoom && a < 2; a++)
                     {
                         if (math.abs(velocity[a]) < 1e-8f)
                         {
@@ -141,6 +167,13 @@ namespace Game.Core.Match
                     float2 velocity = active.Dir * active.Speed;
                     velocity[axis] = -velocity[axis];
                     RebaseHook(first, velocity, eventTime);
+                }
+                else if (kind == 4)
+                {
+                    float2 velocity = active.Dir * active.Speed;
+                    float2 reflected = velocity - 2 * math.dot(velocity, roomNormal) * roomNormal;
+                    active.Tip += roomNormal * 0.001f;
+                    RebaseHook(first, reflected, eventTime);
                 }
                 else if (kind == 1)
                 {

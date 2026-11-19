@@ -205,7 +205,7 @@ namespace Game.Core.Match
             _deaths.Clear();
             if (Rules != null)
             {
-                Rules.Advance(Time, CountTeam(Team.A), CountTeam(Team.B));
+                AdvanceRules();
                 if (Rules.Phase != MatchPhase.Playing)
                 {
                     ResolveHeroOverlaps();
@@ -235,7 +235,7 @@ namespace Game.Core.Match
                 else
                 {
                     _heroes[index].MoveTarget = Geo2D.ClampToRect(intent.Value,
-                        ArenaBounds.ForPosition(_arena, _heroes[index].Pos, _heroes[index].Radius));
+                        MovementBounds(_heroes[index].Pos, _heroes[index].Radius));
                 }
             }
             ResolveHeroOverlaps();
@@ -243,8 +243,9 @@ namespace Game.Core.Match
             {
                 HeroState previous = _heroes[i];
                 HeroMovement.Step(ref _heroes[i], _heroConfig.MoveSpeed,
-                    ArenaBounds.ForPosition(_arena, _heroes[i].Pos, _heroes[i].Radius), dt);
+                    MovementBounds(_heroes[i].Pos, _heroes[i].Radius), dt);
                 _heroes[i].Pos = HeroCollision.Move(previous, _heroes[i].Pos, _heroes);
+                _heroes[i].Pos = MoveInRoom(previous.Pos, _heroes[i].Pos, _heroes[i].Radius);
             }
             Time += dt;
             for (int i = 0; i < _hooks.Length; i++)
@@ -292,6 +293,7 @@ namespace Game.Core.Match
 
                     float2 corner = hook.Path.Get(waypoint);
                     position = HeroCollision.Move(_heroes[pulled], corner, _heroes);
+                    position = MoveInRoom(_heroes[pulled].Pos, position, _heroes[pulled].Radius);
                     _heroes[pulled].Pos = position;
                     if (math.distancesq(position, corner) > 1e-10f)
                     {
@@ -304,6 +306,7 @@ namespace Game.Core.Match
                 if (!blocked)
                 {
                     position = HeroCollision.Move(_heroes[pulled], desired, _heroes);
+                    position = MoveInRoom(_heroes[pulled].Pos, position, _heroes[pulled].Radius);
                     blocked = math.distancesq(position, desired) > 1e-10f;
                 }
 

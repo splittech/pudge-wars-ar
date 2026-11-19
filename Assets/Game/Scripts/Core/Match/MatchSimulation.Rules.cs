@@ -83,8 +83,15 @@ namespace Game.Core.Match
                 }
             }
 
-            var points = hero.Team == Team.A ? _arena.TeamASpawnPoints : _arena.TeamBSpawnPoints;
-            hero.Pos = points[spawnIndex % points.Count];
+            if (IsRoom && _roomSpawns.TryGetValue(hero.Id, out var roomSpawn))
+            {
+                hero.Pos = roomSpawn;
+            }
+            else
+            {
+                var points = hero.Team == Team.A ? _arena.TeamASpawnPoints : _arena.TeamBSpawnPoints;
+                hero.Pos = points[spawnIndex % points.Count];
+            }
             hero.MoveTarget = hero.Pos;
             hero.Hp = _heroConfig.MaxHp;
             hero.Alive = true;
@@ -98,29 +105,21 @@ namespace Game.Core.Match
 
         private void InitializeHookStats(ref HeroState hero)
         {
-            hero.HookRange = _hookConfig.Range + hero.RangeLevel * _hookConfig.RangePerLevel;
-            hero.HookSpeed = _hookConfig.Speed + hero.SpeedLevel * _hookConfig.SpeedPerLevel;
-            hero.HookRadius = _hookConfig.Radius + hero.RadiusLevel * _hookConfig.RadiusPerLevel;
-            hero.HookDamage = _hookConfig.Damage + hero.DamageLevel * _hookConfig.DamagePerLevel;
+            hero.HookRange = _hookConfig.Range + hero.HookLevel * _hookConfig.RangePerLevel;
+            hero.HookSpeed = _hookConfig.Speed + hero.HookLevel * _hookConfig.SpeedPerLevel;
+            hero.HookRadius = _hookConfig.Radius + hero.HookLevel * _hookConfig.RadiusPerLevel;
+            hero.HookDamage = _hookConfig.Damage + hero.HookLevel * _hookConfig.DamagePerLevel;
         }
 
         public int UpgradeLevel(uint id, UpgradeId upgrade)
         {
             int index = Find(id);
-            if (index < 0)
+            if (index < 0 || upgrade != UpgradeId.Hook)
             {
                 return -1;
             }
 
-            var hero = _heroes[index];
-            return upgrade switch
-            {
-                UpgradeId.Range => hero.RangeLevel,
-                UpgradeId.Speed => hero.SpeedLevel,
-                UpgradeId.Radius => hero.RadiusLevel,
-                UpgradeId.Damage => hero.DamageLevel,
-                _ => -1
-            };
+            return _heroes[index].HookLevel;
         }
 
         public bool TryBuyUpgrade(uint id, UpgradeId upgrade, out string reason)
@@ -151,21 +150,7 @@ namespace Game.Core.Match
                 return false;
             }
             hero.Gold -= price;
-            switch (upgrade)
-            {
-                case UpgradeId.Range:
-                    hero.RangeLevel++;
-                    break;
-                case UpgradeId.Speed:
-                    hero.SpeedLevel++;
-                    break;
-                case UpgradeId.Radius:
-                    hero.RadiusLevel++;
-                    break;
-                case UpgradeId.Damage:
-                    hero.DamageLevel++;
-                    break;
-            }
+            hero.HookLevel++;
             InitializeHookStats(ref hero);
             return true;
         }
@@ -203,11 +188,11 @@ namespace Game.Core.Match
                 {
                     _heroes[killer].Kills++;
                     _heroes[killer].Gold += _economy.KillGold;
-                    Rules.AddKill(_heroes[killer].Team);
+                    Rules.AddKill(_heroes[killer].Team, _heroes[killer].Id);
                     foreach (uint id in _damageHistory.Assists(death.HeroId, death.KillerId, Time, _economy.AssistWindow))
                     {
                         int assistant = Find(id);
-                        if (assistant < 0 || _heroes[assistant].Team != _heroes[killer].Team)
+                        if (IsRoom || assistant < 0 || _heroes[assistant].Team != _heroes[killer].Team)
                         {
                             continue;
                         }
@@ -237,7 +222,7 @@ namespace Game.Core.Match
                     }
                 }
             }
-            Rules.Advance(Time, CountTeam(Team.A), CountTeam(Team.B));
+            AdvanceRules();
         }
     }
 }

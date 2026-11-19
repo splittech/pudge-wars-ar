@@ -30,6 +30,9 @@ namespace Game.UI
             Text("score", model.Score);
             Text("teamA", model.TeamA);
             Text("teamB", model.TeamB);
+            Text("gameMode", model.ModeText);
+            Visible("selectA", model.TeamControlsVisible);
+            Visible("selectB", model.TeamControlsVisible);
             Text("ready", model.ReadyText);
             Text("gold", model.Gold);
             Text("statistics", model.Statistics);
@@ -38,18 +41,10 @@ namespace Game.UI
             Enabled("start", model.CanStart);
             Visible("rematch", model.HostActionsVisible);
             Visible("returnToLobby", model.HostActionsVisible);
-            Text("buyRange", model.RangeUpgradeText);
-            Enabled("buyRange", model.CanBuyRange);
-            Button("buyRange", model.BuyRange);
-            Text("buySpeed", model.SpeedUpgradeText);
-            Enabled("buySpeed", model.CanBuySpeed);
-            Button("buySpeed", model.BuySpeed);
-            Text("buyRadius", model.RadiusUpgradeText);
-            Enabled("buyRadius", model.CanBuyRadius);
-            Button("buyRadius", model.BuyRadius);
-            Text("buyDamage", model.DamageUpgradeText);
-            Enabled("buyDamage", model.CanBuyDamage);
-            Button("buyDamage", model.BuyDamage);
+            Text("buyHook", model.HookUpgradeText);
+            Text("hookStats", model.HookStatsText);
+            Enabled("buyHook", model.CanBuyHook);
+            Button("buyHook", model.BuyHook);
             Button("selectA", model.SelectTeamA);
             Button("selectB", model.SelectTeamB);
             Button("ready", model.ToggleReady);
@@ -57,6 +52,11 @@ namespace Game.UI
             Button("rematch", model.Rematch);
             Button("returnToLobby", model.ReturnToLobby);
             Button("leave", model.Leave);
+            Button("lobbyLeave", model.Leave);
+            Observe(model.LobbyVisible, visible =>
+            {
+                Element<Button>("leave").EnableInClassList("hidden", visible);
+            });
             Button("resetTraining", model.ResetTraining);
         }
 

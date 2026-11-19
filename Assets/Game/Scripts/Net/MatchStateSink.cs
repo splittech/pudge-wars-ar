@@ -23,7 +23,15 @@ namespace Game.Net
                     var hook = simulation.GetHook(i);
                     uint targetNetId = _heroes.TryGetValue(hook.TargetId, out HeroNet target) && target != null
                         ? target.netId : 0;
-                    hero.ApplyServerHook(HookNetState.FromSimulation(hook, targetNetId), hook.Speed, hook.Range);
+                    HookNetState netHook = HookNetState.FromSimulation(hook, targetNetId);
+                    if (simulation.IsRoom && hook.Phase == Game.Core.Hook.HookPhase.Extending)
+                    {
+                        netHook.Origin = new Vector2(hook.Tip.x, hook.Tip.y);
+                        netHook.StartTime = simulation.Time;
+                        netHook.HalfBounds = Vector2.zero;
+                    }
+
+                    hero.ApplyServerHook(netHook, hook.Speed, hook.Range);
                 }
             }
             foreach (var hit in simulation.Hits)

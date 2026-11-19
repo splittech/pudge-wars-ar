@@ -1,23 +1,40 @@
 ﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
   <ui:Style src="Interface.uss" />
   <ui:VisualElement name="menu" class="screen centered" picking-mode="Ignore">
-    <ui:VisualElement class="panel menu-panel">
+    <ui:ScrollView class="panel menu-panel" horizontal-scroller-visibility="Hidden">
       <ui:Label text="PUDGE WARS AR" class="title" />
-      <ui:Label text="Дуэль на крюках • локальная сеть" class="subtitle" />
-      <ui:TextField name="nickname" label="Ник" max-length="16" />
-      <ui:TextField name="address" label="IP" />
-      <ui:Button name="arenaMode" text="Режим: плоский" />
-      <ui:Button name="create" text="Создать игру" />
-      <ui:Button name="join" text="Подключиться" />
-      <ui:Button name="search" text="Найти игры в сети" />
-      <ui:ScrollView name="servers" class="server-list" />
-      <ui:Label name="message" class="subtitle" />
-      <ui:Button name="cancel" text="Отменить" class="hidden" />
-      <ui:Button name="training" text="Тренировка" />
+      <ui:VisualElement name="homePage">
+        <ui:Button name="openCreate" text="Создать" />
+        <ui:Button name="openJoin" text="Подключиться" />
+        <ui:Button name="quit" text="Выход" />
+      </ui:VisualElement>
+      <ui:VisualElement name="sessionSettings" class="hidden">
+        <ui:TextField name="nickname" label="Ник" max-length="16" />
+        <ui:VisualElement name="createPage" class="hidden">
+          <ui:Label text="СОЗДАНИЕ ИГРЫ" class="subtitle" />
+          <ui:Button name="selectFlat" text="Дуэль · плоский режим" class="mode-choice" />
+          <ui:Button name="selectTableAR" text="Дуэль · AR на столе" class="mode-choice" />
+          <ui:Button name="selectRoomAR" text="Комната · AR с границами" class="mode-choice" />
+          <ui:Label name="selectedGame" class="subtitle" />
+          <ui:Button name="create" text="Создать лобби" />
+          <ui:Button name="training" text="Тренировка дуэли" />
+        </ui:VisualElement>
+        <ui:VisualElement name="joinPage" class="hidden">
+          <ui:Label text="ПОДКЛЮЧЕНИЕ К ИГРЕ" class="subtitle" />
+          <ui:Button name="arenaMode" text="Режим: плоский" />
+          <ui:Button name="search" text="Найти игры в сети" />
+          <ui:ScrollView name="servers" class="server-list" />
+          <ui:TextField name="address" label="IP" />
+          <ui:Button name="join" text="Подключиться по IP" />
+        </ui:VisualElement>
+        <ui:Label name="message" class="subtitle" />
+        <ui:Button name="cancel" text="Отменить" class="hidden" />
+        <ui:Button name="back" text="Назад" />
+      </ui:VisualElement>
       <ui:VisualElement name="disconnected" class="panel hidden">
         <ui:Label text="Соединение с хостом потеряно" />
         <ui:Button name="acknowledge" text="В главное меню" />
       </ui:VisualElement>
-    </ui:VisualElement>
+    </ui:ScrollView>
   </ui:VisualElement>
 </ui:UXML>

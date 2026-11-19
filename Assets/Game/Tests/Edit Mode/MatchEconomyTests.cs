@@ -44,7 +44,7 @@ namespace Game.Tests.EditMode
             simulation.Enqueue(new ThrowHookIntent(1, new float2(0, 1), simulation.Time));
             Setup.Advance(simulation, 1);
             // Act.
-            simulation.TryBuyUpgrade(1, UpgradeId.Speed, out _);
+            simulation.TryBuyUpgrade(1, UpgradeId.Hook, out _);
             Setup.Advance(simulation, 1);
             // Assert.
             Assert.That(simulation.GetHero(0).HookSpeed, Is.EqualTo(24));
@@ -104,24 +104,51 @@ namespace Game.Tests.EditMode
             Assert.That(simulation.GetHero(1).Deaths, Is.EqualTo(1));
         }
 
-        [TestCase(UpgradeId.Range)]
-        [TestCase(UpgradeId.Speed)]
-        [TestCase(UpgradeId.Radius)]
-        [TestCase(UpgradeId.Damage)]
+        [Test]
+        public void Respawn_UpgradedHook_PreservesCommonLevelAndAllStats()
+        {
+            var simulation = Setup.MatchWithRules(startGold: 100, victimHp: 175);
+            var heroes = (Game.Core.Hero.HeroState[])typeof(MatchSimulation)
+                .GetField("_heroes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(simulation);
+            // Starting gold resets the round to full HP; arrange a one-hit victim for this lifecycle test.
+            heroes[1].Hp = 175;
+            Assert.That(simulation.TryBuyUpgrade(2, UpgradeId.Hook, out _), Is.True);
+            simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), simulation.Time));
+            Setup.Advance(simulation, 15);
+            Assert.That(simulation.GetHero(1).Alive, Is.False);
+            simulation.Step(0.001f, simulation.GetHero(1).RespawnAt);
+            var hero = simulation.GetHero(1);
+            Assert.That(hero.Alive, Is.True);
+            Assert.That(hero.HookLevel, Is.EqualTo(1));
+            Assert.That(hero.HookRange, Is.EqualTo(13.5f));
+            Assert.That(hero.HookSpeed, Is.EqualTo(24));
+            Assert.That(hero.HookRadius, Is.EqualTo(0.43f).Within(0.00001f));
+            Assert.That(hero.HookDamage, Is.EqualTo(250));
+        }
+
+        [TestCase(UpgradeId.Hook)]
         public void TryBuyUpgrade_FourLevels_RejectsFifthWithoutSpending(UpgradeId upgrade)
         {
             // Arrange.
-            var simulation = Setup.MatchWithRules(startGold: 1000);
+            var simulation = Setup.MatchWithRules(startGold: 2000);
             for (int i = 0; i < 4; i++)
             {
                 Assert.That(simulation.TryBuyUpgrade(1, upgrade, out _), Is.True);
+                var hero = simulation.GetHero(0);
+                int level = i + 1;
+                Assert.That(hero.HookLevel, Is.EqualTo(level));
+                Assert.That(hero.HookRange, Is.EqualTo(12 + level * 1.5f));
+                Assert.That(hero.HookSpeed, Is.EqualTo(20 + level * 4));
+                Assert.That(hero.HookRadius, Is.EqualTo(0.35f + level * 0.08f).Within(0.00001f));
+                Assert.That(hero.HookDamage, Is.EqualTo(175 + level * 75));
             }
             // Act.
             bool accepted = simulation.TryBuyUpgrade(1, upgrade, out _);
             // Assert.
             Assert.That(accepted, Is.False);
             Assert.That(simulation.UpgradeLevel(1, upgrade), Is.EqualTo(4));
-            Assert.That(simulation.GetHero(0).Gold, Is.Zero);
+            Assert.That(simulation.GetHero(0).Gold, Is.EqualTo(1000));
         }
 
         [Test]
@@ -130,24 +157,42 @@ namespace Game.Tests.EditMode
             // Arrange.
             var simulation = Setup.MatchWithRules();
             // Act.
-            bool accepted = simulation.TryBuyUpgrade(1, UpgradeId.Range, out _);
+            bool accepted = simulation.TryBuyUpgrade(1, UpgradeId.Hook, out _);
             // Assert.
             Assert.That(accepted, Is.False);
-            Assert.That(simulation.GetHero(0).RangeLevel, Is.Zero);
+            Assert.That(simulation.GetHero(0).HookLevel, Is.Zero);
             Assert.That(simulation.GetHero(0).HookRange, Is.EqualTo(12));
         }
 
         [Test]
-        public void TryBuyUpgrade_Range_RecalculatesFromBase()
+        public void TryBuyUpgrade_Hook_RaisesAllFourStatsForOnePrice()
         {
             // Arrange.
             var simulation = Setup.MatchWithRules(startGold: 100);
             // Act.
-            bool accepted = simulation.TryBuyUpgrade(1, UpgradeId.Range, out _);
+            bool accepted = simulation.TryBuyUpgrade(1, UpgradeId.Hook, out _);
             // Assert.
             Assert.That(accepted, Is.True);
             Assert.That(simulation.GetHero(0).HookRange, Is.EqualTo(13.5f));
+            Assert.That(simulation.GetHero(0).HookSpeed, Is.EqualTo(24));
+            Assert.That(simulation.GetHero(0).HookRadius, Is.EqualTo(0.43f).Within(0.00001f));
+            Assert.That(simulation.GetHero(0).HookDamage, Is.EqualTo(250));
+            Assert.That(simulation.GetHero(0).HookLevel, Is.EqualTo(1));
             Assert.That(simulation.GetHero(0).Gold, Is.Zero);
+        }
+
+        [TestCase(-1)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(int.MaxValue)]
+        public void TryBuyUpgrade_UnknownOrRemovedOption_RejectsWithoutSpending(int upgrade)
+        {
+            var simulation = Setup.MatchWithRules(startGold: 1000);
+            Assert.That(simulation.TryBuyUpgrade(1, (UpgradeId)upgrade, out _), Is.False);
+            Assert.That(simulation.GetHero(0).Gold, Is.EqualTo(1000));
+            Assert.That(simulation.GetHero(0).HookLevel, Is.Zero);
+            Assert.That(simulation.GetHero(0).HookDamage, Is.EqualTo(175));
         }
 
         [Test]
@@ -168,14 +213,14 @@ namespace Game.Tests.EditMode
         {
             // Arrange.
             var simulation = Setup.MatchWithRules(startGold: 100);
-            simulation.TryBuyUpgrade(1, UpgradeId.Range, out _);
+            simulation.TryBuyUpgrade(1, UpgradeId.Hook, out _);
             simulation.Enqueue(new ThrowHookIntent(1, new float2(1, 0), simulation.Time));
             // Act.
             simulation.ResetRound();
             Setup.Advance(simulation, 1);
             // Assert.
             Assert.That(simulation.GetHero(0).Gold, Is.EqualTo(100));
-            Assert.That(simulation.GetHero(0).RangeLevel, Is.Zero);
+            Assert.That(simulation.GetHero(0).HookLevel, Is.Zero);
             Assert.That(simulation.GetHook(0).Phase, Is.EqualTo(Game.Core.Hook.HookPhase.Idle));
         }
     }

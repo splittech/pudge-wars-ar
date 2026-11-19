@@ -1,7 +1,7 @@
-﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
-  <ui:Style src="Interface.uss" />
-  <ui:VisualElement class="world-layer" picking-mode="Ignore">
-    <ui:Label name="diagnostics" class="overlay" picking-mode="Ignore" />
-    <ui:Button name="arenaMode" class="mode-switch" text="Flat → AR" />
-  </ui:VisualElement>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Game/Resources/UI/Interface.uss?fileID=7433441132597879392&amp;guid=d2f7c69df86e47649843c6f0a541358c&amp;type=3#Interface"/>
+    <ui:VisualElement picking-mode="Ignore" class="world-layer">
+        <ui:Label name="diagnostics" picking-mode="Ignore" class="overlay"/>
+        <ui:Button name="arenaMode" text="Flat → AR" enabled="true" class="mode-switch" style="display: none;"/>
+    </ui:VisualElement>
 </ui:UXML>

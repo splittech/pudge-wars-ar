@@ -141,6 +141,7 @@ namespace Game.Net
 
         private void Update()
         {
+            _movement.SetRoom(MatchStateNet.Active?.Room);
             if (!isLocalPlayer || !NetworkClient.ready)
             {
                 return;
@@ -408,7 +409,7 @@ namespace Game.Net
             }
         }
 
-        public bool IsHookPredicted => isLocalPlayer && _prediction.IsPending;
+        public bool IsHookPredicted => isLocalPlayer && _prediction.IsPending && MatchStateNet.Active?.IsRoom != true;
 
         public HookNetState DisplayHookState
         {
@@ -417,6 +418,12 @@ namespace Game.Net
                 if (!isLocalPlayer || !_alive || _isPulled)
                 {
                     _prediction.Cancel();
+                }
+
+                if (MatchStateNet.Active?.IsRoom == true)
+                {
+                    _prediction.TryGetState(NetworkTime.time, _hookState, out _);
+                    return _hookState;
                 }
 
                 _prediction.TryGetState(NetworkTime.time, _hookState, out HookNetState state);
@@ -617,7 +624,7 @@ namespace Game.Net
             _flightRange = range;
             state.RequestId = _serverHookRequestId;
             state.SessionEpoch = _serverHookEpoch;
-            if (_hookState.Phase != state.Phase || _hookState.StartTime != state.StartTime
+            if (MatchStateNet.Active?.IsRoom == true || _hookState.Phase != state.Phase || _hookState.StartTime != state.StartTime
                 || _hookState.TargetNetId != state.TargetNetId || _hookState.RequestId != state.RequestId
                 || _hookState.SessionEpoch != state.SessionEpoch)
             {

@@ -9,32 +9,29 @@ namespace Game.Net
         public int Deaths;
         public int Assists;
         public int HookHits;
-        public int RangeLevel;
-        public int SpeedLevel;
-        public int RadiusLevel;
-        public int DamageLevel;
+        public int HookLevel;
         public float Range;
         public float Speed;
         public float Radius;
         public int Damage;
         public double RespawnAt;
 
-        public static HeroStatus From(HeroState hero) => new()
+        public static HeroStatus From(HeroState hero)
         {
-            Gold = hero.Gold,
-            Kills = hero.Kills,
-            Deaths = hero.Deaths,
-            Assists = hero.Assists,
-            HookHits = hero.HookHits,
-            RangeLevel = hero.RangeLevel,
-            SpeedLevel = hero.SpeedLevel,
-            RadiusLevel = hero.RadiusLevel,
-            DamageLevel = hero.DamageLevel,
-            Range = hero.HookRange,
-            Speed = hero.HookSpeed,
-            Radius = hero.HookRadius,
-            Damage = hero.HookDamage,
-            RespawnAt = hero.RespawnAt
-        };
+            return new HeroStatus
+            {
+                Gold = hero.Gold,
+                Kills = hero.Kills,
+                Deaths = hero.Deaths,
+                Assists = hero.Assists,
+                HookHits = hero.HookHits,
+                HookLevel = hero.HookLevel,
+                Range = hero.HookRange,
+                Speed = hero.HookSpeed,
+                Radius = hero.HookRadius,
+                Damage = hero.HookDamage,
+                RespawnAt = hero.RespawnAt
+            };
+        }
     }
 }

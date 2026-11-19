@@ -78,6 +78,10 @@ namespace Game.Presentation
                 owner,
                 speed,
                 _hero.HookViewRange > 0 ? _hero.HookViewRange : _config.Range);
+            if (MatchStateNet.Active?.IsRoom == true && state.Phase == HookPhase.Extending)
+            {
+                tip = state.Origin;
+            }
             ArenaLineRenderer.Draw(
                 _line,
                 arena,

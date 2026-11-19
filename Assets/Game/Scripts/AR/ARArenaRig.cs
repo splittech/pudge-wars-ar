@@ -16,6 +16,17 @@ namespace Game.AR
 
         public Camera Camera => _camera;
 
+        public RoomArenaAnchorProvider CreateRoomProvider(
+            Transform root,
+            ITouchGestures gestures,
+            bool host,
+            bool useAR,
+            Camera flatCamera)
+        {
+            return new RoomArenaAnchorProvider(_session, _planes, _raycasts, _anchors,
+                useAR ? _camera : flatCamera, root, gestures, host, useAR);
+        }
+
         public void SetActive(bool active)
         {
             if (_origin != null)

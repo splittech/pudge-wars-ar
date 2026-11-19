@@ -17,6 +17,11 @@ namespace Game.UI
             Visible("trackingLost", model.TrackingLost);
             Button("confirmPlacement", model.Confirm);
             Button("useFlat", model.UseFlat);
+            Visible("roomControls", model.RoomControlsVisible);
+            Visible("roomEditControls", model.RoomEditing);
+            Button("roomObstacle", model.AddObstacle);
+            Button("roomUndo", model.Undo);
+            Button("roomRealign", model.Realign);
         }
     }
 }

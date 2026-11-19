@@ -165,7 +165,7 @@ namespace Game.Tests.EditMode
             _simulation.Rules.Begin(NetworkTime.time, true, true, 1, 1);
             _simulation.Rules.ArenaPlaced(NetworkTime.time);
             _simulation.Step(Setup.TickDeltaTime, _simulation.Rules.CountdownEnd);
-            _simulation.TryBuyUpgrade(hero.SessionPlayerId, Game.Core.Economy.UpgradeId.Range, out _);
+            _simulation.TryBuyUpgrade(hero.SessionPlayerId, Game.Core.Economy.UpgradeId.Hook, out _);
             manager.OnServerDisconnect(original);
             _simulation.Step(Setup.TickDeltaTime);
 
@@ -184,7 +184,7 @@ namespace Game.Tests.EditMode
             Assert.That(result, Is.EqualTo(AuthCode.Accepted));
             Assert.That(sameHero, Is.SameAs(hero));
             Assert.That(hero.CurrentStatus.Gold, Is.EqualTo(900));
-            Assert.That(hero.CurrentStatus.RangeLevel, Is.EqualTo(1));
+            Assert.That(hero.CurrentStatus.HookLevel, Is.EqualTo(1));
             Assert.That(hero.CurrentStatus.Range, Is.EqualTo(13.5f));
             Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Playing));
             Assert.That(_simulation.HeroCount, Is.EqualTo(2));
@@ -238,7 +238,7 @@ namespace Game.Tests.EditMode
                     new System.Text.RegularExpressions.Regex("Throw rejected for player"));
             }
 
-            object input = kind == ActionKind.Throw ? (object)Vector2.zero : Game.Core.Economy.UpgradeId.Damage;
+            object input = kind == ActionKind.Throw ? (object)Vector2.zero : Game.Core.Economy.UpgradeId.Hook;
 
             // Act.
             method.Invoke(hero, new[] { input, 1u, (object)hero.SessionEpoch, initiator });
@@ -338,6 +338,55 @@ namespace Game.Tests.EditMode
             // Assert.
             Assert.That(match.Players, Is.Empty);
             Assert.That(manager.Roster.Players, Is.Empty);
+        }
+
+        [Test]
+        public void RoomMap_HostOnlyAndRevisionGate_PreventPrematureCountdown()
+        {
+            var manager = _managerRoot.GetComponent<PudgeNetworkManager>();
+            Assert.That(manager.ConfigureHostedGameMode(GameMode.RoomFreeForAll), Is.True);
+            NetworkConnectionToClient connection = StartTestServer();
+            _simulation.ConfigureRules(Setup.MatchConfig(), new EconomyConfigData(150, 50, 10, 0, new[] { 100 }));
+            _factory.EnsureMatchState();
+            HeroNet first = _factory.SpawnPlayer(connection);
+            HeroNet second = _factory.SpawnPlayer(AuthenticatedConnection(2));
+            var match = _arenaRoot.GetComponentInChildren<MatchStateNet>();
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            Assert.That(match.IsRoom, Is.True);
+            Assert.That(_simulation.Rules.Mode, Is.EqualTo(GameMode.RoomFreeForAll));
+            Assert.That(manager.ConfigureHostedGameMode(GameMode.TeamDuel), Is.False);
+            manager.Roster.SetReady(first.SessionPlayerId, true);
+            manager.Roster.SetReady(second.SessionPlayerId, true);
+            var lobbyMethod = typeof(MatchStateNet).GetMethod("LobbyAction", flags);
+            Assert.That(lobbyMethod.Invoke(match, new object[] { first.SessionPlayerId, (byte)2, Team.A, false, true }), Is.True);
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Placement));
+            var submitMethod = typeof(MatchStateNet).GetMethod("SubmitRoom", flags);
+            byte[] payload = Game.Core.Geometry.RoomArenaCodec.Encode(new Game.Core.Geometry.RoomArena(RoomArenaTests.Rectangle(-10, -8, 10, 8)));
+            Assert.That(submitMethod.Invoke(match, new object[] { payload, false, null }), Is.False);
+            Assert.That(submitMethod.Invoke(match, new object[] { new byte[] { 1, 255 }, true, null }), Is.False);
+            Assert.That(submitMethod.Invoke(match, new object[] { payload, true, null }), Is.True);
+            Assert.That(submitMethod.Invoke(match, new object[] { payload, true, null }), Is.False);
+            var copy = _factory.SpawnClient(new SpawnMessage
+            {
+                assetId = _catalog.MatchState.GetComponent<NetworkIdentity>().assetId,
+                rotation = Quaternion.identity,
+                scale = Vector3.one
+            }).GetComponent<MatchStateNet>();
+            // EditMode skips Mirror's runtime registration; statistics are covered by their own tests.
+            match.Statistics.Clear();
+            var writer = new NetworkWriter();
+            match.OnSerialize(writer, true);
+            copy.OnDeserialize(new NetworkReader(writer.ToArray()), true);
+            Assert.That(copy.IsRoom, Is.True);
+            Assert.That(copy.RoomRevision, Is.EqualTo(match.RoomRevision));
+            Assert.That(copy.Room.GetPolygon(0), Is.EqualTo(match.Room.GetPolygon(0)));
+            var confirmMethod = typeof(MatchStateNet).GetMethod("ConfirmRoom", flags);
+            Assert.That(confirmMethod.Invoke(match, new object[] { first.SessionPlayerId, match.RoomRevision + 1 }), Is.False);
+            Assert.That(confirmMethod.Invoke(match, new object[] { first.SessionPlayerId, match.RoomRevision }), Is.True);
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Placement));
+            Assert.That(confirmMethod.Invoke(match, new object[] { second.SessionPlayerId, match.RoomRevision }), Is.True);
+            Assert.That(_simulation.Rules.Phase, Is.EqualTo(MatchPhase.Countdown));
+            Assert.Throws<InvalidOperationException>(() => _factory.SpawnPlayer(AuthenticatedConnection(3)));
         }
         [Test]
         public void Apply_ConfirmedThrow_CopiesRequestCorrelationToHookSnapshot()

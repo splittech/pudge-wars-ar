@@ -121,6 +121,7 @@ namespace Game.Net
             RequireServer();
             if (_matchState == null)
             {
+                _simulation.Rules?.SetMode(_manager.HostedGameMode);
                 _matchState = SpawnServer(_catalog.MatchState.gameObject).GetComponent<MatchStateNet>();
                 _matchState.BindRuntime(_simulation, _manager, _commands);
                 SynchronizeRoster();
@@ -178,6 +179,11 @@ namespace Game.Net
             if (_players[slot] != null)
             {
                 throw new InvalidOperationException("Authenticated slot already has a hero.");
+            }
+
+            if (_simulation.IsRoom && _simulation.Rules.Phase != Game.Core.Match.MatchPhase.Lobby)
+            {
+                throw new InvalidOperationException("New room participants can join in the lobby only.");
             }
 
             GameObject instance = Create(_catalog.Hero.gameObject);

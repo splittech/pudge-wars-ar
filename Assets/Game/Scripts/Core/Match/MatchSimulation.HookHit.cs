@@ -20,7 +20,7 @@ namespace Game.Core.Match
             ref var victim = ref _heroes[target];
             ref var hook = ref _hooks[owner];
             bool intercepted = victim.IsPulled;
-            bool headshot = intercepted && victim.Team != _heroes[owner].Team;
+            bool headshot = intercepted && (IsRoom || victim.Team != _heroes[owner].Team);
             if (intercepted)
             {
                 for (int i = 0; i < _hooks.Length; i++)
@@ -38,7 +38,7 @@ namespace Game.Core.Match
                 _heroes[owner].HookHits++;
             }
 
-            int damage = Combat.Combat.ApplyHit(ref victim, _heroes[owner], headshot ? victim.Hp : hook.Damage);
+            int damage = Combat.Combat.ApplyHit(ref victim, _heroes[owner], headshot ? victim.Hp : hook.Damage, IsRoom);
             if (damage > 0)
             {
                 _damage.Add(new HeroDamaged(victim.Id, hook.OwnerId, damage, victim.Hp, time));
@@ -67,7 +67,11 @@ namespace Game.Core.Match
             hook.TargetId = victim.Id;
             HookSimulation.Turn(ref hook, HookPhase.Pulling, time);
             victim.IsPulled = true;
-            victim.Pos = hook.Tip;
+            victim.Pos = MoveInRoom(victim.Pos, hook.Tip, victim.Radius);
+            if (IsRoom)
+            {
+                hook.Tip = victim.Pos;
+            }
         }
     }
 }

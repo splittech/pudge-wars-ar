@@ -9,6 +9,11 @@ namespace Game.Core.Match
         private float2 ClampCollisionPosition(int index, float2 position)
         {
             var hero = _heroes[index];
+            if (IsRoom && Room != null)
+            {
+                return Room.Move(hero.Pos, position, hero.Radius);
+            }
+
             var teamBounds = ArenaBounds.ForPosition(_arena, hero.Pos, hero.Radius);
             bool inOwnHalf = math.all(hero.Pos >= teamBounds.Min) && math.all(hero.Pos <= teamBounds.Max);
             var bounds = inOwnHalf && !hero.IsPulled ? teamBounds :
